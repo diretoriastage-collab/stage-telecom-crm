@@ -889,7 +889,7 @@ function salvarMetas() {
     alert('✅ Metas de vendas atualizadas!');
 }
 
-// ===== PROMOÇÕES =====
+// ===== PROMOÇÕES (CORRIGIDAS) =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
@@ -908,6 +908,9 @@ function cadastrarPromocao() {
 function carregarPromocoes() {
     const agora = new Date();
     const tabela = document.getElementById('tabelaPromocoes');
+    const divVazia = document.getElementById('promocoesVazia');
+
+    // Atualiza status e verifica vencedores se necessário
     DB.promocoes.forEach(p => {
         const inicio = new Date(p.inicio);
         const fim = new Date(p.fim);
@@ -920,6 +923,14 @@ function carregarPromocoes() {
         }
     });
     salvarDB();
+
+    if (DB.promocoes.length === 0) {
+        tabela.innerHTML = '';
+        divVazia.style.display = 'block';
+        return;
+    } else {
+        divVazia.style.display = 'none';
+    }
 
     tabela.innerHTML = DB.promocoes.map(p => `
         <tr>
