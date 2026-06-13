@@ -1,13 +1,12 @@
 // ============================================
 // STAGE TELECOM CRM - SCRIPT COMPLETO
-// Relógio 100% funcional (intervalo global)
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db')) || {
     usuarios: [
-        { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true },
-        { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true },
-        { id: 3, usuario: "maria.santos", senha: "vend123", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true },
-        { id: 4, usuario: "pedro.costa", senha: "vend123", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true }
+        { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null },
+        { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
+        { id: 3, usuario: "maria.santos", senha: "vend123", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
+        { id: 4, usuario: "pedro.costa", senha: "vend123", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null }
     ],
     clientes: [
         { id: 1, nome: "TechBrasil Ltda", cnpj: "00.000.000/0001-00", telefone: "(11) 3456-7890", email: "contato@techbrasil.com.br", vendedor_id: 2, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-01-15" },
@@ -24,7 +23,7 @@ function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 let sessao = JSON.parse(localStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
 
-// ===== RELÓGIO GLOBAL (INICIA AUTOMATICAMENTE) =====
+// ===== RELÓGIO GLOBAL =====
 setInterval(() => {
     const agora = new Date();
     const diasSemana = ['DOMINGO','SEGUNDA','TERÇA','QUARTA','QUINTA','SEXTA','SÁBADO'];
@@ -49,7 +48,7 @@ function fazerLogin() {
     const senha = document.getElementById('senha').value.trim();
     const erro = document.getElementById('mensagemErro');
     if (!usuario || !senha) { erro.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Preencha todos os campos!'; erro.style.color = '#ffa502'; return; }
-    const user = DB.usuarios.find(u => u.usuario === usuario && u.senha === senha && u.ativo);
+    const user = DB.usuarios.find(u => u.usuario === usuario && u.senha === senha && u.ativo && !u.deletedAt);
     if (user) {
         sessao = { id: user.id, nome: user.nome, email: user.email, tipo: user.tipo };
         localStorage.setItem('stage_session', JSON.stringify(sessao));
@@ -89,7 +88,6 @@ function mostrarVendedor() {
     carregarMeusClientes();
 }
 
-// ===== CARREGAR CONFIGURAÇÕES =====
 function carregarConfiguracoes() {
     const diario = document.getElementById('metaDiariaInput');
     const mensal = document.getElementById('metaMensalInput');
@@ -107,7 +105,7 @@ function gerarDadosVendas() {
     const hoje = new Date(); const dataHoje = hoje.toISOString().split('T')[0];
     let vendas = JSON.parse(localStorage.getItem('vendas_diarias')) || [];
     if (!vendas.length || vendas[0]?.data !== dataHoje) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo);
+        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
         const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9},{nome:'Ultra',valor:1499.9}];
         vendas = []; const num = Math.floor(Math.random()*8)+3;
         for (let i=0;i<num;i++) {
@@ -123,7 +121,7 @@ function gerarVendasDiaPassado() {
     const hoje = new Date(); const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate()); const data = mesPassado.toISOString().split('T')[0];
     let vendas = JSON.parse(localStorage.getItem('vendas_mes_passado_dia')) || [];
     if (!vendas.length || vendas[0]?.data !== data) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo);
+        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
         const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
         vendas = []; const num = Math.floor(Math.random()*6)+2;
         for (let i=0;i<num;i++) {
@@ -139,7 +137,7 @@ function gerarVendasMesAtual() {
     const hoje = new Date(); const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
     let vendas = JSON.parse(localStorage.getItem('vendas_mes_atual')) || [];
     if (!vendas.length || !vendas[0]?.data.startsWith(mesAtual)) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo);
+        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
         const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
         vendas = []; const num = Math.floor(Math.random()*30)+15;
         for (let i=0;i<num;i++) {
@@ -157,7 +155,7 @@ function gerarVendasMesAnterior() {
     const mesKey = `${anoAnt}-${String(mesAnt).padStart(2,'0')}`;
     let vendas = JSON.parse(localStorage.getItem('vendas_mes_anterior')) || [];
     if (!vendas.length || !vendas[0]?.data.startsWith(mesKey)) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo);
+        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
         const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
         vendas = []; const num = Math.floor(Math.random()*25)+10;
         for (let i=0;i<num;i++) {
@@ -174,7 +172,7 @@ function gerarVendasMesAnterior() {
 // ===== DASHBOARD =====
 function carregarDashboard() {
     document.getElementById('totalClientes').textContent = DB.clientes.length;
-    document.getElementById('vendedoresAtivos').textContent = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo).length;
+    document.getElementById('vendedoresAtivos').textContent = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt).length;
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
     const tabela = document.getElementById('tabelaClientes');
@@ -284,23 +282,109 @@ function mostrarSecao(secao) {
     if(secao==='clientes') carregarTodosClientes();
     if(secao==='relatorios') carregarRelatorios();
 }
+
+// ===== ADMIN - VENDEDORES =====
 function mostrarFormVendedor(){document.getElementById('formVendedor').style.display='block';}
 function cadastrarVendedor(){
     const n=document.getElementById('nomeVendedor').value.trim(), u=document.getElementById('usuarioVendedor').value.trim(), s=document.getElementById('senhaVendedor').value.trim(), e=document.getElementById('emailVendedor').value.trim();
     if(!n||!u||!s||!e) return alert('Preencha todos os campos!');
-    if(DB.usuarios.find(x=>x.usuario===u)) return alert('Usuário já existe!');
-    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:'vendedor',ativo:true});
+    if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
+    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:'vendedor',ativo:true,deletedAt:null});
     salvarDB(); carregarVendedores(); document.getElementById('formVendedor').style.display='none';
     ['nomeVendedor','usuarioVendedor','senhaVendedor','emailVendedor'].forEach(id=>document.getElementById(id).value='');
 }
-function carregarVendedores(){
-    const tabela=document.getElementById('tabelaVendedores');
-    tabela.innerHTML = DB.usuarios.filter(u=>u.tipo==='vendedor').map(v=>{
-        const clientes = DB.clientes.filter(c=>c.vendedor_id===v.id).length;
-        return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span style="background:rgba(231,76,60,0.2);padding:4px 12px;border-radius:15px;">${clientes}</span></td><td class="${v.ativo?'status-ativo':''}">${v.ativo?'● Ativo':'○ Inativo'}</td><td><button onclick="toggleVendedor(${v.id})" style="background:${v.ativo?'rgba(255,71,87,0.2)':'rgba(46,213,115,0.2)'};border:1px solid ${v.ativo?'rgba(255,71,87,0.3)':'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;">${v.ativo?'Desativar':'Ativar'}</button></td></tr>`;
+
+function carregarVendedores() {
+    // Remove definitivamente quem passou 15 dias na lixeira
+    const agora = new Date();
+    DB.usuarios = DB.usuarios.filter(u => {
+        if (u.deletedAt) {
+            const dias = (agora - new Date(u.deletedAt)) / (1000*60*60*24);
+            return dias <= 15;
+        }
+        return true;
+    });
+    salvarDB();
+
+    const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
+    const tabela = document.getElementById('tabelaVendedores');
+    tabela.innerHTML = vendedores.map(v => {
+        const clientes = DB.clientes.filter(c => c.vendedor_id === v.id).length;
+        return `
+            <tr>
+                <td>
+                    <strong>${v.nome}</strong>
+                    <button onclick="abrirModalEditar(${v.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;" title="Editar vendedor">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                </td>
+                <td>@${v.usuario}</td>
+                <td>${v.email}</td>
+                <td><span style="background:rgba(231,76,60,0.2);padding:4px 12px;border-radius:15px;">${clientes} clientes</span></td>
+                <td class="${v.ativo?'status-ativo':''}">${v.ativo?'● Ativo':'○ Inativo'}</td>
+                <td>
+                    <button onclick="toggleVendedor(${v.id})" style="background:${v.ativo?'rgba(255,71,87,0.2)':'rgba(46,213,115,0.2)'};border:1px solid ${v.ativo?'rgba(255,71,87,0.3)':'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${v.ativo?'🔒 Desativar':'🔓 Ativar'}</button>
+                    <button onclick="excluirVendedor(${v.id})" style="background:rgba(255,71,87,0.3);border:1px solid rgba(255,71,87,0.5);color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;margin-left:5px;"><i class="fas fa-trash"></i> Excluir</button>
+                </td>
+            </tr>
+        `;
     }).join('');
 }
-function toggleVendedor(id){const v=DB.usuarios.find(u=>u.id===id); if(v){v.ativo=!v.ativo;salvarDB();carregarVendedores();}}
+
+function toggleVendedor(id) {
+    const vend = DB.usuarios.find(u => u.id===id);
+    if(vend) { vend.ativo = !vend.ativo; salvarDB(); carregarVendedores(); }
+}
+
+function excluirVendedor(id) {
+    const vend = DB.usuarios.find(u => u.id===id);
+    if(!vend) return;
+    if(confirm(`⚠️ Você quer realmente excluir o vendedor "${vend.nome}"?\nEle ficará na lixeira por 15 dias e perderá o acesso imediatamente.`)) {
+        vend.deletedAt = new Date().toISOString();
+        vend.ativo = false;
+        salvarDB();
+        carregarVendedores();
+    }
+}
+
+// ===== EDIÇÃO DE VENDEDOR =====
+function abrirModalEditar(id) {
+    const vend = DB.usuarios.find(u => u.id===id);
+    if(!vend) return;
+    document.getElementById('editVendedorId').value = vend.id;
+    document.getElementById('editNomeVendedor').value = vend.nome;
+    document.getElementById('editUsuarioVendedor').value = vend.usuario;
+    document.getElementById('editEmailVendedor').value = vend.email;
+    document.getElementById('editSenhaVendedor').value = '';
+    document.getElementById('modalEditarVendedor').style.display = 'flex';
+}
+function fecharModalEditar() {
+    document.getElementById('modalEditarVendedor').style.display = 'none';
+}
+function salvarEdicaoVendedor() {
+    const id = parseInt(document.getElementById('editVendedorId').value);
+    const nome = document.getElementById('editNomeVendedor').value.trim();
+    const usuario = document.getElementById('editUsuarioVendedor').value.trim();
+    const email = document.getElementById('editEmailVendedor').value.trim();
+    const novaSenha = document.getElementById('editSenhaVendedor').value.trim();
+
+    if(!nome||!usuario||!email) return alert('⚠️ Nome, usuário e email são obrigatórios!');
+    const vend = DB.usuarios.find(u => u.id===id);
+    if(!vend) return;
+
+    const conflito = DB.usuarios.find(u => u.usuario===usuario && u.id!==id && !u.deletedAt);
+    if(conflito) return alert('⚠️ Nome de usuário já está em uso!');
+
+    vend.nome = nome;
+    vend.usuario = usuario;
+    vend.email = email;
+    if(novaSenha) vend.senha = novaSenha;
+
+    salvarDB();
+    carregarVendedores();
+    fecharModalEditar();
+}
+
 function carregarTodosClientes(){
     document.getElementById('tabelaTodosClientes').innerHTML = DB.clientes.map(c=>{
         const v=DB.usuarios.find(u=>u.id===c.vendedor_id);
