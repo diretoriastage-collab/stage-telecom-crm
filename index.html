@@ -107,23 +107,32 @@
                 
                 <!-- SEÇÃO DASHBOARD -->
                 <div id="secao-dashboard" class="section-active">
+                    <!-- TOP ROW: Meta Mensal + Relógio -->
                     <div class="dashboard-top-row">
-                        <div class="metrics-grid-horizontal" style="grid-template-columns: repeat(2, 1fr);">
-                            <div class="metric-glass-mini">
-                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);"><i class="fas fa-building"></i></div>
-                                <div class="metric-info-mini">
-                                    <span class="metric-label-mini">Total Clientes</span>
-                                    <span class="metric-value-mini" id="totalClientes">0</span>
+                        <!-- Card de Progresso da Meta (barra líquida animada) -->
+                        <div class="metric-glass-progresso">
+                            <div class="progresso-header">
+                                <div class="progresso-icon">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                                <div class="progresso-info">
+                                    <span class="progresso-label">ALCANCE DA META MENSAL</span>
+                                    <span class="progresso-meta">Meta: <strong id="metaMensalCard">50</strong> vendas</span>
+                                </div>
+                                <div class="progresso-percent" id="percentualMeta">0%</div>
+                            </div>
+                            <div class="progresso-bar-container">
+                                <div class="progresso-bar-liquido" id="barraLiquida" style="width: 0%;">
+                                    <div class="onda"></div>
                                 </div>
                             </div>
-                            <div class="metric-glass-mini">
-                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6348, #ff4757);"><i class="fas fa-user-tie"></i></div>
-                                <div class="metric-info-mini">
-                                    <span class="metric-label-mini">Vendedores</span>
-                                    <span class="metric-value-mini" id="vendedoresAtivos">0</span>
-                                </div>
+                            <div class="progresso-detalhes">
+                                <span>Realizado: <strong id="realizadoMeta">0</strong> vendas</span>
+                                <span>Faltam: <strong id="faltamMeta">50</strong></span>
                             </div>
                         </div>
+                        
+                        <!-- Relógio Digital -->
                         <div class="clock-panel">
                             <div class="clock-glass">
                                 <div class="clock-date" id="dataAtual">--</div>
@@ -133,6 +142,8 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- MIDDLE ROW: Vendas Diárias + Comparativo -->
                     <div class="dashboard-middle-row">
                         <div class="panel-glass vendas-diarias">
                             <div class="panel-header">
@@ -217,6 +228,8 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Tabela de Clientes Recentes -->
                     <div class="table-glass">
                         <div class="table-header">
                             <h3><i class="fas fa-clock"></i> Clientes Recentes</h3>
@@ -231,7 +244,7 @@
                     </div>
                 </div>
                 
-                <!-- SEÇÃO VENDEDORES (ATUALIZADA SEM CLIENTES) -->
+                <!-- SEÇÃO VENDEDORES -->
                 <div id="secao-vendedores" class="section-hidden">
                     <button onclick="mostrarFormVendedor()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Novo Vendedor</span></button>
                     
