@@ -197,6 +197,7 @@ function carregarDashboard() {
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
 }
+
 function carregarVendasDiarias() {
     const hoje = new Date();
     document.getElementById('dataVendasDiarias').textContent = hoje.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
@@ -208,7 +209,9 @@ function carregarVendasDiarias() {
     document.getElementById('realizadoMetaDiaria').textContent = vendasHoje.length;
     document.getElementById('faltamMetaDiaria').textContent = Math.max(meta - vendasHoje.length, 0);
     document.getElementById('metaDiaria').textContent = meta;
-    const ranking = {}; vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
+
+    const ranking = {};
+    vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
     const rankingArr = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas);
     const rankingEl = document.getElementById('rankingVendedores');
     rankingEl.innerHTML = rankingArr.length ? rankingArr.map((r,i)=>{
@@ -216,7 +219,9 @@ function carregarVendasDiarias() {
         const medal=pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos;
         return `<div class="ranking-item"><div class="ranking-posicao ${cls}">${medal}</div><div class="ranking-info"><span class="ranking-nome">${r.nome}</span><span class="ranking-vendas">${r.vendas} vendas</span></div><span class="ranking-pontos">${r.vendas}</span></div>`;
     }).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Nenhuma venda hoje</p>';
-    const produtos = {}; vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
+
+    const produtos = {};
+    vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
     const prodArr = Object.values(produtos).sort((a,b)=>b.qtd-a.qtd);
     const maxQtd = prodArr[0]?.qtd||1;
     const prodEl = document.getElementById('produtosVendidos');
@@ -224,11 +229,62 @@ function carregarVendasDiarias() {
 }
 
 // ===== COMPARATIVO =====
-function mostrarComparativo(tipo) { /* ... */ }
-function carregarComparativoDiario() { /* ... */ }
-function carregarComparativoMensal() { /* ... */ }
-function carregarComparacaoProdutos(vAtual, vPassado, containerId) { /* ... */ }
-// (As funções de comparativo são as mesmas já testadas; por brevidade não as repeti, mas devem estar completas no arquivo final)
+function mostrarComparativo(tipo) {
+    comparativoAtual = tipo;
+    document.querySelectorAll('.btn-compare').forEach(b=>b.classList.remove('active'));
+    document.getElementById(tipo==='diario'?'btnDiario':'btnMensal').classList.add('active');
+    document.getElementById('comparativoDiario').style.display = tipo==='diario'?'block':'none';
+    document.getElementById('comparativoMensal').style.display = tipo==='mensal'?'block':'none';
+    tipo==='diario' ? carregarComparativoDiario() : carregarComparativoMensal();
+}
+function carregarComparativoDiario() {
+    const hoje = new Date();
+    document.getElementById('compDataHoje').textContent = hoje.toLocaleDateString('pt-BR',{day:'numeric',month:'long'});
+    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate());
+    document.getElementById('compDataPassado').textContent = mesPassado.toLocaleDateString('pt-BR',{day:'numeric',month:'long'});
+    const vHoje = gerarDadosVendas(), vPassado = gerarVendasDiaPassado();
+    document.getElementById('compVendasHoje').textContent = vHoje.length;
+    document.getElementById('compVendasPassado').textContent = vPassado.length;
+    const dif = vHoje.length - vPassado.length;
+    const diffEl = document.getElementById('compDiferencaDiario');
+    diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
+    diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
+    const ranking = {}; vHoje.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
+    const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
+    document.getElementById('destaqueDiario').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas hoje</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
+    carregarComparacaoProdutos(vHoje, vPassado, 'compProdutosDiario');
+}
+function carregarComparativoMensal() {
+    const hoje = new Date();
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    document.getElementById('compMesAtual').textContent = meses[hoje.getMonth()];
+    document.getElementById('compMesPassado').textContent = meses[hoje.getMonth()===0?11:hoje.getMonth()-1];
+    const vAtual = gerarVendasMesAtual(), vAnterior = gerarVendasMesAnterior();
+    document.getElementById('compVendasMesAtual').textContent = vAtual.length;
+    document.getElementById('compVendasMesAnterior').textContent = vAnterior.length;
+    const dif = vAtual.length - vAnterior.length;
+    const diffEl = document.getElementById('compDiferencaMensal');
+    diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
+    diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
+    const ranking = {}; vAtual.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
+    const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
+    document.getElementById('destaqueMensal').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas no mês</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
+    carregarComparacaoProdutos(vAtual, vAnterior, 'compProdutosMensal');
+    const meta = DB.metas.mensalVendas || 150, realizado = vAtual.length, pct = Math.min((realizado/meta)*100,100).toFixed(1);
+    document.getElementById('metaMensalValor').textContent = meta;
+    document.getElementById('metaMensalRealizado').textContent = realizado;
+    document.getElementById('metaMensalPct').textContent = `${pct}%`;
+    document.getElementById('metaMensalProgresso').style.width = `${pct}%`;
+}
+function carregarComparacaoProdutos(vAtual, vPassado, containerId) {
+    const container = document.getElementById(containerId);
+    const planos = ['Básico','Empresarial','Premium','Ultra'];
+    const maxVendas = Math.max(...planos.map(p=>Math.max(vAtual.filter(v=>v.plano===p).length, vPassado.filter(v=>v.plano===p).length,1)),1);
+    container.innerHTML = planos.map(p=>{
+        const qAtual = vAtual.filter(v=>v.plano===p).length, qPassado = vPassado.filter(v=>v.plano===p).length;
+        return `<div class="comp-produto-item"><span class="comp-produto-nome">${p}</span><div class="comp-produto-barras"><div class="comp-produto-atual" style="width:${(qAtual/maxVendas)*100}%;min-width:${qAtual>0?'25px':'0'}">${qAtual>0?qAtual:''}</div><div class="comp-produto-passado" style="width:${(qPassado/maxVendas)*100}%;min-width:${qPassado>0?'25px':'0'}">${qPassado>0?qPassado:''}</div></div></div>`;
+    }).join('');
+}
 
 // ===== NAVEGAÇÃO ADMIN =====
 function mostrarSecao(secao) {
@@ -242,13 +298,10 @@ function mostrarSecao(secao) {
     if(secao==='cadastro') carregarUsuarios();
     if(secao==='ativacoes') carregarAtivacoes();
     if(secao==='relatorios') carregarRelatorios();
-    if(secao==='metas') {
-        carregarMetas();
-        carregarPromocoes(); // garante que ao abrir a seção Metas, a aba Promoções seja carregada
-    }
+    if(secao==='metas') { carregarMetas(); carregarPromocoes(); }
 }
 
-// ===== CADASTRO DE USUÁRIOS (mantido) =====
+// ===== CADASTRO DE USUÁRIOS =====
 function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
 function cadastrarUsuario(){
     const n=document.getElementById('nomeUsuario').value.trim(), u=document.getElementById('usuarioUsuario').value.trim(), s=document.getElementById('senhaUsuario').value.trim(), e=document.getElementById('emailUsuario').value.trim(), cat=document.getElementById('categoriaUsuario').value;
@@ -326,7 +379,7 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (mantidas) =====
+// ===== ATIVAÇÕES =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     tabela.innerHTML = DB.ativacoes.map(a => {
@@ -596,22 +649,8 @@ function carregarPromocoes() {
         else if (agora > fim && !p.concluida) { p.status = '⏹️ Encerrada'; p.ativa = false; verificarVencedoresPromocao(p); }
     });
     salvarDB();
-    if (DB.promocoes.length === 0) {
-        tabela.innerHTML = '';
-        divVazia.style.display = 'block';
-    } else {
-        divVazia.style.display = 'none';
-        tabela.innerHTML = DB.promocoes.map(p => `
-            <tr>
-                <td>${p.tipo}</td>
-                <td>${p.quantidade}</td>
-                <td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td>
-                <td>${p.premio}</td>
-                <td>${p.status || 'Ativa'}</td>
-                <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td>
-            </tr>
-        `).join('');
-    }
+    if (DB.promocoes.length === 0) { tabela.innerHTML = ''; divVazia.style.display = 'block'; }
+    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr><td>${p.tipo}</td><td>${p.quantidade}</td><td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td><td>${p.premio}</td><td>${p.status || 'Ativa'}</td><td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); }
 }
 function excluirPromocao(id) { if (confirm('Excluir esta promoção?')) { DB.promocoes = DB.promocoes.filter(p => p.id !== id); salvarDB(); carregarPromocoes(); } }
 function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) { return gerarVendasParaPeriodo(vendedorId, inicio, fim).length; }
