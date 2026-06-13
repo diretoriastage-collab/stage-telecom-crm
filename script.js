@@ -2,6 +2,18 @@
 // STAGE TELECOM CRM - SCRIPT COMPLETO
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db')) || {
+    // Garantir que statusFlags exista
+if (!DB.statusFlags) {
+    DB.statusFlags = [
+        { id: 1, nome: "Ativo", cor: "#2ed573" },
+        { id: 2, nome: "Pendente", cor: "#ffa502" },
+        { id: 3, nome: "Cancelado", cor: "#ff4757" }
+    ];
+}
+// Garantir que ativacoes exista
+if (!DB.ativacoes) {
+    DB.ativacoes = [];
+}
     usuarios: [
         { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null },
         { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
