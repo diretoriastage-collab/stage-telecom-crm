@@ -8,35 +8,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-    <!-- ========== PARTÍCULAS DE FUNDO ========== -->
     <div class="particles"></div>
     <div class="particles-layer-2"></div>
     
-    <!-- ========== TELA DE LOGIN ========== -->
+    <!-- LOGIN -->
     <div id="loginScreen" class="login-wrapper">
         <div class="login-container">
             <div class="glass-card login-card">
                 <div class="login-header">
-                    <div class="logo-pulse">
-                        <i class="fas fa-broadcast-tower"></i>
-                    </div>
+                    <div class="logo-pulse"><i class="fas fa-broadcast-tower"></i></div>
                     <h1 class="brand-title">STAGE <span>TELECOM</span></h1>
                     <p class="brand-subtitle">Sistema de Gestão Empresarial</p>
                 </div>
-                
-                <form id="loginForm" class="login-form" onsubmit="return false;">
+                <form class="login-form" onsubmit="return false;">
                     <div class="input-glass">
                         <i class="fas fa-user-circle"></i>
                         <input type="text" id="usuario" placeholder="Usuário" required autocomplete="off">
                         <span class="input-glow"></span>
                     </div>
-                    
                     <div class="input-glass">
                         <i class="fas fa-lock"></i>
                         <input type="password" id="senha" placeholder="Senha" required>
                         <span class="input-glow"></span>
                     </div>
-                    
                     <div class="login-options">
                         <label class="remember-me">
                             <input type="checkbox" id="lembrar">
@@ -44,86 +38,58 @@
                         </label>
                         <a href="#" class="forgot-password">Esqueceu a senha?</a>
                     </div>
-                    
                     <button type="button" onclick="fazerLogin()" class="btn-glass-login">
                         <span>ACESSAR SISTEMA</span>
                         <i class="fas fa-arrow-right"></i>
                         <div class="btn-shine"></div>
                     </button>
-                    
                     <div id="mensagemErro" class="error-message"></div>
                 </form>
-                
                 <div class="login-footer">
                     <div class="connection-dots">
-                        <span class="dot active"></span>
-                        <span class="dot"></span>
-                        <span class="dot"></span>
+                        <span class="dot active"></span><span class="dot"></span><span class="dot"></span>
                     </div>
                     <p>Conectando ao servidor seguro...</p>
                 </div>
             </div>
-            
             <div class="floating-card card-1">
-                <i class="fas fa-chart-line"></i>
-                <span>+245%</span>
-                <small>crescimento</small>
+                <i class="fas fa-chart-line"></i><span>+245%</span><small>crescimento</small>
             </div>
             <div class="floating-card card-2">
-                <i class="fas fa-users"></i>
-                <span>1.2k</span>
-                <small>clientes ativos</small>
+                <i class="fas fa-users"></i><span>1.2k</span><small>clientes ativos</small>
             </div>
         </div>
     </div>
 
-    <!-- ========== DASHBOARD ADMIN ========== -->
+    <!-- DASHBOARD ADMIN -->
     <div id="adminScreen" class="dashboard-wrapper" style="display:none;">
         <aside class="sidebar-glass">
             <div class="sidebar-brand">
-                <div class="brand-icon">
-                    <i class="fas fa-broadcast-tower"></i>
-                </div>
-                <h2>STAGE</h2>
-                <span>TELECOM</span>
+                <div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div>
+                <h2>STAGE</h2><span>TELECOM</span>
             </div>
-            
             <div class="user-profile-glass" id="userInfoAdmin"></div>
-            
             <nav class="nav-glass">
                 <a href="#" onclick="mostrarSecao('dashboard')" class="nav-item active" data-section="dashboard">
-                    <i class="fas fa-th-large"></i>
-                    <span>Dashboard</span>
-                    <div class="nav-indicator"></div>
+                    <i class="fas fa-th-large"></i><span>Dashboard</span><div class="nav-indicator"></div>
                 </a>
                 <a href="#" onclick="mostrarSecao('vendedores')" class="nav-item" data-section="vendedores">
-                    <i class="fas fa-user-tie"></i>
-                    <span>Vendedores</span>
-                    <div class="nav-indicator"></div>
+                    <i class="fas fa-user-tie"></i><span>Vendedores</span><div class="nav-indicator"></div>
                 </a>
                 <a href="#" onclick="mostrarSecao('clientes')" class="nav-item" data-section="clientes">
-                    <i class="fas fa-building"></i>
-                    <span>Clientes</span>
-                    <div class="nav-indicator"></div>
+                    <i class="fas fa-building"></i><span>Clientes</span><div class="nav-indicator"></div>
                 </a>
                 <a href="#" onclick="mostrarSecao('relatorios')" class="nav-item" data-section="relatorios">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Relatórios</span>
-                    <div class="nav-indicator"></div>
+                    <i class="fas fa-chart-pie"></i><span>Relatórios</span><div class="nav-indicator"></div>
                 </a>
                 <a href="#" onclick="mostrarSecao('config')" class="nav-item" data-section="config">
-                    <i class="fas fa-cog"></i>
-                    <span>Configurações</span>
-                    <div class="nav-indicator"></div>
+                    <i class="fas fa-cog"></i><span>Configurações</span><div class="nav-indicator"></div>
                 </a>
             </nav>
-            
             <button onclick="logout()" class="btn-glass-logout">
-                <i class="fas fa-power-off"></i>
-                <span>Encerrar Sessão</span>
+                <i class="fas fa-power-off"></i><span>Encerrar Sessão</span>
             </button>
         </aside>
-        
         <main class="main-glass">
             <div class="topbar-glass">
                 <div class="search-glass">
@@ -131,51 +97,33 @@
                     <input type="text" placeholder="Buscar no sistema...">
                 </div>
                 <div class="topbar-actions">
-                    <button class="btn-glass-icon">
-                        <i class="fas fa-bell"></i>
-                        <span class="badge-pulse">3</span>
-                    </button>
-                    <button class="btn-glass-icon">
-                        <i class="fas fa-envelope"></i>
-                        <span class="badge-pulse">5</span>
-                    </button>
-                    <button onclick="logout()" class="btn-glass-logout-top">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
+                    <button class="btn-glass-icon"><i class="fas fa-bell"></i><span class="badge-pulse">3</span></button>
+                    <button class="btn-glass-icon"><i class="fas fa-envelope"></i><span class="badge-pulse">5</span></button>
+                    <button onclick="logout()" class="btn-glass-logout-top"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
-            
             <div class="content-area">
-                <h2 class="page-title" id="tituloSecao">
-                    <i class="fas fa-th-large"></i> Dashboard
-                </h2>
+                <h2 class="page-title" id="tituloSecao"><i class="fas fa-th-large"></i> Dashboard</h2>
                 
-                <!-- ========== SEÇÃO DASHBOARD ========== -->
+                <!-- SEÇÃO DASHBOARD -->
                 <div id="secao-dashboard" class="section-active">
-                    <!-- TOP ROW: Métricas + Relógio -->
                     <div class="dashboard-top-row">
                         <div class="metrics-grid-horizontal" style="grid-template-columns: repeat(2, 1fr);">
                             <div class="metric-glass-mini">
-                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">
-                                    <i class="fas fa-building"></i>
-                                </div>
+                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);"><i class="fas fa-building"></i></div>
                                 <div class="metric-info-mini">
                                     <span class="metric-label-mini">Total Clientes</span>
                                     <span class="metric-value-mini" id="totalClientes">0</span>
                                 </div>
                             </div>
-                            
                             <div class="metric-glass-mini">
-                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6348, #ff4757);">
-                                    <i class="fas fa-user-tie"></i>
-                                </div>
+                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6348, #ff4757);"><i class="fas fa-user-tie"></i></div>
                                 <div class="metric-info-mini">
                                     <span class="metric-label-mini">Vendedores</span>
                                     <span class="metric-value-mini" id="vendedoresAtivos">0</span>
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="clock-panel">
                             <div class="clock-glass">
                                 <div class="clock-date" id="dataAtual">--</div>
@@ -185,121 +133,81 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- MIDDLE ROW: Vendas Diárias + Comparativo -->
                     <div class="dashboard-middle-row">
                         <div class="panel-glass vendas-diarias">
                             <div class="panel-header">
                                 <h3><i class="fas fa-calendar-day"></i> VENDAS DIÁRIAS</h3>
                                 <span class="panel-date" id="dataVendasDiarias"></span>
                             </div>
-                            
                             <div class="vendas-resumo">
                                 <div class="vendas-total">
                                     <span class="vendas-numero" id="totalVendasHoje">0</span>
                                     <span class="vendas-label">VENDAS HOJE</span>
                                 </div>
                                 <div class="vendas-meta">
-                                    <div class="meta-bar">
-                                        <div class="meta-progress" id="metaProgresso" style="width: 0%"></div>
-                                    </div>
-                                    <span class="meta-text">
-                                        Meta diária: <strong id="metaDiaria">10</strong> vendas
-                                    </span>
+                                    <div class="meta-bar"><div class="meta-progress" id="metaProgresso" style="width: 0%"></div></div>
+                                    <span class="meta-text">Meta diária: <strong id="metaDiaria">10</strong> vendas</span>
                                 </div>
                             </div>
-                            
                             <div class="ranking-section">
                                 <h4><i class="fas fa-trophy"></i> RANKING DE VENDEDORES</h4>
                                 <div class="ranking-list" id="rankingVendedores"></div>
                             </div>
-                            
                             <div class="produtos-section">
                                 <h4><i class="fas fa-box"></i> PRODUTOS MAIS VENDIDOS</h4>
                                 <div class="produtos-list" id="produtosVendidos"></div>
                             </div>
                         </div>
-                        
                         <div class="panel-glass comparativo-panel">
                             <div class="panel-header">
                                 <h3><i class="fas fa-balance-scale"></i> COMPARATIVO</h3>
                             </div>
-                            
                             <div class="comparativo-botoes">
-                                <button onclick="mostrarComparativo('diario')" class="btn-compare active" id="btnDiario">
-                                    <i class="fas fa-calendar-check"></i> DIÁRIO
-                                </button>
-                                <button onclick="mostrarComparativo('mensal')" class="btn-compare" id="btnMensal">
-                                    <i class="fas fa-calendar-alt"></i> MENSAL
-                                </button>
+                                <button onclick="mostrarComparativo('diario')" class="btn-compare active" id="btnDiario"><i class="fas fa-calendar-check"></i> DIÁRIO</button>
+                                <button onclick="mostrarComparativo('mensal')" class="btn-compare" id="btnMensal"><i class="fas fa-calendar-alt"></i> MENSAL</button>
                             </div>
-                            
                             <div id="comparativoDiario" class="comparativo-content">
                                 <div class="comp-header">
                                     <span>HOJE: <strong id="compDataHoje">--</strong></span>
                                     <span>MÊS PASSADO: <strong id="compDataPassado">--</strong></span>
                                 </div>
-                                
                                 <div class="comp-cards">
-                                    <div class="comp-card atual">
-                                        <span class="comp-label">VENDAS HOJE</span>
-                                        <span class="comp-value" id="compVendasHoje">0</span>
-                                    </div>
+                                    <div class="comp-card atual"><span class="comp-label">VENDAS HOJE</span><span class="comp-value" id="compVendasHoje">0</span></div>
                                     <div class="comp-vs">VS</div>
-                                    <div class="comp-card passado">
-                                        <span class="comp-label">MÊS PASSADO</span>
-                                        <span class="comp-value" id="compVendasPassado">0</span>
-                                    </div>
+                                    <div class="comp-card passado"><span class="comp-label">MÊS PASSADO</span><span class="comp-value" id="compVendasPassado">0</span></div>
                                 </div>
-                                
                                 <div class="comp-diferenca" id="compDiferencaDiario"></div>
-                                
                                 <div class="comp-destaque">
                                     <h4><i class="fas fa-star"></i> DESTAQUE DO DIA</h4>
                                     <div id="destaqueDiario"></div>
                                 </div>
-                                
                                 <div class="comp-produtos">
                                     <h4><i class="fas fa-chart-bar"></i> COMPARAÇÃO DE PRODUTOS</h4>
                                     <div id="compProdutosDiario"></div>
                                 </div>
                             </div>
-                            
                             <div id="comparativoMensal" class="comparativo-content" style="display:none;">
                                 <div class="comp-header">
                                     <span>ESTE MÊS: <strong id="compMesAtual">--</strong></span>
                                     <span>MÊS PASSADO: <strong id="compMesPassado">--</strong></span>
                                 </div>
-                                
                                 <div class="comp-cards">
-                                    <div class="comp-card atual">
-                                        <span class="comp-label">VENDAS MÊS</span>
-                                        <span class="comp-value" id="compVendasMesAtual">0</span>
-                                    </div>
+                                    <div class="comp-card atual"><span class="comp-label">VENDAS MÊS</span><span class="comp-value" id="compVendasMesAtual">0</span></div>
                                     <div class="comp-vs">VS</div>
-                                    <div class="comp-card passado">
-                                        <span class="comp-label">MÊS ANTERIOR</span>
-                                        <span class="comp-value" id="compVendasMesAnterior">0</span>
-                                    </div>
+                                    <div class="comp-card passado"><span class="comp-label">MÊS ANTERIOR</span><span class="comp-value" id="compVendasMesAnterior">0</span></div>
                                 </div>
-                                
                                 <div class="comp-diferenca" id="compDiferencaMensal"></div>
-                                
                                 <div class="comp-destaque">
                                     <h4><i class="fas fa-star"></i> DESTAQUE DO MÊS</h4>
                                     <div id="destaqueMensal"></div>
                                 </div>
-                                
                                 <div class="comp-produtos">
                                     <h4><i class="fas fa-chart-bar"></i> COMPARAÇÃO DE PRODUTOS</h4>
                                     <div id="compProdutosMensal"></div>
                                 </div>
-                                
                                 <div class="meta-mensal">
                                     <h4><i class="fas fa-bullseye"></i> PROGRESSO DA META MENSAL</h4>
-                                    <div class="meta-bar large">
-                                        <div class="meta-progress" id="metaMensalProgresso" style="width: 0%"></div>
-                                    </div>
+                                    <div class="meta-bar large"><div class="meta-progress" id="metaMensalProgresso" style="width: 0%"></div></div>
                                     <div class="meta-info">
                                         <span>Meta: <strong id="metaMensalValor">50</strong></span>
                                         <span>Realizado: <strong id="metaMensalRealizado">0</strong></span>
@@ -309,8 +217,6 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Tabela de Clientes -->
                     <div class="table-glass">
                         <div class="table-header">
                             <h3><i class="fas fa-clock"></i> Clientes Recentes</h3>
@@ -318,29 +224,16 @@
                         </div>
                         <div class="table-responsive">
                             <table>
-                                <thead>
-                                    <tr>
-                                        <th>Cliente</th>
-                                        <th>Plano</th>
-                                        <th>Valor</th>
-                                        <th>Vendedor</th>
-                                        <th>Status</th>
-                                        <th>Data</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Vendedor</th><th>Status</th><th>Data</th></tr></thead>
                                 <tbody id="tabelaClientes"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
                 
-                <!-- ========== SEÇÃO VENDEDORES ========== -->
+                <!-- outras seções (vendedores, clientes, relatórios, config) iguais às anteriores -->
                 <div id="secao-vendedores" class="section-hidden">
-                    <button onclick="mostrarFormVendedor()" class="btn-glass-flutuante">
-                        <i class="fas fa-plus"></i>
-                        <span>Novo Vendedor</span>
-                    </button>
-                    
+                    <button onclick="mostrarFormVendedor()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Novo Vendedor</span></button>
                     <div id="formVendedor" class="form-glass" style="display:none;">
                         <h3><i class="fas fa-user-plus"></i> Cadastrar Vendedor</h3>
                         <div class="form-grid">
@@ -350,197 +243,80 @@
                             <input type="email" id="emailVendedor" placeholder="Email">
                         </div>
                         <div class="form-actions">
-                            <button onclick="cadastrarVendedor()" class="btn-glass-primary">
-                                <i class="fas fa-save"></i> Salvar
-                            </button>
-                            <button onclick="document.getElementById('formVendedor').style.display='none'" class="btn-glass-danger">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
+                            <button onclick="cadastrarVendedor()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar</button>
+                            <button onclick="document.getElementById('formVendedor').style.display='none'" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
                         </div>
                     </div>
-                    
                     <div class="table-glass">
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>Vendedor</th>
-                                    <th>Usuário</th>
-                                    <th>Email</th>
-                                    <th>Clientes</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Vendedor</th><th>Usuário</th><th>Email</th><th>Clientes</th><th>Status</th><th>Ações</th></tr></thead>
                             <tbody id="tabelaVendedores"></tbody>
                         </table>
                     </div>
                 </div>
-                
-                <!-- ========== SEÇÃO CLIENTES ========== -->
                 <div id="secao-clientes" class="section-hidden">
                     <div class="table-glass">
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>CNPJ</th>
-                                    <th>Telefone</th>
-                                    <th>Plano</th>
-                                    <th>Valor</th>
-                                    <th>Vendedor</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Cliente</th><th>CNPJ</th><th>Telefone</th><th>Plano</th><th>Valor</th><th>Vendedor</th><th>Status</th></tr></thead>
                             <tbody id="tabelaTodosClientes"></tbody>
                         </table>
                     </div>
                 </div>
-                
-                <!-- ========== SEÇÃO RELATÓRIOS ========== -->
                 <div id="secao-relatorios" class="section-hidden">
                     <div class="metrics-grid-full">
-                        <div class="metric-glass">
-                            <div class="metric-info">
-                                <span class="metric-label">Receita Total Ativa</span>
-                                <span class="metric-value" id="totalPlanos">R$ 0</span>
-                            </div>
-                        </div>
-                        <div class="metric-glass">
-                            <div class="metric-info">
-                                <span class="metric-label">Ticket Médio</span>
-                                <span class="metric-value" id="mediaCliente">R$ 0</span>
-                            </div>
-                        </div>
-                        <div class="metric-glass">
-                            <div class="metric-info">
-                                <span class="metric-label">Total de Vendas</span>
-                                <span class="metric-value" id="totalVendas">0</span>
-                            </div>
-                        </div>
+                        <div class="metric-glass"><div class="metric-info"><span class="metric-label">Receita Total Ativa</span><span class="metric-value" id="totalPlanos">R$ 0</span></div></div>
+                        <div class="metric-glass"><div class="metric-info"><span class="metric-label">Ticket Médio</span><span class="metric-value" id="mediaCliente">R$ 0</span></div></div>
+                        <div class="metric-glass"><div class="metric-info"><span class="metric-label">Total de Vendas</span><span class="metric-value" id="totalVendas">0</span></div></div>
                     </div>
                 </div>
-                
-                <!-- ========== SEÇÃO CONFIGURAÇÕES ========== -->
                 <div id="secao-config" class="section-hidden">
                     <div class="form-glass">
                         <h3><i class="fas fa-cog"></i> Configurações do Sistema</h3>
                         <div class="form-grid">
-                            <div class="input-group">
-                                <label>Nome da Empresa</label>
-                                <input type="text" value="STAGE TELECOM">
-                            </div>
-                            <div class="input-group">
-                                <label>Email de Contato</label>
-                                <input type="email" value="contato@stagetelecom.com.br">
-                            </div>
-                            <div class="input-group">
-                                <label>Meta Diária de Vendas</label>
-                                <input type="number" id="metaDiariaInput" value="10" min="1">
-                            </div>
-                            <div class="input-group">
-                                <label>Meta Mensal de Vendas</label>
-                                <input type="number" id="metaMensalInput" value="50" min="1">
-                            </div>
+                            <div class="input-group"><label>Nome da Empresa</label><input type="text" value="STAGE TELECOM"></div>
+                            <div class="input-group"><label>Email de Contato</label><input type="email" value="contato@stagetelecom.com.br"></div>
+                            <div class="input-group"><label>Meta Diária de Vendas</label><input type="number" id="metaDiariaInput" value="10" min="1"></div>
+                            <div class="input-group"><label>Meta Mensal de Vendas</label><input type="number" id="metaMensalInput" value="50" min="1"></div>
                         </div>
-                        <div class="form-actions">
-                            <button onclick="salvarConfiguracoes()" class="btn-glass-primary">
-                                <i class="fas fa-save"></i> Salvar Configurações
-                            </button>
-                        </div>
+                        <div class="form-actions"><button onclick="salvarConfiguracoes()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Configurações</button></div>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- ========== DASHBOARD VENDEDOR ========== -->
+    <!-- DASHBOARD VENDEDOR (mantido) -->
     <div id="vendedorScreen" class="dashboard-wrapper" style="display:none;">
         <aside class="sidebar-glass">
-            <div class="sidebar-brand">
-                <div class="brand-icon">
-                    <i class="fas fa-broadcast-tower"></i>
-                </div>
-                <h2>STAGE</h2>
-                <span>TELECOM</span>
-            </div>
-            
+            <div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div>
             <div class="user-profile-glass" id="userInfoVendedor"></div>
-            
             <nav class="nav-glass">
-                <a href="#" onclick="mostrarSecaoVendedor('meusClientes')" class="nav-item active">
-                    <i class="fas fa-building"></i>
-                    <span>Meus Clientes</span>
-                    <div class="nav-indicator"></div>
-                </a>
-                <a href="#" onclick="mostrarSecaoVendedor('novoCliente')" class="nav-item">
-                    <i class="fas fa-user-plus"></i>
-                    <span>Novo Cliente</span>
-                    <div class="nav-indicator"></div>
-                </a>
-                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas')" class="nav-item">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Minhas Vendas</span>
-                    <div class="nav-indicator"></div>
-                </a>
+                <a href="#" onclick="mostrarSecaoVendedor('meusClientes')" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('novoCliente')" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas')" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
             </nav>
-            
-            <button onclick="logout()" class="btn-glass-logout">
-                <i class="fas fa-power-off"></i>
-                <span>Encerrar Sessão</span>
-            </button>
+            <button onclick="logout()" class="btn-glass-logout"><i class="fas fa-power-off"></i><span>Encerrar Sessão</span></button>
         </aside>
-        
         <main class="main-glass">
             <div class="topbar-glass">
-                <div class="search-glass">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Buscar cliente...">
-                </div>
-                <div class="topbar-actions">
-                    <button onclick="logout()" class="btn-glass-logout-top">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </button>
-                </div>
+                <div class="search-glass"><i class="fas fa-search"></i><input type="text" placeholder="Buscar cliente..."></div>
+                <div class="topbar-actions"><button onclick="logout()" class="btn-glass-logout-top"><i class="fas fa-sign-out-alt"></i></button></div>
             </div>
-            
             <div class="content-area">
-                <h2 class="page-title" id="tituloSecaoVendedor">
-                    <i class="fas fa-building"></i> Meus Clientes
-                </h2>
-                
+                <h2 class="page-title" id="tituloSecaoVendedor"><i class="fas fa-building"></i> Meus Clientes</h2>
                 <div id="secao-meusClientes" class="section-active">
                     <div class="stats-mini">
-                        <div class="mini-stat">
-                            <span class="mini-label">Total Clientes</span>
-                            <span class="mini-value" id="totalMeusClientes">0</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="mini-label">Ativos</span>
-                            <span class="mini-value" id="meusAtivos">0</span>
-                        </div>
-                        <div class="mini-stat">
-                            <span class="mini-label">Prospectos</span>
-                            <span class="mini-value" id="meusProspectos">0</span>
-                        </div>
+                        <div class="mini-stat"><span class="mini-label">Total Clientes</span><span class="mini-value" id="totalMeusClientes">0</span></div>
+                        <div class="mini-stat"><span class="mini-label">Ativos</span><span class="mini-value" id="meusAtivos">0</span></div>
+                        <div class="mini-stat"><span class="mini-label">Prospectos</span><span class="mini-value" id="meusProspectos">0</span></div>
                     </div>
-                    
                     <div class="table-glass">
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Telefone</th>
-                                    <th>Email</th>
-                                    <th>Plano</th>
-                                    <th>Valor</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead>
                             <tbody id="tabelaMeusClientes"></tbody>
                         </table>
                     </div>
                 </div>
-                
                 <div id="secao-novoCliente" class="section-hidden">
                     <div class="form-glass">
                         <h3><i class="fas fa-user-plus"></i> Cadastrar Novo Cliente</h3>
@@ -556,25 +332,13 @@
                                 <option value="Premium">Premium - R$ 899,90/mês</option>
                             </select>
                         </div>
-                        <div class="form-actions">
-                            <button onclick="cadastrarCliente()" class="btn-glass-primary">
-                                <i class="fas fa-save"></i> Cadastrar Cliente
-                            </button>
-                        </div>
+                        <div class="form-actions"><button onclick="cadastrarCliente()" class="btn-glass-primary"><i class="fas fa-save"></i> Cadastrar Cliente</button></div>
                     </div>
                 </div>
-                
                 <div id="secao-minhasVendas" class="section-hidden">
                     <div class="table-glass">
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Plano</th>
-                                    <th>Valor</th>
-                                    <th>Data</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Data</th></tr></thead>
                             <tbody id="tabelaMinhasVendas"></tbody>
                         </table>
                     </div>
