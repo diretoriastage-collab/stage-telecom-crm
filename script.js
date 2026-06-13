@@ -283,7 +283,7 @@ function mostrarSecao(secao) {
     if(secao==='relatorios') carregarRelatorios();
 }
 
-// ===== ADMIN - VENDEDORES =====
+// ===== ADMIN - VENDEDORES (SEM CLIENTES) =====
 function mostrarFormVendedor(){document.getElementById('formVendedor').style.display='block';}
 function cadastrarVendedor(){
     const n=document.getElementById('nomeVendedor').value.trim(), u=document.getElementById('usuarioVendedor').value.trim(), s=document.getElementById('senhaVendedor').value.trim(), e=document.getElementById('emailVendedor').value.trim();
@@ -309,7 +309,6 @@ function carregarVendedores() {
     const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
     const tabela = document.getElementById('tabelaVendedores');
     tabela.innerHTML = vendedores.map(v => {
-        const clientes = DB.clientes.filter(c => c.vendedor_id === v.id).length;
         return `
             <tr>
                 <td>
@@ -320,7 +319,6 @@ function carregarVendedores() {
                 </td>
                 <td>@${v.usuario}</td>
                 <td>${v.email}</td>
-                <td><span style="background:rgba(231,76,60,0.2);padding:4px 12px;border-radius:15px;">${clientes} clientes</span></td>
                 <td class="${v.ativo?'status-ativo':''}">${v.ativo?'● Ativo':'○ Inativo'}</td>
                 <td>
                     <button onclick="toggleVendedor(${v.id})" style="background:${v.ativo?'rgba(255,71,87,0.2)':'rgba(46,213,115,0.2)'};border:1px solid ${v.ativo?'rgba(255,71,87,0.3)':'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${v.ativo?'🔒 Desativar':'🔓 Ativar'}</button>
@@ -329,6 +327,11 @@ function carregarVendedores() {
             </tr>
         `;
     }).join('');
+
+    // Atualiza contador da lixeira
+    const lixeiraCount = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.deletedAt).length;
+    const contador = document.getElementById('contadorLixeira');
+    if (contador) contador.textContent = lixeiraCount;
 }
 
 function toggleVendedor(id) {
@@ -383,6 +386,72 @@ function salvarEdicaoVendedor() {
     salvarDB();
     carregarVendedores();
     fecharModalEditar();
+}
+
+// ===== LIXEIRA =====
+function toggleLixeira() {
+    const lixeira = document.getElementById('lixeiraVendedores');
+    if (lixeira.style.display === 'none' || lixeira.style.display === '') {
+        carregarLixeira();
+        lixeira.style.display = 'block';
+    } else {
+        lixeira.style.display = 'none';
+    }
+}
+
+function carregarLixeira() {
+    const agora = new Date();
+    const lixeira = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.deletedAt);
+    const tabela = document.getElementById('tabelaLixeira');
+    const contador = document.getElementById('contadorLixeira');
+    if (contador) contador.textContent = lixeira.length;
+
+    if (lixeira.length === 0) {
+        tabela.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>';
+        return;
+    }
+
+    tabela.innerHTML = lixeira.map(v => {
+        const diasRestantes = Math.ceil(15 - ((agora - new Date(v.deletedAt)) / (1000 * 60 * 60 * 24)));
+        return `
+            <tr>
+                <td><strong>${v.nome}</strong></td>
+                <td>@${v.usuario}</td>
+                <td>${v.email}</td>
+                <td><span style="color: #ffa502;">${diasRestantes} dia(s)</span></td>
+                <td>
+                    <button onclick="recuperarVendedor(${v.id})" style="background: rgba(46,213,115,0.2); border:1px solid rgba(46,213,115,0.3); color: #2ed573; padding:6px 12px; border-radius:8px; cursor:pointer;">
+                        <i class="fas fa-undo"></i> Recuperar
+                    </button>
+                    <button onclick="excluirPermanentemente(${v.id})" style="background: rgba(255,71,87,0.2); border:1px solid rgba(255,71,87,0.3); color: #ff4757; padding:6px 12px; border-radius:8px; cursor:pointer; margin-left:5px;">
+                        <i class="fas fa-times-circle"></i> Excluir definitivo
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function recuperarVendedor(id) {
+    const vend = DB.usuarios.find(u => u.id === id);
+    if (vend) {
+        vend.deletedAt = null;
+        vend.ativo = true;
+        salvarDB();
+        carregarVendedores();
+        carregarLixeira();
+    }
+}
+
+function excluirPermanentemente(id) {
+    const vend = DB.usuarios.find(u => u.id === id);
+    if (!vend) return;
+    if (confirm(`⚠️ Excluir definitivamente "${vend.nome}"? Essa ação não pode ser desfeita.`)) {
+        DB.usuarios = DB.usuarios.filter(u => u.id !== id);
+        salvarDB();
+        carregarVendedores();
+        carregarLixeira();
+    }
 }
 
 function carregarTodosClientes(){
