@@ -1,5 +1,5 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO (CORRIGIDO)
+// STAGE TELECOM CRM - SCRIPT COMPLETO
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db'));
 
@@ -36,11 +36,10 @@ if (!DB) {
     };
 }
 
-// ===== CORREÇÃO: garantir que promocoes e notificacoes existam =====
+// Garantir que promocoes e notificacoes existam mesmo em bancos antigos
 if (!DB.promocoes) DB.promocoes = [];
 if (!DB.notificacoes) DB.notificacoes = [];
 
-// Outras verificações de campos faltantes
 if (!DB.statusFlags) {
     DB.statusFlags = [
         { id: 1, nome: "Ativo", cor: "#2ed573" },
@@ -890,7 +889,7 @@ function salvarMetas() {
     alert('✅ Metas de vendas atualizadas!');
 }
 
-// ===== PROMOÇÕES (CORRIGIDAS) =====
+// ===== PROMOÇÕES =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
@@ -909,7 +908,6 @@ function cadastrarPromocao() {
 function carregarPromocoes() {
     const agora = new Date();
     const tabela = document.getElementById('tabelaPromocoes');
-    // Atualiza status e verifica vencedores se necessário
     DB.promocoes.forEach(p => {
         const inicio = new Date(p.inicio);
         const fim = new Date(p.fim);
