@@ -107,7 +107,7 @@
             <div class="content-area">
                 <h2 class="page-title" id="tituloSecao"><i class="fas fa-th-large"></i> Dashboard</h2>
                 
-                <!-- SEÇÃO DASHBOARD (SEM CLIENTES RECENTES) -->
+                <!-- SEÇÃO DASHBOARD (sem Clientes Recentes) -->
                 <div id="secao-dashboard" class="section-active">
                     <div class="dashboard-top-row">
                         <div class="metric-glass-progresso">
@@ -180,26 +180,197 @@
                                 <button onclick="mostrarComparativo('mensal')" class="btn-compare" id="btnMensal"><i class="fas fa-calendar-alt"></i> MENSAL</button>
                             </div>
                             <div id="comparativoDiario" class="comparativo-content">
-                                <!-- ... mantido igual ... -->
+                                <div class="comp-header">
+                                    <span>HOJE: <strong id="compDataHoje">--</strong></span>
+                                    <span>MÊS PASSADO: <strong id="compDataPassado">--</strong></span>
+                                </div>
+                                <div class="comp-cards">
+                                    <div class="comp-card atual"><span class="comp-label">VENDAS HOJE</span><span class="comp-value" id="compVendasHoje">0</span></div>
+                                    <div class="comp-vs">VS</div>
+                                    <div class="comp-card passado"><span class="comp-label">MÊS PASSADO</span><span class="comp-value" id="compVendasPassado">0</span></div>
+                                </div>
+                                <div class="comp-diferenca" id="compDiferencaDiario"></div>
+                                <div class="comp-destaque">
+                                    <h4><i class="fas fa-star"></i> DESTAQUE DO DIA</h4>
+                                    <div id="destaqueDiario"></div>
+                                </div>
+                                <div class="comp-produtos">
+                                    <h4><i class="fas fa-chart-bar"></i> COMPARAÇÃO DE PRODUTOS</h4>
+                                    <div id="compProdutosDiario"></div>
+                                </div>
                             </div>
                             <div id="comparativoMensal" class="comparativo-content" style="display:none;">
-                                <!-- ... mantido igual ... -->
+                                <div class="comp-header">
+                                    <span>ESTE MÊS: <strong id="compMesAtual">--</strong></span>
+                                    <span>MÊS PASSADO: <strong id="compMesPassado">--</strong></span>
+                                </div>
+                                <div class="comp-cards">
+                                    <div class="comp-card atual"><span class="comp-label">VENDAS MÊS</span><span class="comp-value" id="compVendasMesAtual">0</span></div>
+                                    <div class="comp-vs">VS</div>
+                                    <div class="comp-card passado"><span class="comp-label">MÊS ANTERIOR</span><span class="comp-value" id="compVendasMesAnterior">0</span></div>
+                                </div>
+                                <div class="comp-diferenca" id="compDiferencaMensal"></div>
+                                <div class="comp-destaque">
+                                    <h4><i class="fas fa-star"></i> DESTAQUE DO MÊS</h4>
+                                    <div id="destaqueMensal"></div>
+                                </div>
+                                <div class="comp-produtos">
+                                    <h4><i class="fas fa-chart-bar"></i> COMPARAÇÃO DE PRODUTOS</h4>
+                                    <div id="compProdutosMensal"></div>
+                                </div>
+                                <div class="meta-mensal">
+                                    <h4><i class="fas fa-bullseye"></i> PROGRESSO DA META MENSAL</h4>
+                                    <div class="meta-bar large"><div class="meta-progress" id="metaMensalProgresso" style="width: 0%"></div></div>
+                                    <div class="meta-info">
+                                        <span>Meta: <strong id="metaMensalValor">50</strong></span>
+                                        <span>Realizado: <strong id="metaMensalRealizado">0</strong></span>
+                                        <span><strong id="metaMensalPct">0%</strong></span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <!-- Removida a tabela de Clientes Recentes -->
                 </div>
                 
-                <!-- SEÇÃO CADASTRO (mantida) -->
-                <!-- ... igual ao anterior ... -->
+                <!-- SEÇÃO CADASTRO -->
+                <div id="secao-cadastro" class="section-hidden">
+                    <button onclick="mostrarFormCadastro()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Novo Usuário</span></button>
+                    <div id="formCadastro" class="form-glass" style="display:none;">
+                        <h3><i class="fas fa-user-plus"></i> Cadastrar Usuário</h3>
+                        <div class="form-grid">
+                            <input type="text" id="nomeUsuario" placeholder="Nome completo">
+                            <input type="text" id="usuarioUsuario" placeholder="Nome de usuário">
+                            <input type="password" id="senhaUsuario" placeholder="Senha">
+                            <input type="email" id="emailUsuario" placeholder="Email">
+                            <select id="categoriaUsuario">
+                                <option value="vendedor">Vendedor</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button onclick="cadastrarUsuario()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar</button>
+                            <button onclick="document.getElementById('formCadastro').style.display='none'" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
+                        </div>
+                    </div>
+                    <div class="table-glass">
+                        <table>
+                            <thead><tr><th>Usuário</th><th>Login</th><th>Email</th><th>Categoria</th><th>Status</th><th>Ações</th></tr></thead>
+                            <tbody id="tabelaUsuarios"></tbody>
+                        </table>
+                    </div>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button onclick="toggleLixeira()" class="btn-glass-lixeira" id="btnLixeira">
+                            <i class="fas fa-trash-alt"></i> Lixeira (<span id="contadorLixeira">0</span>)
+                        </button>
+                    </div>
+                    <div id="lixeiraUsuarios" class="table-glass" style="display:none; margin-top: 10px;">
+                        <div class="table-header">
+                            <h3><i class="fas fa-trash-restore"></i> Lixeira de Usuários</h3>
+                            <small style="color: var(--text-secondary);">Excluídos automaticamente após 15 dias</small>
+                        </div>
+                        <table>
+                            <thead><tr><th>Usuário</th><th>Login</th><th>Email</th><th>Categoria</th><th>Dias restantes</th><th>Ações</th></tr></thead>
+                            <tbody id="tabelaLixeira"></tbody>
+                        </table>
+                    </div>
+                </div>
                 
-                <!-- SEÇÃO ATIVAÇÕES (mantida) -->
-                <!-- ... igual ao anterior ... -->
+                <!-- SEÇÃO ATIVAÇÕES -->
+                <div id="secao-ativacoes" class="section-hidden">
+                    <div class="ativacoes-top">
+                        <div class="clock-panel" style="flex:1;">
+                            <div class="clock-glass">
+                                <div class="clock-date" id="dataAtualAtivacoes">--</div>
+                                <div class="clock-time" id="horaAtualAtivacoes">00:00:00</div>
+                                <div class="clock-period" id="periodoDiaAtivacoes">--</div>
+                                <div class="clock-pulse-dot"></div>
+                            </div>
+                        </div>
+                        <button onclick="abrirGerenciadorStatus()" class="btn-glass-lixeira" style="margin-left: 20px;">
+                            <i class="fas fa-tags"></i> Gerenciar Status
+                        </button>
+                    </div>
+                    <div class="table-glass" style="margin-top: 20px;">
+                        <table>
+                            <thead><tr><th>Cliente</th><th>Produto</th><th>Vendedor</th><th>Status</th><th>Detalhes</th></tr></thead>
+                            <tbody id="tabelaAtivacoes"></tbody>
+                        </table>
+                    </div>
+                    <div id="modalAtivacao" class="modal-overlay" style="display:none;">
+                        <div class="modal-glass" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+                            <h3><i class="fas fa-search"></i> Detalhes da Ativação</h3>
+                            <div id="conteudoModalAtivacao"></div>
+                            <div class="form-actions" style="margin-top:20px;">
+                                <button onclick="fecharModalAtivacao()" class="btn-glass-danger"><i class="fas fa-times"></i> Fechar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="modalStatus" class="modal-overlay" style="display:none;">
+                        <div class="modal-glass" style="max-width: 600px;">
+                            <h3><i class="fas fa-tags"></i> Gerenciar Flags de Status</h3>
+                            <div id="listaStatusFlags" style="margin-bottom: 20px;"></div>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <input type="text" id="novoStatusNome" placeholder="Nome do status" style="flex:2;">
+                                <input type="color" id="novoStatusCor" value="#ff4757" style="flex:1; height: 40px;">
+                                <button onclick="adicionarStatusFlag()" class="btn-glass-primary"><i class="fas fa-plus"></i></button>
+                            </div>
+                            <div class="form-actions">
+                                <button onclick="fecharModalStatus()" class="btn-glass-danger">Fechar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
-                <!-- SEÇÃO RELATÓRIOS (mantida) -->
-                <!-- ... igual ao anterior ... -->
+                <!-- SEÇÃO RELATÓRIOS -->
+                <div id="secao-relatorios" class="section-hidden">
+                    <div class="relatorios-container">
+                        <div class="relatorios-header">
+                            <h2><i class="fas fa-chart-bar"></i> Relatórios de Vendas</h2>
+                            <div class="relatorios-filtros">
+                                <select id="filtroPeriodo" onchange="carregarRelatorios()">
+                                    <option value="diario">📆 Diário</option>
+                                    <option value="quinzena">📅 Quinzena</option>
+                                    <option value="mensal">📊 Mensal</option>
+                                </select>
+                                <button onclick="gerarPDF()" class="btn-glass-primary"><i class="fas fa-download"></i> Baixar PDF</button>
+                            </div>
+                        </div>
+                        <div class="bloco-relatorio">
+                            <h3>🏷️ Comparativo de Produtos</h3>
+                            <div class="tabela-comparativa" id="tabelaComparativaProdutos"></div>
+                        </div>
+                        <div class="bloco-relatorio">
+                            <h3>👥 Vendas por Vendedor</h3>
+                            <div class="grid-relatorio">
+                                <div class="tabela-vendedores" id="tabelaVendedoresRelatorio"></div>
+                                <div class="grafico-container">
+                                    <canvas id="graficoVendedores" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bloco-relatorio">
+                            <h3>🏢 Vendas por Equipe</h3>
+                            <div class="tabela-equipes" id="tabelaEquipesRelatorio"></div>
+                        </div>
+                        <div class="bloco-relatorio">
+                            <h3>🏆 Ranking de Vendedores</h3>
+                            <div id="rankingRelatorio"></div>
+                        </div>
+                    </div>
+                </div>
                 
-                <!-- SEÇÃO METAS (ATUALIZADA) -->
+                <!-- MODAL PDF -->
+                <div id="modalPDF" class="modal-overlay" style="display:none;">
+                    <div class="modal-glass" style="width: 210mm; max-width: 100%; background: #fff; color: #000; padding: 20px; overflow-y: auto; max-height: 90vh;">
+                        <div id="conteudoPDF"></div>
+                        <div class="form-actions" style="margin-top:20px;">
+                            <button onclick="fecharModalPDF()" class="btn-glass-danger" style="background:#aaa; color:#000;">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SEÇÃO METAS -->
                 <div id="secao-metas" class="section-hidden">
                     <div class="metas-tabs">
                         <button class="meta-tab active" onclick="mostrarAbaMeta('definir')">🎯 Definir Metas</button>
@@ -208,7 +379,7 @@
                     
                     <!-- Aba Definir Metas -->
                     <div id="aba-definir" class="aba-meta active">
-                        <!-- Metas de Vendas (já existente) -->
+                        <!-- Metas de Vendas -->
                         <div class="form-glass">
                             <h3><i class="fas fa-bullseye"></i> Metas de Vendas</h3>
                             <div class="form-grid">
@@ -218,7 +389,7 @@
                             </div>
                         </div>
                         
-                        <!-- Metas de Produtos (NOVO - com dropdown e lista) -->
+                        <!-- Metas de Produtos -->
                         <div class="form-glass" style="margin-top:20px;">
                             <h3><i class="fas fa-box"></i> Metas de Produtos</h3>
                             <div class="form-grid">
@@ -244,7 +415,7 @@
                             </div>
                         </div>
                         
-                        <!-- Metas de Instalações (NOVO - por vendedor/empresa) -->
+                        <!-- Metas de Instalações -->
                         <div class="form-glass" style="margin-top:20px;">
                             <h3><i class="fas fa-wrench"></i> Metas de Instalações</h3>
                             <div class="form-grid">
@@ -277,9 +448,29 @@
                         </div>
                     </div>
                     
-                    <!-- Aba Promoções (mantida com correções) -->
+                    <!-- Aba Promoções -->
                     <div id="aba-promocoes" class="aba-meta" style="display:none;">
-                        <!-- ... mesmo código de antes, mas agora com script corrigido ... -->
+                        <button onclick="mostrarFormPromocao()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Nova Promoção</span></button>
+                        <div id="formPromocao" class="form-glass" style="display:none;">
+                            <h3><i class="fas fa-trophy"></i> Criar Meta Bônus</h3>
+                            <div class="form-grid">
+                                <div class="input-group"><label>Tipo de Meta</label><select id="tipoPromocao"><option value="vendas">Vendas</option><option value="produtos">Produtos</option><option value="instalacoes">Instalações</option></select></div>
+                                <div class="input-group"><label>Quantidade</label><input type="number" id="quantidadePromocao" min="1" value="10"></div>
+                                <div class="input-group"><label>Início</label><input type="datetime-local" id="inicioPromocao"></div>
+                                <div class="input-group"><label>Fim</label><input type="datetime-local" id="fimPromocao"></div>
+                                <div class="input-group" style="grid-column: span 2;"><label>Prêmio</label><input type="text" id="premioPromocao" placeholder="Ex: R$ 200,00 + Folga"></div>
+                            </div>
+                            <div class="form-actions">
+                                <button onclick="cadastrarPromocao()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Promoção</button>
+                                <button onclick="document.getElementById('formPromocao').style.display='none'" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
+                            </div>
+                        </div>
+                        <div class="table-glass" style="margin-top:20px;">
+                            <table>
+                                <thead><tr><th>Tipo</th><th>Quantidade</th><th>Período</th><th>Prêmio</th><th>Status</th><th>Ações</th></tr></thead>
+                                <tbody id="tabelaPromocoes"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -295,13 +486,89 @@
             </div>
         </div>
         
-        <!-- Modal de edição, ativação, status, PDF (mantidos) -->
-        <!-- ... -->
+        <!-- Modal de Edição de Usuário -->
+        <div id="modalEditarUsuario" class="modal-overlay" style="display:none;">
+            <div class="modal-glass">
+                <h3><i class="fas fa-user-edit"></i> Editar Usuário</h3>
+                <input type="hidden" id="editUsuarioId">
+                <div class="form-grid">
+                    <input type="text" id="editNomeUsuario" placeholder="Nome completo">
+                    <input type="text" id="editLoginUsuario" placeholder="Nome de usuário">
+                    <input type="email" id="editEmailUsuario" placeholder="Email">
+                    <select id="editCategoriaUsuario">
+                        <option value="vendedor">Vendedor</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                    <input type="password" id="editSenhaUsuario" placeholder="Nova senha (deixe em branco para manter)">
+                </div>
+                <div class="form-actions">
+                    <button onclick="salvarEdicaoUsuario()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar</button>
+                    <button onclick="fecharModalEditar()" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- DASHBOARD VENDEDOR -->
     <div id="vendedorScreen" class="dashboard-wrapper" style="display:none;">
-        <!-- ... igual ao anterior, mas com verificação de notificações ... -->
+        <aside class="sidebar-glass">
+            <div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div>
+            <div class="user-profile-glass" id="userInfoVendedor"></div>
+            <nav class="nav-glass">
+                <a href="#" onclick="mostrarSecaoVendedor('meusClientes')" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('novoCliente')" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas')" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
+            </nav>
+            <button onclick="logout()" class="btn-glass-logout"><i class="fas fa-power-off"></i><span>Encerrar Sessão</span></button>
+        </aside>
+        <main class="main-glass">
+            <div class="topbar-glass">
+                <div class="search-glass"><i class="fas fa-search"></i><input type="text" placeholder="Buscar cliente..."></div>
+                <div class="topbar-actions"><button onclick="logout()" class="btn-glass-logout-top"><i class="fas fa-sign-out-alt"></i></button></div>
+            </div>
+            <div class="content-area">
+                <h2 class="page-title" id="tituloSecaoVendedor"><i class="fas fa-building"></i> Meus Clientes</h2>
+                <div id="secao-meusClientes" class="section-active">
+                    <div class="stats-mini">
+                        <div class="mini-stat"><span class="mini-label">Total Clientes</span><span class="mini-value" id="totalMeusClientes">0</span></div>
+                        <div class="mini-stat"><span class="mini-label">Ativos</span><span class="mini-value" id="meusAtivos">0</span></div>
+                        <div class="mini-stat"><span class="mini-label">Prospectos</span><span class="mini-value" id="meusProspectos">0</span></div>
+                    </div>
+                    <div class="table-glass">
+                        <table>
+                            <thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead>
+                            <tbody id="tabelaMeusClientes"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="secao-novoCliente" class="section-hidden">
+                    <div class="form-glass">
+                        <h3><i class="fas fa-user-plus"></i> Cadastrar Novo Cliente</h3>
+                        <div class="form-grid">
+                            <input type="text" id="nomeCliente" placeholder="Nome da Empresa *">
+                            <input type="text" id="cnpjCliente" placeholder="CNPJ *">
+                            <input type="text" id="telefoneCliente" placeholder="Telefone *">
+                            <input type="email" id="emailCliente" placeholder="Email *">
+                            <select id="planoCliente">
+                                <option value="">Selecione o plano *</option>
+                                <option value="Básico">Básico - R$ 299,90/mês</option>
+                                <option value="Empresarial">Empresarial - R$ 499,90/mês</option>
+                                <option value="Premium">Premium - R$ 899,90/mês</option>
+                            </select>
+                        </div>
+                        <div class="form-actions"><button onclick="cadastrarCliente()" class="btn-glass-primary"><i class="fas fa-save"></i> Cadastrar Cliente</button></div>
+                    </div>
+                </div>
+                <div id="secao-minhasVendas" class="section-hidden">
+                    <div class="table-glass">
+                        <table>
+                            <thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Data</th></tr></thead>
+                            <tbody id="tabelaMinhasVendas"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
     
     <!-- Modal de Parabéns para Vendedor -->
