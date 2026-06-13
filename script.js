@@ -1,8 +1,36 @@
 // ============================================
 // STAGE TELECOM CRM - SCRIPT COMPLETO
 // ============================================
-let DB = JSON.parse(localStorage.getItem('stage_db')) || {
-    // Garantir que statusFlags exista
+let DB = JSON.parse(localStorage.getItem('stage_db'));
+
+// Se não existir banco, cria um novo com todos os campos
+if (!DB) {
+    DB = {
+        usuarios: [
+            { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null },
+            { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
+            { id: 3, usuario: "maria.santos", senha: "vend123", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
+            { id: 4, usuario: "pedro.costa", senha: "vend123", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null }
+        ],
+        clientes: [
+            { id: 1, nome: "TechBrasil Ltda", cnpj: "00.000.000/0001-00", telefone: "(11) 3456-7890", email: "contato@techbrasil.com.br", vendedor_id: 2, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-01-15" },
+            { id: 2, nome: "Comércio Digital SA", cnpj: "11.111.111/0001-11", telefone: "(21) 2345-6789", email: "digital@comercio.com.br", vendedor_id: 2, status: "ativo", plano: "Empresarial", valor: 499.90, data: "2024-02-20" },
+            { id: 3, nome: "NetConnect Provedor", cnpj: "22.222.222/0001-22", telefone: "(31) 3456-7890", email: "vendas@netconnect.com.br", vendedor_id: 3, status: "prospecto", plano: "Básico", valor: 299.90, data: "2024-03-10" },
+            { id: 4, nome: "Fibra Ótica Brasil", cnpj: "33.333.333/0001-33", telefone: "(41) 3456-7890", email: "contato@fibraotica.com.br", vendedor_id: 3, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-04-05" },
+            { id: 5, nome: "Telecom Solutions", cnpj: "44.444.444/0001-44", telefone: "(51) 3456-7890", email: "vendas@telecomsolutions.com.br", vendedor_id: 4, status: "prospecto", plano: "Empresarial", valor: 499.90, data: "2024-05-15" },
+            { id: 6, nome: "Internet Rápida Ltda", cnpj: "55.555.555/0001-55", telefone: "(61) 3456-7890", email: "suporte@internetrapida.com.br", vendedor_id: 4, status: "ativo", plano: "Básico", valor: 299.90, data: "2024-06-01" }
+        ],
+        config: { metaDiaria: 10, metaMensal: 50 },
+        statusFlags: [
+            { id: 1, nome: "Ativo", cor: "#2ed573" },
+            { id: 2, nome: "Pendente", cor: "#ffa502" },
+            { id: 3, nome: "Cancelado", cor: "#ff4757" }
+        ],
+        ativacoes: []
+    };
+}
+
+// Se o banco já existir (versão antiga), adiciona os campos que faltam
 if (!DB.statusFlags) {
     DB.statusFlags = [
         { id: 1, nome: "Ativo", cor: "#2ed573" },
@@ -10,73 +38,10 @@ if (!DB.statusFlags) {
         { id: 3, nome: "Cancelado", cor: "#ff4757" }
     ];
 }
-// Garantir que ativacoes exista
 if (!DB.ativacoes) {
     DB.ativacoes = [];
 }
-    usuarios: [
-        { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null },
-        { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
-        { id: 3, usuario: "maria.santos", senha: "vend123", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null },
-        { id: 4, usuario: "pedro.costa", senha: "vend123", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null }
-    ],
-    clientes: [
-        { id: 1, nome: "TechBrasil Ltda", cnpj: "00.000.000/0001-00", telefone: "(11) 3456-7890", email: "contato@techbrasil.com.br", vendedor_id: 2, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-01-15" },
-        { id: 2, nome: "Comércio Digital SA", cnpj: "11.111.111/0001-11", telefone: "(21) 2345-6789", email: "digital@comercio.com.br", vendedor_id: 2, status: "ativo", plano: "Empresarial", valor: 499.90, data: "2024-02-20" },
-        { id: 3, nome: "NetConnect Provedor", cnpj: "22.222.222/0001-22", telefone: "(31) 3456-7890", email: "vendas@netconnect.com.br", vendedor_id: 3, status: "prospecto", plano: "Básico", valor: 299.90, data: "2024-03-10" },
-        { id: 4, nome: "Fibra Ótica Brasil", cnpj: "33.333.333/0001-33", telefone: "(41) 3456-7890", email: "contato@fibraotica.com.br", vendedor_id: 3, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-04-05" },
-        { id: 5, nome: "Telecom Solutions", cnpj: "44.444.444/0001-44", telefone: "(51) 3456-7890", email: "vendas@telecomsolutions.com.br", vendedor_id: 4, status: "prospecto", plano: "Empresarial", valor: 499.90, data: "2024-05-15" },
-        { id: 6, nome: "Internet Rápida Ltda", cnpj: "55.555.555/0001-55", telefone: "(61) 3456-7890", email: "suporte@internetrapida.com.br", vendedor_id: 4, status: "ativo", plano: "Básico", valor: 299.90, data: "2024-06-01" }
-    ],
-    config: { metaDiaria: 10, metaMensal: 50 },
-    statusFlags: [
-        { id: 1, nome: "Ativo", cor: "#2ed573" },
-        { id: 2, nome: "Pendente", cor: "#ffa502" },
-        { id: 3, nome: "Cancelado", cor: "#ff4757" }
-    ],
-    ativacoes: [
-        {
-            id: 1,
-            nomeCliente: "João da Silva",
-            produto: "Internet Fibra 300MB",
-            vendedor_id: 2,
-            status: "Ativo",
-            observacao: "",
-            ativadoPor: "Admin",
-            confirmadoPor: "Admin",
-            aquisicao: "Online",
-            viabilidade: "Viável",
-            data: "2024-06-10 14:30",
-            equipe: "Equipe A",
-            vendedorNome: "João Silva",
-            nomeCompleto: "João da Silva Santos",
-            nomeMae: "Maria Santos",
-            dataNasc: "1990-01-15",
-            cpfCnpj: "123.456.789-00",
-            razaoSocial: "",
-            email: "joao@email.com",
-            cep: "01000-000",
-            uf: "SP",
-            endereco: "Rua Exemplo, 100",
-            bairro: "Centro",
-            cidade: "São Paulo",
-            numeroComplemento: "Apto 10",
-            referencia: "Próximo ao metrô",
-            telefone: "(11) 99999-9999",
-            whatsapp: "(11) 99999-9999",
-            valor: 89.90,
-            velocidade: "300MB",
-            formaPagamento: "Cartão de Crédito",
-            vencimento: "10",
-            dataInstalacao: "2024-06-12",
-            contrato: "12 meses",
-            tipoVenda: "Nova",
-            agendamento: "2024-06-11",
-            plano: "Fibra 300MB",
-            dataAg: "2024-06-10"
-        }
-    ]
-};
+
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
 let sessao = JSON.parse(localStorage.getItem('stage_session'));
@@ -516,6 +481,7 @@ function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElem
 function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
 function carregarListaStatusFlags() {
     const container = document.getElementById('listaStatusFlags');
+    if (!container) return;
     container.innerHTML = DB.statusFlags.map(f => `
         <div class="flag-item">
             <span class="flag-color" style="background:${f.cor};"></span>
@@ -527,7 +493,7 @@ function carregarListaStatusFlags() {
 function adicionarStatusFlag() {
     const nome = document.getElementById('novoStatusNome').value.trim();
     const cor = document.getElementById('novoStatusCor').value;
-    if (!nome) return alert('Digite um nome!');
+    if (!nome) return alert('Digite um nome para a flag!');
     DB.statusFlags.push({ id: Date.now(), nome, cor });
     salvarDB();
     carregarListaStatusFlags();
@@ -537,7 +503,7 @@ function removerStatusFlag(id) {
     DB.statusFlags = DB.statusFlags.filter(f => f.id !== id);
     salvarDB();
     carregarListaStatusFlags();
-    if (document.getElementById('secao-ativacoes').classList.contains('section-active')) carregarAtivacoes();
+    if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
 }
 
 // ===== VENDEDOR SCREEN =====
