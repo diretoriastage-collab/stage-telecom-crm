@@ -264,8 +264,35 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .flag-item .flag-color { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
 .flag-item button { margin-left: auto; background: none; border: none; color: #ff4757; cursor: pointer; }
 
+/* ===== RELATÓRIOS ===== */
+.relatorios-container { display: flex; flex-direction: column; gap: 25px; }
+.relatorios-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+.relatorios-filtros { display: flex; gap: 10px; align-items: center; }
+.relatorios-filtros select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; padding: 10px 15px; font-size: 14px; }
+.bloco-relatorio { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 20px; }
+.bloco-relatorio h3 { margin-bottom: 15px; color: var(--primary-light); font-size: 16px; }
+.tabela-comparativa table,
+.tabela-vendedores table,
+.tabela-equipes table { width: 100%; border-collapse: collapse; }
+.tabela-comparativa th,
+.tabela-vendedores th,
+.tabela-equipes th { background: rgba(231,76,60,0.15); color: var(--primary-light); font-size: 12px; padding: 10px; text-align: left; }
+.tabela-comparativa td,
+.tabela-vendedores td,
+.tabela-equipes td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+.grid-relatorio { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.grafico-container { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px; }
+.ranking-item-relatorio { display: flex; align-items: center; gap: 15px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 8px; }
+.ranking-posicao-relatorio { font-size: 20px; font-weight: bold; width: 35px; text-align: center; }
+.ranking-info-relatorio { flex: 1; }
+.ranking-nome-relatorio { font-weight: 600; display: block; }
+.ranking-detalhes-relatorio { font-size: 12px; color: var(--text-secondary); }
+.ranking-pontos-relatorio { font-weight: 700; color: var(--primary-light); }
+.barra-progresso-relatorio { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 5px; overflow: hidden; }
+.barra-progresso-preenchimento { height: 100%; background: var(--primary); border-radius: 10px; }
+
 @media (max-width: 1400px) { .dashboard-middle-row { grid-template-columns: 1fr; } }
 @media (max-width: 1200px) { .dashboard-top-row { flex-direction: column; } .clock-panel { flex: 0 0 auto; } }
 @media (max-width: 1024px) { .sidebar-glass { width: 80px; padding: 20px 10px; } .sidebar-glass span, .sidebar-brand h2, .sidebar-brand span, .user-profile-glass, .nav-item span, .btn-glass-logout span { display: none; } .nav-item { justify-content: center; padding: 14px; } .main-glass { margin-left: 80px; } }
-@media (max-width: 768px) { .floating-card { display: none; } .metrics-grid-horizontal { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .stats-mini { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .floating-card { display: none; } .metrics-grid-horizontal { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .stats-mini { grid-template-columns: 1fr; } .grid-relatorio { grid-template-columns: 1fr; } }
 @media (max-width: 480px) { .clock-time { font-size: 36px; } .vendas-numero { font-size: 40px; } }
