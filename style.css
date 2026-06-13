@@ -249,6 +249,25 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
     color: #fff;
 }
 
+/* BOTÃO LIXEIRA */
+.btn-glass-lixeira {
+    background: rgba(255, 165, 2, 0.15);
+    border: 1px solid rgba(255, 165, 2, 0.3);
+    color: #ffa502;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-glass-lixeira:hover {
+    background: rgba(255, 165, 2, 0.25);
+    box-shadow: 0 5px 15px rgba(255, 165, 2, 0.2);
+}
+
 @media (max-width: 1400px) { .dashboard-middle-row { grid-template-columns: 1fr; } }
 @media (max-width: 1200px) { .dashboard-top-row { flex-direction: column; } .clock-panel { flex: 0 0 auto; } }
 @media (max-width: 1024px) { .sidebar-glass { width: 80px; padding: 20px 10px; } .sidebar-glass span, .sidebar-brand h2, .sidebar-brand span, .user-profile-glass, .nav-item span, .btn-glass-logout span { display: none; } .nav-item { justify-content: center; padding: 14px; } .main-glass { margin-left: 80px; } }
