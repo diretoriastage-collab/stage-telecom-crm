@@ -216,4 +216,108 @@ function carregarTodosClientes() {
         const vendedor = DB.usuarios.find(u => u.id === c.vendedor_id);
         return `
             <tr>
-               
+                <td><strong>${c.nome}</strong></td>
+                <td>${c.cnpj}</td>
+                <td>${c.plano}</td>
+                <td>R$ ${c.valor.toFixed(2)}</td>
+                <td>${vendedor ? vendedor.nome : 'N/A'}</td>
+                <td class="status-${c.status}">${c.status}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// ===== ADMIN - RELATÓRIOS =====
+function carregarRelatorios() {
+    const totalPlanos = DB.clientes
+        .filter(c => c.status === 'ativo')
+        .reduce((total, c) => total + c.valor, 0);
+    
+    const clientesAtivos = DB.clientes.filter(c => c.status === 'ativo').length;
+    const media = clientesAtivos > 0 ? totalPlanos / clientesAtivos : 0;
+    
+    document.getElementById('totalPlanos').textContent = `R$ ${totalPlanos.toFixed(2)}`;
+    document.getElementById('mediaCliente').textContent = `R$ ${media.toFixed(2)}`;
+}
+
+// ===== VENDEDOR =====
+function mostrarSecaoVendedor(secao) {
+    document.querySelectorAll('#vendedorScreen .secao, #vendedorScreen .secao-ativa').forEach(s => s.style.display = 'none');
+    
+    const secaoElement = document.getElementById(`secao-${secao}`);
+    if (secaoElement) secaoElement.style.display = 'block';
+    
+    document.querySelectorAll('#vendedorScreen .nav-menu a').forEach(a => a.classList.remove('active'));
+    event.target.closest('a').classList.add('active');
+    
+    document.getElementById('tituloSecaoVendedor').textContent = 
+        secao === 'meusClientes' ? 'Meus Clientes' : 'Novo Cliente';
+    
+    if (secao === 'meusClientes') carregarMeusClientes();
+}
+
+function carregarMeusClientes() {
+    const meusClientes = DB.clientes.filter(c => c.vendedor_id === sessaoAtual.id);
+    const tabela = document.getElementById('tabelaMeusClientes');
+    
+    tabela.innerHTML = meusClientes.map(c => `
+        <tr>
+            <td><strong>${c.nome}</strong></td>
+            <td>${c.telefone}</td>
+            <td>${c.plano}</td>
+            <td>R$ ${c.valor.toFixed(2)}</td>
+            <td class="status-${c.status}">${c.status}</td>
+        </tr>
+    `).join('');
+}
+
+function cadastrarCliente() {
+    const nome = document.getElementById('nomeCliente').value;
+    const cnpj = document.getElementById('cnpjCliente').value;
+    const telefone = document.getElementById('telefoneCliente').value;
+    const email = document.getElementById('emailCliente').value;
+    const plano = document.getElementById('planoCliente').value;
+    
+    if (!nome || !cnpj || !telefone || !email || !plano) {
+        alert('Preencha todos os campos!');
+        return;
+    }
+    
+    const valores = { 'Básico': 299.90, 'Empresarial': 499.90, 'Premium': 899.90 };
+    
+    const novoCliente = {
+        id: DB.clientes.length + 1,
+        nome,
+        cnpj,
+        telefone,
+        email,
+        vendedor_id: sessaoAtual.id,
+        status: 'prospecto',
+        plano,
+        valor: valores[plano],
+        data: new Date().toISOString().split('T')[0]
+    };
+    
+    DB.clientes.push(novoCliente);
+    salvarDB();
+    
+    document.getElementById('nomeCliente').value = '';
+    document.getElementById('cnpjCliente').value = '';
+    document.getElementById('telefoneCliente').value = '';
+    document.getElementById('emailCliente').value = '';
+    document.getElementById('planoCliente').value = '';
+    
+    alert('Cliente cadastrado com sucesso!');
+    mostrarSecaoVendedor('meusClientes');
+}
+
+// ===== INICIALIZAÇÃO =====
+document.addEventListener('DOMContentLoaded', function() {
+    if (sessaoAtual) {
+        if (sessaoAtual.tipo === 'admin') {
+            mostrarAdmin();
+        } else {
+            mostrarVendedor();
+        }
+    }
+});
