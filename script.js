@@ -169,12 +169,25 @@ function gerarVendasMesAnterior() {
     return vendas;
 }
 
-// ===== DASHBOARD =====
+// ===== DASHBOARD (ATUALIZADO – CARD DE META) =====
 function carregarDashboard() {
-    document.getElementById('totalClientes').textContent = DB.clientes.length;
-    document.getElementById('vendedoresAtivos').textContent = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt).length;
+    // Card de progresso da meta mensal
+    const vendasMes = gerarVendasMesAtual();
+    const realizado = vendasMes.length;
+    const metaMensal = DB.config.metaMensal;
+    const percentual = Math.min((realizado / metaMensal) * 100, 100).toFixed(1);
+    const faltam = Math.max(metaMensal - realizado, 0);
+    
+    document.getElementById('metaMensalCard').textContent = metaMensal;
+    document.getElementById('realizadoMeta').textContent = realizado;
+    document.getElementById('faltamMeta').textContent = faltam;
+    document.getElementById('percentualMeta').textContent = `${percentual}%`;
+    document.getElementById('barraLiquida').style.width = `${percentual}%`;
+    
+    // Restante do dashboard
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
+    
     const tabela = document.getElementById('tabelaClientes');
     const ultimos = [...DB.clientes].reverse().slice(0,6);
     tabela.innerHTML = ultimos.map(c => {
@@ -295,7 +308,6 @@ function cadastrarVendedor(){
 }
 
 function carregarVendedores() {
-    // Remove definitivamente quem passou 15 dias na lixeira
     const agora = new Date();
     DB.usuarios = DB.usuarios.filter(u => {
         if (u.deletedAt) {
@@ -328,7 +340,6 @@ function carregarVendedores() {
         `;
     }).join('');
 
-    // Atualiza contador da lixeira
     const lixeiraCount = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.deletedAt).length;
     const contador = document.getElementById('contadorLixeira');
     if (contador) contador.textContent = lixeiraCount;
