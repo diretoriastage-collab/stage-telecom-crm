@@ -1,5 +1,5 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO
+// STAGE TELECOM CRM - SCRIPT COMPLETO FINAL
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db'));
 
@@ -36,29 +36,15 @@ if (!DB) {
     };
 }
 
-// Garantir que promocoes e notificacoes existam mesmo em bancos antigos
-if (!DB.promocoes) DB.promocoes = [];
-if (!DB.notificacoes) DB.notificacoes = [];
-
-if (!DB.statusFlags) {
-    DB.statusFlags = [
-        { id: 1, nome: "Ativo", cor: "#2ed573" },
-        { id: 2, nome: "Pendente", cor: "#ffa502" },
-        { id: 3, nome: "Cancelado", cor: "#ff4757" }
-    ];
-}
-if (!DB.ativacoes) DB.ativacoes = [];
-if (!DB.metas) {
-    DB.metas = {
-        diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150,
-        produtos: [],
-        instalacoes: []
-    };
-}
-if (!DB.metas.produtos) DB.metas.produtos = [];
-if (!DB.metas.instalacoes) DB.metas.instalacoes = [];
-DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; });
-DB.usuarios.forEach(u => { if (!u.equipe) u.equipe = 'Geral'; });
+// ===== GARANTIA ABSOLUTA =====
+DB.promocoes = DB.promocoes || [];
+DB.notificacoes = DB.notificacoes || [];
+DB.ativacoes = DB.ativacoes || [];
+DB.metas = DB.metas || { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150, produtos: [], instalacoes: [] };
+DB.metas.produtos = DB.metas.produtos || [];
+DB.metas.instalacoes = DB.metas.instalacoes || [];
+DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
+// ===========================
 
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
@@ -76,7 +62,6 @@ setInterval(() => {
     const minutos = String(agora.getMinutes()).padStart(2,'0');
     const segundos = String(agora.getSeconds()).padStart(2,'0');
     const periodo = agora.getHours() < 12 ? '☀️ MANHÃ' : agora.getHours() < 18 ? '🌤️ TARDE' : '🌙 NOITE';
-
     ['dataAtual','dataAtualAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = dataFormatada; });
     ['horaAtual','horaAtualAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = `${horas}:${minutos}:${segundos}`; });
     ['periodoDia','periodoDiaAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = periodo; });
@@ -209,7 +194,6 @@ function carregarDashboard() {
     document.getElementById('faltamMeta').textContent = Math.max(metaMensal - realizado, 0);
     document.getElementById('percentualMeta').textContent = `${percentual}%`;
     document.getElementById('barraLiquida').style.width = `${percentual}%`;
-
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
 }
@@ -220,15 +204,13 @@ function carregarVendasDiarias() {
     const vendasHoje = gerarDadosVendas();
     const meta = DB.metas.diariaVendas || 10;
     document.getElementById('totalVendasHoje').textContent = vendasHoje.length;
-
     const pctDiario = Math.min((vendasHoje.length / meta) * 100, 100).toFixed(1);
     document.getElementById('barraLiquidaDiaria').style.width = `${pctDiario}%`;
     document.getElementById('realizadoMetaDiaria').textContent = vendasHoje.length;
     document.getElementById('faltamMetaDiaria').textContent = Math.max(meta - vendasHoje.length, 0);
     document.getElementById('metaDiaria').textContent = meta;
 
-    const ranking = {};
-    vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
+    const ranking = {}; vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
     const rankingArr = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas);
     const rankingEl = document.getElementById('rankingVendedores');
     rankingEl.innerHTML = rankingArr.length ? rankingArr.map((r,i)=>{
@@ -237,8 +219,7 @@ function carregarVendasDiarias() {
         return `<div class="ranking-item"><div class="ranking-posicao ${cls}">${medal}</div><div class="ranking-info"><span class="ranking-nome">${r.nome}</span><span class="ranking-vendas">${r.vendas} vendas</span></div><span class="ranking-pontos">${r.vendas}</span></div>`;
     }).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Nenhuma venda hoje</p>';
 
-    const produtos = {};
-    vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
+    const produtos = {}; vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
     const prodArr = Object.values(produtos).sort((a,b)=>b.qtd-a.qtd);
     const maxQtd = prodArr[0]?.qtd||1;
     const prodEl = document.getElementById('produtosVendidos');
@@ -266,7 +247,6 @@ function carregarComparativoDiario() {
     const diffEl = document.getElementById('compDiferencaDiario');
     diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
     diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
-
     const ranking = {}; vHoje.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
     const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
     document.getElementById('destaqueDiario').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas hoje</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
@@ -284,12 +264,10 @@ function carregarComparativoMensal() {
     const diffEl = document.getElementById('compDiferencaMensal');
     diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
     diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
-
     const ranking = {}; vAtual.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
     const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
     document.getElementById('destaqueMensal').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas no mês</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
     carregarComparacaoProdutos(vAtual, vAnterior, 'compProdutosMensal');
-
     const meta = DB.metas.mensalVendas || 150, realizado = vAtual.length, pct = Math.min((realizado/meta)*100,100).toFixed(1);
     document.getElementById('metaMensalValor').textContent = meta;
     document.getElementById('metaMensalRealizado').textContent = realizado;
@@ -313,13 +291,8 @@ function mostrarSecao(secao) {
     document.querySelectorAll('.nav-item').forEach(a=>a.classList.remove('active'));
     const nav = document.querySelector(`[data-section="${secao}"]`); if(nav) nav.classList.add('active');
     document.getElementById('tituloSecao').innerHTML = {
-        dashboard:'📊 Dashboard',
-        cadastro:'👥 Cadastro',
-        ativacoes:'⚡ Ativações',
-        relatorios:'📈 Relatórios',
-        metas:'🎯 Metas'
+        dashboard:'📊 Dashboard', cadastro:'👥 Cadastro', ativacoes:'⚡ Ativações', relatorios:'📈 Relatórios', metas:'🎯 Metas'
     }[secao]||secao;
-
     if(secao==='cadastro') carregarUsuarios();
     if(secao==='ativacoes') carregarAtivacoes();
     if(secao==='relatorios') carregarRelatorios();
@@ -332,11 +305,7 @@ function mostrarSecao(secao) {
 // ===== CADASTRO DE USUÁRIOS =====
 function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
 function cadastrarUsuario(){
-    const n=document.getElementById('nomeUsuario').value.trim();
-    const u=document.getElementById('usuarioUsuario').value.trim();
-    const s=document.getElementById('senhaUsuario').value.trim();
-    const e=document.getElementById('emailUsuario').value.trim();
-    const cat=document.getElementById('categoriaUsuario').value;
+    const n=document.getElementById('nomeUsuario').value.trim(), u=document.getElementById('usuarioUsuario').value.trim(), s=document.getElementById('senhaUsuario').value.trim(), e=document.getElementById('emailUsuario').value.trim(), cat=document.getElementById('categoriaUsuario').value;
     if(!n||!u||!s||!e) return alert('Preencha todos os campos!');
     if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
     DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':'Geral'});
@@ -352,8 +321,7 @@ function carregarUsuarios() {
     tabela.innerHTML = usuarios.map(u => `
         <tr>
             <td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
-            <td>@${u.usuario}</td>
-            <td>${u.email}</td>
+            <td>@${u.usuario}</td><td>${u.email}</td>
             <td><span class="badge-cat">${u.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td>
             <td class="${u.ativo?'status-ativo':''}">${u.ativo?'● Ativo':'○ Inativo'}</td>
             <td>
@@ -367,9 +335,7 @@ function carregarUsuarios() {
 function toggleUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.ativo=!u.ativo;salvarDB();carregarUsuarios();} }
 function excluirUsuario(id){
     const u=DB.usuarios.find(u=>u.id===id); if(!u) return;
-    if(confirm(`⚠️ Excluir "${u.nome}"? Ele irá para a lixeira e perderá o acesso.`)){
-        u.deletedAt = new Date().toISOString(); u.ativo = false; salvarDB(); carregarUsuarios();
-    }
+    if(confirm(`⚠️ Excluir "${u.nome}"? Ele irá para a lixeira e perderá o acesso.`)){ u.deletedAt = new Date().toISOString(); u.ativo = false; salvarDB(); carregarUsuarios(); }
 }
 function abrirModalEditar(id){
     const u=DB.usuarios.find(u=>u.id===id); if(!u) return;
@@ -399,11 +365,7 @@ function salvarEdicaoUsuario(){
 }
 
 // ===== LIXEIRA =====
-function toggleLixeira(){
-    const l=document.getElementById('lixeiraUsuarios');
-    if(l.style.display==='none'||l.style.display===''){ carregarLixeira(); l.style.display='block'; }
-    else l.style.display='none';
-}
+function toggleLixeira(){ const l=document.getElementById('lixeiraUsuarios'); if(l.style.display==='none'||l.style.display===''){ carregarLixeira(); l.style.display='block'; } else l.style.display='none'; }
 function carregarLixeira(){
     const agora = new Date();
     const lixeira = DB.usuarios.filter(u=>u.deletedAt);
@@ -412,15 +374,7 @@ function carregarLixeira(){
     if(!lixeira.length){ tabela.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
     tabela.innerHTML = lixeira.map(v=>{
         const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt))/(1000*60*60*24)));
-        return `<tr>
-            <td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td>
-            <td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td>
-            <td><span style="color:#ffa502;">${dias} dia(s)</span></td>
-            <td>
-                <button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button>
-                <button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button>
-            </td>
-        </tr>`;
+        return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td><td><span style="color:#ffa502;">${dias} dia(s)</span></td><td><button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button><button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button></td></tr>`;
     }).join('');
 }
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
@@ -432,12 +386,7 @@ function carregarAtivacoes() {
     tabela.innerHTML = DB.ativacoes.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-        return `<tr>
-            <td><strong>${a.nomeCliente}</strong></td><td>${a.produto}</td>
-            <td>${vendedor?vendedor.nome:'N/A'}</td>
-            <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
-            <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
-        </tr>`;
+        return `<tr><td><strong>${a.nomeCliente}</strong></td><td>${a.produto}</td><td>${vendedor?vendedor.nome:'N/A'}</td><td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td><td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td></tr>`;
     }).join('');
 }
 function abrirModalAtivacao(id) {
@@ -480,8 +429,7 @@ function abrirModalAtivacao(id) {
             <div class="input-group"><label>Agendamento</label><input value="${a.agendamento||''}" id="editAgendamento"></div>
             <div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div>
             <div class="input-group"><label>Data Ag.</label><input value="${a.dataAg||''}" id="editDataAg"></div>
-        </div>
-    `;
+        </div>`;
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
 function fecharModalAtivacao() { document.getElementById('modalAtivacao').style.display = 'none'; }
@@ -492,81 +440,37 @@ function fecharModalStatus() { document.getElementById('modalStatus').style.disp
 function carregarListaStatusFlags() {
     const container = document.getElementById('listaStatusFlags');
     if (!container) return;
-    container.innerHTML = DB.statusFlags.map(f => `
-        <div class="flag-item">
-            <span class="flag-color" style="background:${f.cor};"></span>
-            <span>${f.nome}</span>
-            <button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button>
-        </div>
-    `).join('');
+    container.innerHTML = DB.statusFlags.map(f => `<div class="flag-item"><span class="flag-color" style="background:${f.cor};"></span><span>${f.nome}</span><button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button></div>`).join('');
 }
 function adicionarStatusFlag() {
     const nome = document.getElementById('novoStatusNome').value.trim();
     const cor = document.getElementById('novoStatusCor').value;
     if (!nome) return alert('Digite um nome para a flag!');
-    DB.statusFlags.push({ id: Date.now(), nome, cor });
-    salvarDB();
-    carregarListaStatusFlags();
-    document.getElementById('novoStatusNome').value = '';
+    DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = '';
 }
-function removerStatusFlag(id) {
-    DB.statusFlags = DB.statusFlags.filter(f => f.id !== id);
-    salvarDB();
-    carregarListaStatusFlags();
-    if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
-}
+function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
 
 // ===== RELATÓRIOS =====
 function carregarRelatorios() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
-    if (periodo === 'diario') {
-        dadosAtual = gerarDadosVendas();
-        dadosAnterior = gerarVendasDiaPassado();
-    } else if (periodo === 'quinzena') {
-        dadosAtual = gerarVendasQuinzenaAtual();
-        dadosAnterior = gerarVendasQuinzenaAnterior();
-    } else {
-        dadosAtual = gerarVendasMesAtual();
-        dadosAnterior = gerarVendasMesAnterior();
-    }
+    if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
+    else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
+    else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
     carregarComparativoProdutos(dadosAtual, dadosAnterior, periodo);
     carregarVendasPorVendedor(dadosAtual, dadosAnterior);
     carregarVendasPorEquipe(dadosAtual, dadosAnterior);
     carregarRankingRelatorio(dadosAtual);
 }
-function gerarVendasQuinzenaAtual() {
-    const hoje = new Date(); const dia = hoje.getDate();
-    const todas = gerarVendasMesAtual();
-    if (dia <= 15) return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; });
-    else return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; });
-}
+function gerarVendasQuinzenaAtual() { const hoje = new Date(); const dia = hoje.getDate(); const todas = gerarVendasMesAtual(); return dia <= 15 ? todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }) : todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; }); }
 function gerarVendasQuinzenaAnterior() {
     const hoje = new Date(); const dia = hoje.getDate(); let vendas = [];
     if (dia <= 15) {
         const mesAnterior = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
         const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
-        vendas = gerarVendasMesAnterior().filter(v => {
-            const [y, m, d] = v.data.split('-').map(Number);
-            return y === ano && m === mesAnterior && d >= 16;
-        });
-    } else {
-        vendas = gerarVendasMesAtual().filter(v => {
-            const d = parseInt(v.data.split('-')[2]);
-            return d >= 1 && d <= 15;
-        });
-    }
-    if (vendas.length === 0) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
-        const num = Math.floor(Math.random()*12)+4;
-        for (let i=0;i<num;i++) {
-            const v = vendedores[Math.floor(Math.random()*vendedores.length)];
-            const p = planos[Math.floor(Math.random()*planos.length)];
-            const diaV = Math.floor(Math.random()*15) + 1;
-            vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`2024-06-${String(diaV).padStart(2,'0')}`});
-        }
-    }
+        vendas = gerarVendasMesAnterior().filter(v => { const [y, m, d] = v.data.split('-').map(Number); return y === ano && m === mesAnterior && d >= 16; });
+    } else { vendas = gerarVendasMesAtual().filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); }
+    if (vendas.length === 0) { const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt); const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}]; for (let i=0;i<Math.floor(Math.random()*12)+4;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`2024-06-${String(Math.floor(Math.random()*15)+1).padStart(2,'0')}`}); } }
     return vendas;
 }
 function carregarComparativoProdutos(atual, anterior, periodo) {
@@ -601,39 +505,15 @@ function carregarVendasPorVendedor(atual, anterior) {
     if (graficoVendedoresInstance) graficoVendedoresInstance.destroy();
     graficoVendedoresInstance = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: dados.map(d => d.nome),
-            datasets: [
-                { label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 },
-                { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { labels: { color: '#fff' } } },
-            scales: {
-                y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                x: { ticks: { color: '#fff' }, grid: { display: false } }
-            }
-        }
+        data: { labels: dados.map(d => d.nome), datasets: [{ label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 }, { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }] },
+        options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: '#fff' }, grid: { display: false } } } }
     });
 }
 function carregarVendasPorEquipe(atual, anterior) {
     const equipes = {};
-    DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => {
-        const eq = u.equipe || 'Sem equipe';
-        if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 };
-    });
-    atual.forEach(v => {
-        const user = DB.usuarios.find(u => u.id === v.vendedor_id);
-        const eq = user?.equipe || 'Sem equipe';
-        if (equipes[eq]) equipes[eq].atual++;
-    });
-    anterior.forEach(v => {
-        const user = DB.usuarios.find(u => u.id === v.vendedor_id);
-        const eq = user?.equipe || 'Sem equipe';
-        if (equipes[eq]) equipes[eq].anterior++;
-    });
+    DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
+    atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
+    anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
     let html = '<table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
     Object.entries(equipes).forEach(([nome, valores]) => {
         const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
@@ -645,26 +525,13 @@ function carregarVendasPorEquipe(atual, anterior) {
 }
 function carregarRankingRelatorio(atual) {
     const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
-    const ranking = vendedores.map(v => ({
-        nome: v.nome,
-        vendas: atual.filter(vd => vd.vendedor_id === v.id).length
-    })).sort((a,b) => b.vendas - a.vendas);
+    const ranking = vendedores.map(v => ({ nome: v.nome, vendas: atual.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.vendas - a.vendas);
     const maxVendas = ranking[0]?.vendas || 1;
     let html = '';
     ranking.forEach((v, i) => {
         const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
         const pct = maxVendas > 0 ? (v.vendas / maxVendas * 100).toFixed(0) : 0;
-        html += `
-            <div class="ranking-item-relatorio">
-                <div class="ranking-posicao-relatorio">${medalha || i+1}</div>
-                <div class="ranking-info-relatorio">
-                    <span class="ranking-nome-relatorio">${v.nome}</span>
-                    <span class="ranking-detalhes-relatorio">${v.vendas} vendas</span>
-                    <div class="barra-progresso-relatorio"><div class="barra-progresso-preenchimento" style="width:${pct}%"></div></div>
-                </div>
-                <div class="ranking-pontos-relatorio">${v.vendas}</div>
-            </div>
-        `;
+        html += `<div class="ranking-item-relatorio"><div class="ranking-posicao-relatorio">${medalha || i+1}</div><div class="ranking-info-relatorio"><span class="ranking-nome-relatorio">${v.nome}</span><span class="ranking-detalhes-relatorio">${v.vendas} vendas</span><div class="barra-progresso-relatorio"><div class="barra-progresso-preenchimento" style="width:${pct}%"></div></div></div><div class="ranking-pontos-relatorio">${v.vendas}</div></div>`;
     });
     document.getElementById('rankingRelatorio').innerHTML = html;
 }
@@ -673,156 +540,58 @@ function carregarRankingRelatorio(atual) {
 function gerarPDF() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
-    if (periodo === 'diario') {
-        dadosAtual = gerarDadosVendas();
-        dadosAnterior = gerarVendasDiaPassado();
-    } else if (periodo === 'quinzena') {
-        dadosAtual = gerarVendasQuinzenaAtual();
-        dadosAnterior = gerarVendasQuinzenaAnterior();
-    } else {
-        dadosAtual = gerarVendasMesAtual();
-        dadosAnterior = gerarVendasMesAnterior();
-    }
-
-    let html = `<div class="relatorio-pdf">`;
-    html += `<h1>Relatório de Vendas - STAGE TELECOM</h1>`;
-    html += `<p>Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
-
-    const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
-    html += `<h2>🏷️ Comparativo de Produtos</h2>`;
-    html += `<table><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr>`;
-    produtos.forEach(p => {
-        const qtdAtual = dadosAtual.filter(v => v.plano === p).length;
-        const qtdAnterior = dadosAnterior.filter(v => v.plano === p).length;
-        const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0);
-        html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
+    if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
+    else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
+    else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
+    let html = `<div class="relatorio-pdf"><h1>Relatório de Vendas - STAGE TELECOM</h1><p>Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
+    const produtos = ['Básico','Empresarial','Premium','Ultra'];
+    html += `<h2>🏷️ Comparativo de Produtos</h2><table><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr>`;
+    produtos.forEach(p => { const qtdAtual = dadosAtual.filter(v => v.plano === p).length; const qtdAnterior = dadosAnterior.filter(v => v.plano === p).length; const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0); html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; });
     html += `</table>`;
-
     const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
-    const dados = vendedores.map(v => ({
-        nome: v.nome,
-        atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length,
-        anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length
-    })).sort((a,b) => b.atual - a.atual);
-
-    html += `<h2>👥 Vendas por Vendedor</h2>`;
-    html += `<table><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr>`;
-    dados.forEach(d => {
-        const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
-        html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
+    const dados = vendedores.map(v => ({ nome: v.nome, atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length, anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual);
+    html += `<h2>👥 Vendas por Vendedor</h2><table><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr>`;
+    dados.forEach(d => { const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0); html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; });
+    html += `</table><div class="grafico-container"><canvas id="graficoPDF" width="500" height="250"></canvas></div>`;
+    const equipes = {}; DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
+    dadosAtual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
+    dadosAnterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
+    html += `<h2>🏢 Vendas por Equipe</h2><table><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr>`;
+    Object.entries(equipes).forEach(([nome, valores]) => { const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0); html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; });
     html += `</table>`;
-    html += `<div class="grafico-container"><canvas id="graficoPDF" width="500" height="250"></canvas></div>`;
-
-    const equipes = {};
-    DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => {
-        const eq = u.equipe || 'Sem equipe';
-        if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 };
-    });
-    dadosAtual.forEach(v => {
-        const user = DB.usuarios.find(u => u.id === v.vendedor_id);
-        const eq = user?.equipe || 'Sem equipe';
-        if (equipes[eq]) equipes[eq].atual++;
-    });
-    dadosAnterior.forEach(v => {
-        const user = DB.usuarios.find(u => u.id === v.vendedor_id);
-        const eq = user?.equipe || 'Sem equipe';
-        if (equipes[eq]) equipes[eq].anterior++;
-    });
-    html += `<h2>🏢 Vendas por Equipe</h2>`;
-    html += `<table><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr>`;
-    Object.entries(equipes).forEach(([nome, valores]) => {
-        const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
-        html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
-    html += `</table>`;
-
     const ranking = dados.sort((a,b) => b.atual - a.atual);
     const maxVendas = ranking[0]?.atual || 1;
     html += `<h2>🏆 Ranking de Vendedores</h2>`;
-    ranking.forEach((v, i) => {
-        const pct = maxVendas > 0 ? (v.atual / maxVendas * 100).toFixed(0) : 0;
-        html += `<div class="ranking-item-relatorio" style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
-            <span style="font-size:20px;">${i+1}º</span>
-            <span style="flex:1;">${v.nome} - ${v.atual} vendas</span>
-            <div style="width:100px; height:8px; background:#eee; border-radius:4px; overflow:hidden;">
-                <div style="width:${pct}%; height:100%; background:#e74c3c;"></div>
-            </div>
-        </div>`;
-    });
+    ranking.forEach((v, i) => { const pct = maxVendas > 0 ? (v.atual / maxVendas * 100).toFixed(0) : 0; html += `<div class="ranking-item-relatorio" style="display:flex; align-items:center; gap:10px; margin-bottom:5px;"><span style="font-size:20px;">${i+1}º</span><span style="flex:1;">${v.nome} - ${v.atual} vendas</span><div style="width:100px; height:8px; background:#eee; border-radius:4px; overflow:hidden;"><div style="width:${pct}%; height:100%; background:#e74c3c;"></div></div></div>`; });
     html += `</div>`;
-
     document.getElementById('conteudoPDF').innerHTML = html;
     document.getElementById('modalPDF').style.display = 'flex';
-
     setTimeout(() => {
         const ctx = document.getElementById('graficoPDF');
-        if (ctx) {
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: dados.map(d => d.nome),
-                    datasets: [
-                        { label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 },
-                        { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }
-                    ]
-                },
-                options: {
-                    responsive: false,
-                    plugins: { legend: { labels: { color: '#000' } } },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { color: '#000' }, grid: { color: '#ccc' } },
-                        x: { ticks: { color: '#000' }, grid: { display: false } }
-                    }
-                }
-            });
-        }
-        setTimeout(() => {
-            const elemento = document.getElementById('conteudoPDF');
-            const opt = {
-                margin: 0.5,
-                filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, backgroundColor: '#ffffff' },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-            html2pdf().set(opt).from(elemento).save();
-        }, 500);
+        if (ctx) { new Chart(ctx, { type: 'bar', data: { labels: dados.map(d => d.nome), datasets: [{ label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 }, { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }] }, options: { responsive: false, plugins: { legend: { labels: { color: '#000' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#000' }, grid: { color: '#ccc' } }, x: { ticks: { color: '#000' }, grid: { display: false } } } } }); }
+        setTimeout(() => { const elemento = document.getElementById('conteudoPDF'); html2pdf().set({ margin: 0.5, filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, backgroundColor: '#ffffff' }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(elemento).save(); }, 500);
     }, 100);
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
 // ===== METAS =====
-function mostrarAbaMeta(aba) {
+function mostrarAbaMeta(aba, btn) {
     document.querySelectorAll('.aba-meta').forEach(a => a.classList.remove('active'));
     document.getElementById(`aba-${aba}`).classList.add('active');
     document.querySelectorAll('.meta-tab').forEach(b => b.classList.remove('active'));
-    event.target.classList.add('active');
+    if (btn) btn.classList.add('active');
     if (aba === 'definir') carregarMetas();
     if (aba === 'promocoes') carregarPromocoes();
 }
 function carregarMetas() {
-    document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas;
-    document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas;
-    document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas;
-
+    document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
+    document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
+    document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas || 150;
     const tabelaProd = document.getElementById('tabelaMetasProdutos');
-    tabelaProd.innerHTML = DB.metas.produtos.map(p => `
-        <tr>
-            <td>${p.produto}</td>
-            <td>${p.diaria}</td>
-            <td>${p.quinzenal}</td>
-            <td>${p.mensal}</td>
-            <td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td>
-        </tr>
-    `).join('');
-
+    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr><td>${p.produto}</td><td>${p.diaria}</td><td>${p.quinzenal}</td><td>${p.mensal}</td><td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
     carregarMetasInstalacoes();
     const selectVendedor = document.getElementById('vendedorMetaInstalacao');
-    selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => 
-        `<option value="${u.id}">${u.nome}</option>`
-    ).join('');
+    selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
 }
 function adicionarMetaProduto() {
     const produto = document.getElementById('produtoMetaSelect').value;
@@ -830,66 +599,29 @@ function adicionarMetaProduto() {
     const quinzenal = parseInt(document.getElementById('produtoQuinzenal').value) || 0;
     const mensal = parseInt(document.getElementById('produtoMensal').value) || 0;
     if (diaria <= 0 || quinzenal <= 0 || mensal <= 0) return alert('Valores inválidos');
-    DB.metas.produtos.push({ id: Date.now(), produto, diaria, quinzenal, mensal });
-    salvarDB();
-    carregarMetas();
+    DB.metas.produtos.push({ id: Date.now(), produto, diaria, quinzenal, mensal }); salvarDB(); carregarMetas();
 }
-function removerMetaProduto(id) {
-    DB.metas.produtos = DB.metas.produtos.filter(p => p.id !== id);
-    salvarDB();
-    carregarMetas();
-}
-function toggleMetaInstalacao() {
-    const tipo = document.getElementById('tipoMetaInstalacao').value;
-    document.getElementById('grupoVendedorInstalacao').style.display = tipo === 'vendedor' ? 'block' : 'none';
-}
+function removerMetaProduto(id) { DB.metas.produtos = DB.metas.produtos.filter(p => p.id !== id); salvarDB(); carregarMetas(); }
+function toggleMetaInstalacao() { document.getElementById('grupoVendedorInstalacao').style.display = document.getElementById('tipoMetaInstalacao').value === 'vendedor' ? 'block' : 'none'; }
 function adicionarMetaInstalacao() {
     const tipo = document.getElementById('tipoMetaInstalacao').value;
     const diaria = parseInt(document.getElementById('instalacaoDiaria').value) || 0;
     const quinzenal = parseInt(document.getElementById('instalacaoQuinzenal').value) || 0;
     const mensal = parseInt(document.getElementById('instalacaoMensal').value) || 0;
     if (diaria <= 0 || quinzenal <= 0 || mensal <= 0) return alert('Valores inválidos');
-    let entidade = '';
-    let entidadeId = null;
-    if (tipo === 'vendedor') {
-        entidadeId = parseInt(document.getElementById('vendedorMetaInstalacao').value);
-        const vend = DB.usuarios.find(u => u.id === entidadeId);
-        entidade = vend ? vend.nome : 'Vendedor';
-    } else {
-        entidade = 'STAGE TELECOM';
-        entidadeId = 0;
-    }
-    DB.metas.instalacoes.push({ id: Date.now(), tipo, entidade, entidadeId, diaria, quinzenal, mensal });
-    salvarDB();
-    carregarMetas();
+    let entidade = '', entidadeId = null;
+    if (tipo === 'vendedor') { entidadeId = parseInt(document.getElementById('vendedorMetaInstalacao').value); const vend = DB.usuarios.find(u => u.id === entidadeId); entidade = vend ? vend.nome : 'Vendedor'; }
+    else { entidade = 'STAGE TELECOM'; entidadeId = 0; }
+    DB.metas.instalacoes.push({ id: Date.now(), tipo, entidade, entidadeId, diaria, quinzenal, mensal }); salvarDB(); carregarMetas();
 }
 function carregarMetasInstalacoes() {
     const tabelaInst = document.getElementById('tabelaMetasInstalacoes');
-    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `
-        <tr>
-            <td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td>
-            <td>${i.entidade}</td>
-            <td>${i.diaria}</td>
-            <td>${i.quinzenal}</td>
-            <td>${i.mensal}</td>
-            <td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td>
-        </tr>
-    `).join('');
+    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr><td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td><td>${i.entidade}</td><td>${i.diaria}</td><td>${i.quinzenal}</td><td>${i.mensal}</td><td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
 }
-function removerMetaInstalacao(id) {
-    DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id);
-    salvarDB();
-    carregarMetas();
-}
-function salvarMetas() {
-    DB.metas.diariaVendas = parseInt(document.getElementById('metaDiariaVendas').value) || 10;
-    DB.metas.quinzenalVendas = parseInt(document.getElementById('metaQuinzenalVendas').value) || 75;
-    DB.metas.mensalVendas = parseInt(document.getElementById('metaMensalVendas').value) || 150;
-    salvarDB();
-    alert('✅ Metas de vendas atualizadas!');
-}
+function removerMetaInstalacao(id) { DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id); salvarDB(); carregarMetas(); }
+function salvarMetas() { DB.metas.diariaVendas = parseInt(document.getElementById('metaDiariaVendas').value) || 10; DB.metas.quinzenalVendas = parseInt(document.getElementById('metaQuinzenalVendas').value) || 75; DB.metas.mensalVendas = parseInt(document.getElementById('metaMensalVendas').value) || 150; salvarDB(); alert('✅ Metas de vendas atualizadas!'); }
 
-// ===== PROMOÇÕES (CORRIGIDAS) =====
+// ===== PROMOÇÕES =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
@@ -906,57 +638,40 @@ function cadastrarPromocao() {
     alert('✅ Promoção cadastrada!');
 }
 function carregarPromocoes() {
+    console.log('Promoções:', DB.promocoes);
     const agora = new Date();
     const tabela = document.getElementById('tabelaPromocoes');
     const divVazia = document.getElementById('promocoesVazia');
-
-    // Atualiza status e verifica vencedores se necessário
+    if (!tabela) return;
     DB.promocoes.forEach(p => {
         const inicio = new Date(p.inicio);
         const fim = new Date(p.fim);
         if (agora < inicio) p.status = '⏳ Aguardando';
         else if (agora >= inicio && agora <= fim) { p.status = '▶️ Ativa'; p.ativa = true; }
-        else if (agora > fim && !p.concluida) {
-            p.status = '⏹️ Encerrada';
-            p.ativa = false;
-            verificarVencedoresPromocao(p);
-        }
+        else if (agora > fim && !p.concluida) { p.status = '⏹️ Encerrada'; p.ativa = false; verificarVencedoresPromocao(p); }
     });
     salvarDB();
-
     if (DB.promocoes.length === 0) {
         tabela.innerHTML = '';
         divVazia.style.display = 'block';
-        return;
     } else {
         divVazia.style.display = 'none';
-    }
-
-    tabela.innerHTML = DB.promocoes.map(p => `
-        <tr>
-            <td>${p.tipo}</td>
-            <td>${p.quantidade}</td>
-            <td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td>
-            <td>${p.premio}</td>
-            <td>${p.status || 'Ativa'}</td>
-            <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td>
-        </tr>
-    `).join('');
-}
-function excluirPromocao(id) {
-    if (confirm('Excluir esta promoção?')) {
-        DB.promocoes = DB.promocoes.filter(p => p.id !== id);
-        salvarDB();
-        carregarPromocoes();
+        tabela.innerHTML = DB.promocoes.map(p => `
+            <tr>
+                <td>${p.tipo}</td>
+                <td>${p.quantidade}</td>
+                <td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td>
+                <td>${p.premio}</td>
+                <td>${p.status || 'Ativa'}</td>
+                <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td>
+            </tr>
+        `).join('');
     }
 }
-function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) {
-    return gerarVendasParaPeriodo(vendedorId, inicio, fim).length;
-}
+function excluirPromocao(id) { if (confirm('Excluir esta promoção?')) { DB.promocoes = DB.promocoes.filter(p => p.id !== id); salvarDB(); carregarPromocoes(); } }
+function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) { return gerarVendasParaPeriodo(vendedorId, inicio, fim).length; }
 function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
-    const inicioDate = new Date(inicio);
-    const fimDate = new Date(fim);
-    const vendas = [];
+    const inicioDate = new Date(inicio); const fimDate = new Date(fim); const vendas = [];
     for (let d = new Date(inicioDate); d <= fimDate; d.setDate(d.getDate() + 1)) {
         const dataStr = d.toISOString().split('T')[0];
         const vendasDia = gerarVendasParaData(dataStr);
@@ -970,11 +685,7 @@ function gerarVendasParaData(data) {
         const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
         const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9},{nome:'Ultra',valor:1499.9}];
         const num = Math.floor(Math.random()*5)+1;
-        for (let i=0;i<num;i++) {
-            const v = vendedores[Math.floor(Math.random()*vendedores.length)];
-            const p = planos[Math.floor(Math.random()*planos.length)];
-            vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data});
-        }
+        for (let i=0;i<num;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data}); }
         localStorage.setItem(`vendas_${data}`, JSON.stringify(vendas));
     }
     return vendas;
@@ -982,66 +693,20 @@ function gerarVendasParaData(data) {
 function verificarVencedoresPromocao(promocao) {
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt);
     const vencedores = [];
-    vendedores.forEach(v => {
-        const qtd = obterQuantidadePeriodo(v.id, promocao.tipo, promocao.inicio, promocao.fim);
-        if (qtd >= promocao.quantidade) {
-            vencedores.push({ id: v.id, nome: v.nome, quantidade: qtd });
-        }
-    });
+    vendedores.forEach(v => { const qtd = obterQuantidadePeriodo(v.id, promocao.tipo, promocao.inicio, promocao.fim); if (qtd >= promocao.quantidade) vencedores.push({ id: v.id, nome: v.nome, quantidade: qtd }); });
     promocao.vencedores = vencedores.map(v => v.id);
-    promocao.concluida = true;
-    salvarDB();
-
+    promocao.concluida = true; salvarDB();
     if (vencedores.length > 0) {
         const nomes = vencedores.map(v => v.nome).join(', ');
         mostrarModalParabens(`🏆 Meta bônus de ${promocao.tipo} batida! Vencedor(es): ${nomes}. Prêmio: ${promocao.premio}`);
-        vencedores.forEach(v => {
-            DB.notificacoes.push({
-                id: Date.now() + Math.random(),
-                userId: v.id,
-                mensagem: `🎉 Você bateu a meta bônus de ${promocao.tipo} e ganhou: ${promocao.premio}!`,
-                lida: false
-            });
-        });
+        vencedores.forEach(v => { DB.notificacoes.push({ id: Date.now() + Math.random(), userId: v.id, mensagem: `🎉 Você bateu a meta bônus de ${promocao.tipo} e ganhou: ${promocao.premio}!`, lida: false }); });
         salvarDB();
-    } else {
-        mostrarModalParabens(`😞 Nenhum vendedor bateu a meta bônus de ${promocao.tipo}.`);
-    }
+    } else { mostrarModalParabens(`😞 Nenhum vendedor bateu a meta bônus de ${promocao.tipo}.`); }
 }
-function verificarPromocoesAdmin() {
-    const agora = new Date();
-    DB.promocoes.forEach(p => {
-        if (p.ativa && new Date(p.fim) <= agora && !p.concluida) {
-            verificarVencedoresPromocao(p);
-        }
-    });
-}
-function mostrarModalParabens(mensagem) {
-    document.getElementById('parabensMensagem').textContent = mensagem;
-    document.getElementById('modalParabens').style.display = 'flex';
-}
-function verificarNotificacoesVendedor() {
-    if (!sessao || sessao.tipo !== 'vendedor') return;
-    const notificacoesPendentes = DB.notificacoes.filter(n => n.userId === sessao.id && !n.lida);
-    if (notificacoesPendentes.length > 0) {
-        const notif = notificacoesPendentes[0];
-        document.getElementById('parabensVendedorMensagem').textContent = notif.mensagem;
-        document.getElementById('modalParabensVendedor').style.display = 'flex';
-        notif.lida = true;
-        salvarDB();
-    }
-}
-// Verificação periódica (admin)
-setInterval(() => {
-    if (sessao && sessao.tipo === 'admin') {
-        const agora = new Date();
-        DB.promocoes.forEach(p => {
-            if (p.ativa && new Date(p.fim) <= agora && !p.concluida) {
-                verificarVencedoresPromocao(p);
-            }
-        });
-    }
-}, 30000);
+function verificarPromocoesAdmin() { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); }
+function mostrarModalParabens(mensagem) { document.getElementById('parabensMensagem').textContent = mensagem; document.getElementById('modalParabens').style.display = 'flex'; }
+function verificarNotificacoesVendedor() { if (!sessao || sessao.tipo !== 'vendedor') return; const notificacoesPendentes = DB.notificacoes.filter(n => n.userId === sessao.id && !n.lida); if (notificacoesPendentes.length > 0) { const notif = notificacoesPendentes[0]; document.getElementById('parabensVendedorMensagem').textContent = notif.mensagem; document.getElementById('modalParabensVendedor').style.display = 'flex'; notif.lida = true; salvarDB(); } }
+setInterval(() => { if (sessao && sessao.tipo === 'admin') { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); } }, 30000);
 
 // ===== VENDEDOR SCREEN =====
 function mostrarSecaoVendedor(secao){
