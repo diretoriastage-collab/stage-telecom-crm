@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STAGE TELECOM | CRM</title>
+    <title>STAGE TELECOM | CRM Premium</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
     <!-- ========== PARTÍCULAS DE FUNDO ========== -->
     <div class="particles"></div>
+    <div class="particles-layer-2"></div>
     
     <!-- ========== TELA DE LOGIN ========== -->
     <div id="loginScreen" class="login-wrapper">
@@ -27,7 +28,7 @@
                 <form id="loginForm" class="login-form" onsubmit="return false;">
                     <div class="input-glass">
                         <i class="fas fa-user-circle"></i>
-                        <input type="text" id="usuario" placeholder="Usuário" required>
+                        <input type="text" id="usuario" placeholder="Usuário" required autocomplete="off">
                         <span class="input-glow"></span>
                     </div>
                     
@@ -35,6 +36,14 @@
                         <i class="fas fa-lock"></i>
                         <input type="password" id="senha" placeholder="Senha" required>
                         <span class="input-glow"></span>
+                    </div>
+                    
+                    <div class="login-options">
+                        <label class="remember-me">
+                            <input type="checkbox" id="lembrar">
+                            <span>Lembrar acesso</span>
+                        </label>
+                        <a href="#" class="forgot-password">Esqueceu a senha?</a>
                     </div>
                     
                     <button type="button" onclick="fazerLogin()" class="btn-glass-login">
@@ -146,76 +155,196 @@
                     <i class="fas fa-th-large"></i> Dashboard
                 </h2>
                 
-                <!-- Seção Dashboard -->
+                <!-- ========== SEÇÃO DASHBOARD ========== -->
                 <div id="secao-dashboard" class="section-active">
-                    <!-- Cards de Métricas -->
-                    <div class="metrics-grid">
-                        <div class="metric-glass">
-                            <div class="metric-icon" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">
-                                <i class="fas fa-building"></i>
+                    <!-- TOP ROW: Métricas + Relógio -->
+                    <div class="dashboard-top-row">
+                        <!-- Cards de Métricas -->
+                        <div class="metrics-grid-horizontal">
+                            <div class="metric-glass-mini">
+                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24);">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="metric-info-mini">
+                                    <span class="metric-label-mini">Total Clientes</span>
+                                    <span class="metric-value-mini" id="totalClientes">0</span>
+                                </div>
                             </div>
-                            <div class="metric-info">
-                                <span class="metric-label">Total de Clientes</span>
-                                <span class="metric-value" id="totalClientes">0</span>
-                                <span class="metric-change positive">+12% este mês</span>
+                            
+                            <div class="metric-glass-mini">
+                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ffa502, #ff6348);">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </div>
+                                <div class="metric-info-mini">
+                                    <span class="metric-label-mini">Receita Mensal</span>
+                                    <span class="metric-value-mini" id="vendasMes">R$ 0</span>
+                                </div>
                             </div>
-                            <div class="metric-chart">
-                                <svg viewBox="0 0 100 30">
-                                    <path d="M0,25 L20,20 L40,23 L60,10 L80,15 L100,5" fill="none" stroke="#ff6b6b" stroke-width="2"/>
-                                </svg>
+                            
+                            <div class="metric-glass-mini">
+                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff6348, #ff4757);">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="metric-info-mini">
+                                    <span class="metric-label-mini">Vendedores</span>
+                                    <span class="metric-value-mini" id="vendedoresAtivos">0</span>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="metric-glass">
-                            <div class="metric-icon" style="background: linear-gradient(135deg, #ffa502, #ff6348);">
-                                <i class="fas fa-dollar-sign"></i>
-                            </div>
-                            <div class="metric-info">
-                                <span class="metric-label">Receita Mensal</span>
-                                <span class="metric-value" id="vendasMes">R$ 0</span>
-                                <span class="metric-change positive">+8% este mês</span>
-                            </div>
-                            <div class="metric-chart">
-                                <svg viewBox="0 0 100 30">
-                                    <path d="M0,20 L20,18 L40,15 L60,8 L80,10 L100,3" fill="none" stroke="#ffa502" stroke-width="2"/>
-                                </svg>
-                            </div>
-                        </div>
-                        
-                        <div class="metric-glass">
-                            <div class="metric-icon" style="background: linear-gradient(135deg, #ff6348, #ff4757);">
-                                <i class="fas fa-user-tie"></i>
-                            </div>
-                            <div class="metric-info">
-                                <span class="metric-label">Vendedores Ativos</span>
-                                <span class="metric-value" id="vendedoresAtivos">0</span>
-                                <span class="metric-change neutral">Estável</span>
-                            </div>
-                            <div class="metric-chart">
-                                <svg viewBox="0 0 100 30">
-                                    <path d="M0,15 L25,15 L50,15 L75,15 L100,15" fill="none" stroke="#ff6348" stroke-width="2"/>
-                                </svg>
+                            
+                            <div class="metric-glass-mini">
+                                <div class="metric-icon-mini" style="background: linear-gradient(135deg, #ff4757, #c0392b);">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="metric-info-mini">
+                                    <span class="metric-label-mini">Conversão</span>
+                                    <span class="metric-value-mini" id="taxaConversao">0%</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="metric-glass">
-                            <div class="metric-icon" style="background: linear-gradient(135deg, #ff4757, #c0392b);">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <div class="metric-info">
-                                <span class="metric-label">Taxa de Conversão</span>
-                                <span class="metric-value" id="taxaConversao">0%</span>
-                                <span class="metric-change positive">+5% este mês</span>
-                            </div>
-                            <div class="metric-chart">
-                                <svg viewBox="0 0 100 30">
-                                    <path d="M0,25 L30,22 L60,15 L80,8 L100,2" fill="none" stroke="#ff4757" stroke-width="2"/>
-                                </svg>
+                        <!-- Relógio Digital -->
+                        <div class="clock-panel">
+                            <div class="clock-glass">
+                                <div class="clock-date" id="dataAtual">--</div>
+                                <div class="clock-time" id="horaAtual">00:00:00</div>
+                                <div class="clock-period" id="periodoDia">--</div>
+                                <div class="clock-pulse-dot"></div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Tabela de Clientes Recentes -->
+                    <!-- MIDDLE ROW: Vendas Diárias + Comparativo -->
+                    <div class="dashboard-middle-row">
+                        <!-- Painel Vendas Diárias -->
+                        <div class="panel-glass vendas-diarias">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-calendar-day"></i> VENDAS DIÁRIAS</h3>
+                                <span class="panel-date" id="dataVendasDiarias"></span>
+                            </div>
+                            
+                            <div class="vendas-resumo">
+                                <div class="vendas-total">
+                                    <span class="vendas-numero" id="totalVendasHoje">0</span>
+                                    <span class="vendas-label">VENDAS HOJE</span>
+                                </div>
+                                <div class="vendas-meta">
+                                    <div class="meta-bar">
+                                        <div class="meta-progress" id="metaProgresso" style="width: 0%"></div>
+                                    </div>
+                                    <span class="meta-text">
+                                        Meta diária: <strong id="metaDiaria">10</strong> vendas
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- Ranking de Vendedores -->
+                            <div class="ranking-section">
+                                <h4><i class="fas fa-trophy"></i> RANKING DE VENDEDORES</h4>
+                                <div class="ranking-list" id="rankingVendedores"></div>
+                            </div>
+                            
+                            <!-- Produtos Mais Vendidos -->
+                            <div class="produtos-section">
+                                <h4><i class="fas fa-box"></i> PRODUTOS MAIS VENDIDOS</h4>
+                                <div class="produtos-list" id="produtosVendidos"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Painel Comparativo -->
+                        <div class="panel-glass comparativo-panel">
+                            <div class="panel-header">
+                                <h3><i class="fas fa-balance-scale"></i> COMPARATIVO</h3>
+                            </div>
+                            
+                            <!-- Botões de Comparação -->
+                            <div class="comparativo-botoes">
+                                <button onclick="mostrarComparativo('diario')" class="btn-compare active" id="btnDiario">
+                                    <i class="fas fa-calendar-check"></i> DIÁRIO
+                                </button>
+                                <button onclick="mostrarComparativo('mensal')" class="btn-compare" id="btnMensal">
+                                    <i class="fas fa-calendar-alt"></i> MENSAL
+                                </button>
+                            </div>
+                            
+                            <!-- Comparativo Diário -->
+                            <div id="comparativoDiario" class="comparativo-content">
+                                <div class="comp-header">
+                                    <span>HOJE: <strong id="compDataHoje">--</strong></span>
+                                    <span>MÊS PASSADO: <strong id="compDataPassado">--</strong></span>
+                                </div>
+                                
+                                <div class="comp-cards">
+                                    <div class="comp-card atual">
+                                        <span class="comp-label">VENDAS HOJE</span>
+                                        <span class="comp-value" id="compVendasHoje">0</span>
+                                    </div>
+                                    <div class="comp-vs">VS</div>
+                                    <div class="comp-card passado">
+                                        <span class="comp-label">MÊS PASSADO</span>
+                                        <span class="comp-value" id="compVendasPassado">0</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="comp-diferenca" id="compDiferencaDiario"></div>
+                                
+                                <div class="comp-destaque">
+                                    <h4><i class="fas fa-star"></i> DESTAQUE DO DIA</h4>
+                                    <div id="destaqueDiario"></div>
+                                </div>
+                                
+                                <div class="comp-produtos">
+                                    <h4><i class="fas fa-chart-bar"></i> COMPARAÇÃO DE PRODUTOS</h4>
+                                    <div id="compProdutosDiario"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Comparativo Mensal -->
+                            <div id="comparativoMensal" class="comparativo-content" style="display:none;">
+                                <div class="comp-header">
+                                    <span>ESTE MÊS: <strong id="compMesAtual">--</strong></span>
+                                    <span>MÊS PASSADO: <strong id="compMesPassado">--</strong></span>
+                                </div>
+                                
+                                <div class="comp-cards">
+                                    <div class="comp-card atual">
+                                        <span class="comp-label">VENDAS MÊS</span>
+                                        <span class="comp-value" id="compVendasMesAtual">0</span>
+                                    </div>
+                                    <div class="comp-vs">VS</div>
+                                    <div class="comp-card passado">
+                                        <span class="comp-label">MÊS ANTERIOR</span>
+                                        <span class="comp-value" id="compVendasMesAnterior">0</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="comp-diferenca" id="compDiferencaMensal"></div>
+                                
+                                <div class="comp-destaque">
+                                    <h4><i class="fas fa-star"></i> DESTAQUE DO MÊS</h4>
+                                    <div id="destaqueMensal"></div>
+                                </div>
+                                
+                                <div class="comp-produtos">
+                                    <h4><i class="fas fa-chart-bar"></i> COMPARAÇÃO DE PRODUTOS</h4>
+                                    <div id="compProdutosMensal"></div>
+                                </div>
+                                
+                                <div class="meta-mensal">
+                                    <h4><i class="fas fa-bullseye"></i> PROGRESSO DA META MENSAL</h4>
+                                    <div class="meta-bar large">
+                                        <div class="meta-progress" id="metaMensalProgresso" style="width: 0%"></div>
+                                    </div>
+                                    <div class="meta-info">
+                                        <span>Meta: <strong id="metaMensalValor">50</strong></span>
+                                        <span>Realizado: <strong id="metaMensalRealizado">0</strong></span>
+                                        <span><strong id="metaMensalPct">0%</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BOTTOM ROW: Tabela de Clientes -->
                     <div class="table-glass">
                         <div class="table-header">
                             <h3><i class="fas fa-clock"></i> Clientes Recentes</h3>
@@ -239,7 +368,7 @@
                     </div>
                 </div>
                 
-                <!-- Seção Vendedores -->
+                <!-- ========== SEÇÃO VENDEDORES ========== -->
                 <div id="secao-vendedores" class="section-hidden">
                     <button onclick="mostrarFormVendedor()" class="btn-glass-flutuante">
                         <i class="fas fa-plus"></i>
@@ -281,7 +410,7 @@
                     </div>
                 </div>
                 
-                <!-- Seção Clientes -->
+                <!-- ========== SEÇÃO CLIENTES ========== -->
                 <div id="secao-clientes" class="section-hidden">
                     <div class="table-glass">
                         <table>
@@ -301,9 +430,9 @@
                     </div>
                 </div>
                 
-                <!-- Seção Relatórios -->
+                <!-- ========== SEÇÃO RELATÓRIOS ========== -->
                 <div id="secao-relatorios" class="section-hidden">
-                    <div class="metrics-grid">
+                    <div class="metrics-grid-full">
                         <div class="metric-glass">
                             <div class="metric-info">
                                 <span class="metric-label">Receita Total Ativa</span>
@@ -325,7 +454,7 @@
                     </div>
                 </div>
                 
-                <!-- Seção Configurações -->
+                <!-- ========== SEÇÃO CONFIGURAÇÕES ========== -->
                 <div id="secao-config" class="section-hidden">
                     <div class="form-glass">
                         <h3><i class="fas fa-cog"></i> Configurações do Sistema</h3>
@@ -338,9 +467,17 @@
                                 <label>Email de Contato</label>
                                 <input type="email" value="contato@stagetelecom.com.br">
                             </div>
+                            <div class="input-group">
+                                <label>Meta Diária de Vendas</label>
+                                <input type="number" id="metaDiariaInput" value="10" min="1">
+                            </div>
+                            <div class="input-group">
+                                <label>Meta Mensal de Vendas</label>
+                                <input type="number" id="metaMensalInput" value="50" min="1">
+                            </div>
                         </div>
                         <div class="form-actions">
-                            <button class="btn-glass-primary">
+                            <button onclick="salvarConfiguracoes()" class="btn-glass-primary">
                                 <i class="fas fa-save"></i> Salvar Configurações
                             </button>
                         </div>
