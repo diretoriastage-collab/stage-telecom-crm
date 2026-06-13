@@ -1,5 +1,5 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO
+// STAGE TELECOM CRM - SCRIPT COMPLETO (CORRIGIDO)
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db'));
 
@@ -32,10 +32,15 @@ if (!DB) {
             instalacoes: []
         },
         promocoes: [],
-        notificacoes: []  // { id, userId, mensagem, lida }
+        notificacoes: []
     };
 }
 
+// ===== CORREÇÃO: garantir que promocoes e notificacoes existam =====
+if (!DB.promocoes) DB.promocoes = [];
+if (!DB.notificacoes) DB.notificacoes = [];
+
+// Outras verificações de campos faltantes
 if (!DB.statusFlags) {
     DB.statusFlags = [
         { id: 1, nome: "Ativo", cor: "#2ed573" },
@@ -53,8 +58,6 @@ if (!DB.metas) {
 }
 if (!DB.metas.produtos) DB.metas.produtos = [];
 if (!DB.metas.instalacoes) DB.metas.instalacoes = [];
-if (!DB.promocoes) DB.promocoes = [];
-if (!DB.notificacoes) DB.notificacoes = [];
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; });
 DB.usuarios.forEach(u => { if (!u.equipe) u.equipe = 'Geral'; });
 
@@ -196,7 +199,7 @@ function gerarVendasMesAnterior() {
     return vendas;
 }
 
-// ===== DASHBOARD (removida tabela de clientes recentes) =====
+// ===== DASHBOARD =====
 function carregarDashboard() {
     const vendasMes = gerarVendasMesAtual();
     const realizado = vendasMes.length;
@@ -210,7 +213,6 @@ function carregarDashboard() {
 
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
-    // Removida a chamada para carregar tabela de clientes
 }
 
 function carregarVendasDiarias() {
@@ -790,7 +792,6 @@ function gerarPDF() {
         }, 500);
     }, 100);
 }
-
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
 // ===== METAS =====
@@ -807,7 +808,6 @@ function carregarMetas() {
     document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas;
     document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas;
 
-    // Produtos
     const tabelaProd = document.getElementById('tabelaMetasProdutos');
     tabelaProd.innerHTML = DB.metas.produtos.map(p => `
         <tr>
@@ -819,7 +819,6 @@ function carregarMetas() {
         </tr>
     `).join('');
 
-    // Instalações
     carregarMetasInstalacoes();
     const selectVendedor = document.getElementById('vendedorMetaInstalacao');
     selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => 
@@ -891,7 +890,7 @@ function salvarMetas() {
     alert('✅ Metas de vendas atualizadas!');
 }
 
-// ===== PROMOÇÕES =====
+// ===== PROMOÇÕES (CORRIGIDAS) =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
@@ -910,11 +909,12 @@ function cadastrarPromocao() {
 function carregarPromocoes() {
     const agora = new Date();
     const tabela = document.getElementById('tabelaPromocoes');
+    // Atualiza status e verifica vencedores se necessário
     DB.promocoes.forEach(p => {
         const inicio = new Date(p.inicio);
         const fim = new Date(p.fim);
         if (agora < inicio) p.status = '⏳ Aguardando';
-        else if (agora >= inicio && agora <= fim) p.status = '▶️ Ativa';
+        else if (agora >= inicio && agora <= fim) { p.status = '▶️ Ativa'; p.ativa = true; }
         else if (agora > fim && !p.concluida) {
             p.status = '⏹️ Encerrada';
             p.ativa = false;
@@ -922,6 +922,7 @@ function carregarPromocoes() {
         }
     });
     salvarDB();
+
     tabela.innerHTML = DB.promocoes.map(p => `
         <tr>
             <td>${p.tipo}</td>
@@ -941,7 +942,6 @@ function excluirPromocao(id) {
     }
 }
 function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) {
-    // Para simplificar, usamos as vendas diárias. Em um sistema real, filtraria por tipo.
     return gerarVendasParaPeriodo(vendedorId, inicio, fim).length;
 }
 function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
@@ -1022,6 +1022,7 @@ function verificarNotificacoesVendedor() {
         salvarDB();
     }
 }
+// Verificação periódica (admin)
 setInterval(() => {
     if (sessao && sessao.tipo === 'admin') {
         const agora = new Date();
