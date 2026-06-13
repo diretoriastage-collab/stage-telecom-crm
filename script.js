@@ -251,9 +251,57 @@ function mostrarComparativo(tipo) {
     document.getElementById('comparativoMensal').style.display = tipo==='mensal'?'block':'none';
     tipo==='diario' ? carregarComparativoDiario() : carregarComparativoMensal();
 }
-function carregarComparativoDiario() { /* ... igual ao anterior ... */ }
-function carregarComparativoMensal() { /* ... igual ao anterior ... */ }
-function carregarComparacaoProdutos(vAtual, vPassado, containerId) { /* ... igual ao anterior ... */ }
+function carregarComparativoDiario() {
+    const hoje = new Date();
+    document.getElementById('compDataHoje').textContent = hoje.toLocaleDateString('pt-BR',{day:'numeric',month:'long'});
+    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate());
+    document.getElementById('compDataPassado').textContent = mesPassado.toLocaleDateString('pt-BR',{day:'numeric',month:'long'});
+    const vHoje = gerarDadosVendas(), vPassado = gerarVendasDiaPassado();
+    document.getElementById('compVendasHoje').textContent = vHoje.length;
+    document.getElementById('compVendasPassado').textContent = vPassado.length;
+    const dif = vHoje.length - vPassado.length;
+    const diffEl = document.getElementById('compDiferencaDiario');
+    diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
+    diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
+
+    const ranking = {}; vHoje.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
+    const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
+    document.getElementById('destaqueDiario').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas hoje</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
+    carregarComparacaoProdutos(vHoje, vPassado, 'compProdutosDiario');
+}
+function carregarComparativoMensal() {
+    const hoje = new Date();
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    document.getElementById('compMesAtual').textContent = meses[hoje.getMonth()];
+    document.getElementById('compMesPassado').textContent = meses[hoje.getMonth()===0?11:hoje.getMonth()-1];
+    const vAtual = gerarVendasMesAtual(), vAnterior = gerarVendasMesAnterior();
+    document.getElementById('compVendasMesAtual').textContent = vAtual.length;
+    document.getElementById('compVendasMesAnterior').textContent = vAnterior.length;
+    const dif = vAtual.length - vAnterior.length;
+    const diffEl = document.getElementById('compDiferencaMensal');
+    diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
+    diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
+
+    const ranking = {}; vAtual.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
+    const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
+    document.getElementById('destaqueMensal').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas no mês</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
+    carregarComparacaoProdutos(vAtual, vAnterior, 'compProdutosMensal');
+
+    const meta = DB.config.metaMensal, realizado = vAtual.length, pct = Math.min((realizado/meta)*100,100).toFixed(1);
+    document.getElementById('metaMensalValor').textContent = meta;
+    document.getElementById('metaMensalRealizado').textContent = realizado;
+    document.getElementById('metaMensalPct').textContent = `${pct}%`;
+    document.getElementById('metaMensalProgresso').style.width = `${pct}%`;
+}
+function carregarComparacaoProdutos(vAtual, vPassado, containerId) {
+    const container = document.getElementById(containerId);
+    const planos = ['Básico','Empresarial','Premium','Ultra'];
+    const maxVendas = Math.max(...planos.map(p=>Math.max(vAtual.filter(v=>v.plano===p).length, vPassado.filter(v=>v.plano===p).length,1)),1);
+    container.innerHTML = planos.map(p=>{
+        const qAtual = vAtual.filter(v=>v.plano===p).length, qPassado = vPassado.filter(v=>v.plano===p).length;
+        return `<div class="comp-produto-item"><span class="comp-produto-nome">${p}</span><div class="comp-produto-barras"><div class="comp-produto-atual" style="width:${(qAtual/maxVendas)*100}%;min-width:${qAtual>0?'25px':'0'}">${qAtual>0?qAtual:''}</div><div class="comp-produto-passado" style="width:${(qPassado/maxVendas)*100}%;min-width:${qPassado>0?'25px':'0'}">${qPassado>0?qPassado:''}</div></div></div>`;
+    }).join('');
+}
 
 // ===== NAVEGAÇÃO ADMIN =====
 function mostrarSecao(secao) {
@@ -277,30 +325,173 @@ function cadastrarVendedor(){
     salvarDB(); carregarVendedores(); document.getElementById('formVendedor').style.display='none';
     ['nomeVendedor','usuarioVendedor','senhaVendedor','emailVendedor'].forEach(id=>document.getElementById(id).value='');
 }
-function carregarVendedores() { /* ... igual ao anterior ... */ }
-function toggleVendedor(id){ /* ... */ }
-function excluirVendedor(id){ /* ... */ }
-function abrirModalEditar(id){ /* ... */ }
-function fecharModalEditar(){ /* ... */ }
-function salvarEdicaoVendedor(){ /* ... */ }
-function toggleLixeira(){ /* ... */ }
-function carregarLixeira(){ /* ... */ }
-function recuperarVendedor(id){ /* ... */ }
-function excluirPermanentemente(id){ /* ... */ }
+function carregarVendedores() {
+    const agora = new Date();
+    DB.usuarios = DB.usuarios.filter(u => { if(u.deletedAt){ const dias = (agora - new Date(u.deletedAt))/(1000*60*60*24); return dias <= 15; } return true; });
+    salvarDB();
+    const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
+    const tabela = document.getElementById('tabelaVendedores');
+    tabela.innerHTML = vendedores.map(v => `
+        <tr>
+            <td>
+                <strong>${v.nome}</strong>
+                <button onclick="abrirModalEditar(${v.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button>
+            </td>
+            <td>@${v.usuario}</td>
+            <td>${v.email}</td>
+            <td class="${v.ativo?'status-ativo':''}">${v.ativo?'● Ativo':'○ Inativo'}</td>
+            <td>
+                <button onclick="toggleVendedor(${v.id})" style="background:${v.ativo?'rgba(255,71,87,0.2)':'rgba(46,213,115,0.2)'};border:1px solid ${v.ativo?'rgba(255,71,87,0.3)':'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${v.ativo?'🔒 Desativar':'🔓 Ativar'}</button>
+                <button onclick="excluirVendedor(${v.id})" style="background:rgba(255,71,87,0.3);border:1px solid rgba(255,71,87,0.5);color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;margin-left:5px;"><i class="fas fa-trash"></i> Excluir</button>
+            </td>
+        </tr>
+    `).join('');
+    const cont = document.getElementById('contadorLixeira'); if(cont) cont.textContent = DB.usuarios.filter(u => u.tipo==='vendedor' && u.deletedAt).length;
+}
+function toggleVendedor(id){ const v=DB.usuarios.find(u=>u.id===id); if(v){v.ativo=!v.ativo;salvarDB();carregarVendedores();} }
+function excluirVendedor(id){
+    const v=DB.usuarios.find(u=>u.id===id); if(!v) return;
+    if(confirm(`⚠️ Excluir "${v.nome}"? Ele irá para a lixeira e perderá o acesso.`)){
+        v.deletedAt = new Date().toISOString();
+        v.ativo = false;
+        salvarDB(); carregarVendedores();
+    }
+}
+function abrirModalEditar(id){
+    const v=DB.usuarios.find(u=>u.id===id); if(!v) return;
+    document.getElementById('editVendedorId').value = v.id;
+    document.getElementById('editNomeVendedor').value = v.nome;
+    document.getElementById('editUsuarioVendedor').value = v.usuario;
+    document.getElementById('editEmailVendedor').value = v.email;
+    document.getElementById('editSenhaVendedor').value = '';
+    document.getElementById('modalEditarVendedor').style.display = 'flex';
+}
+function fecharModalEditar(){ document.getElementById('modalEditarVendedor').style.display = 'none'; }
+function salvarEdicaoVendedor(){
+    const id = parseInt(document.getElementById('editVendedorId').value);
+    const nome = document.getElementById('editNomeVendedor').value.trim();
+    const usuario = document.getElementById('editUsuarioVendedor').value.trim();
+    const email = document.getElementById('editEmailVendedor').value.trim();
+    const novaSenha = document.getElementById('editSenhaVendedor').value.trim();
+    if(!nome||!usuario||!email) return alert('Nome, usuário e email são obrigatórios.');
+    const v=DB.usuarios.find(u=>u.id===id); if(!v) return;
+    const conflito = DB.usuarios.find(u=>u.usuario===usuario && u.id!==id && !u.deletedAt);
+    if(conflito) return alert('Usuário já existe.');
+    v.nome=nome; v.usuario=usuario; v.email=email;
+    if(novaSenha) v.senha=novaSenha;
+    salvarDB(); carregarVendedores(); fecharModalEditar();
+}
+function toggleLixeira(){
+    const l=document.getElementById('lixeiraVendedores');
+    if(l.style.display==='none'||l.style.display===''){ carregarLixeira(); l.style.display='block'; }
+    else l.style.display='none';
+}
+function carregarLixeira(){
+    const agora = new Date();
+    const lixeira = DB.usuarios.filter(u=>u.tipo==='vendedor' && u.deletedAt);
+    document.getElementById('contadorLixeira').textContent = lixeira.length;
+    const tabela=document.getElementById('tabelaLixeira');
+    if(!lixeira.length){ tabela.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
+    tabela.innerHTML = lixeira.map(v=>{
+        const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt))/(1000*60*60*24)));
+        return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span style="color:#ffa502;">${dias} dia(s)</span></td><td><button onclick="recuperarVendedor(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button><button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button></td></tr>`;
+    }).join('');
+}
+function recuperarVendedor(id){ const v=DB.usuarios.find(u=>u.id===id); if(v){v.deletedAt=null;v.ativo=true;salvarDB();carregarVendedores();carregarLixeira();} }
+function excluirPermanentemente(id){ const v=DB.usuarios.find(u=>u.id===id); if(v && confirm(`Excluir definitivamente "${v.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarVendedores(); carregarLixeira(); } }
 
 // ===== ATIVAÇÕES =====
-function carregarAtivacoes() { /* ... */ }
-function abrirModalAtivacao(id) { /* ... */ }
-function fecharModalAtivacao() { /* ... */ }
+function carregarAtivacoes() {
+    const tabela = document.getElementById('tabelaAtivacoes');
+    tabela.innerHTML = DB.ativacoes.map(a => {
+        const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
+        const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
+        return `<tr>
+            <td><strong>${a.nomeCliente}</strong></td>
+            <td>${a.produto}</td>
+            <td>${vendedor ? vendedor.nome : 'N/A'}</td>
+            <td><span style="color:${flag.cor}; font-weight:600;">● ${a.status}</span></td>
+            <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
+        </tr>`;
+    }).join('');
+}
+function abrirModalAtivacao(id) {
+    const a = DB.ativacoes.find(x => x.id === id);
+    if (!a) return;
+    const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
+    document.getElementById('conteudoModalAtivacao').innerHTML = `
+        <div class="form-grid">
+            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao || ''}</textarea></div>
+            <div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div>
+            <div class="input-group"><label>Ativado por</label><input value="${a.ativadoPor || ''}" id="editAtivadoPor"></div>
+            <div class="input-group"><label>Confirmado por</label><input value="${a.confirmadoPor || ''}" id="editConfirmadoPor"></div>
+            <div class="input-group"><label>Aquisição</label><input value="${a.aquisicao || ''}" id="editAquisicao"></div>
+            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade || ''}" id="editViabilidade"></div>
+            <div class="input-group"><label>Data</label><input value="${a.data || ''}" id="editData"></div>
+            <div class="input-group"><label>Equipe</label><input value="${a.equipe || ''}" id="editEquipe"></div>
+            <div class="input-group"><label>Vendedor(a)</label><input value="${a.vendedorNome || ''}" id="editVendedorNome"></div>
+            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto || ''}" id="editNomeCompleto"></div>
+            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae || ''}" id="editNomeMae"></div>
+            <div class="input-group"><label>Data de Nascimento</label><input value="${a.dataNasc || ''}" id="editDataNasc"></div>
+            <div class="input-group"><label>CPF/CNPJ</label><input value="${a.cpfCnpj || ''}" id="editCpfCnpj"></div>
+            <div class="input-group"><label>Razão Social</label><input value="${a.razaoSocial || ''}" id="editRazaoSocial"></div>
+            <div class="input-group"><label>Email</label><input value="${a.email || ''}" id="editEmail"></div>
+            <div class="input-group"><label>CEP</label><input value="${a.cep || ''}" id="editCep"></div>
+            <div class="input-group"><label>UF</label><input value="${a.uf || ''}" id="editUf"></div>
+            <div class="input-group"><label>Endereço</label><input value="${a.endereco || ''}" id="editEndereco"></div>
+            <div class="input-group"><label>Bairro</label><input value="${a.bairro || ''}" id="editBairro"></div>
+            <div class="input-group"><label>Cidade</label><input value="${a.cidade || ''}" id="editCidade"></div>
+            <div class="input-group"><label>N° / Complemento</label><input value="${a.numeroComplemento || ''}" id="editNumeroComplemento"></div>
+            <div class="input-group"><label>Referência</label><input value="${a.referencia || ''}" id="editReferencia"></div>
+            <div class="input-group"><label>Telefone</label><input value="${a.telefone || ''}" id="editTelefone"></div>
+            <div class="input-group"><label>WhatsApp</label><input value="${a.whatsapp || ''}" id="editWhatsapp"></div>
+            <div class="input-group"><label>Valor</label><input value="${a.valor || ''}" id="editValor"></div>
+            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade || ''}" id="editVelocidade"></div>
+            <div class="input-group"><label>Forma de Pagamento</label><input value="${a.formaPagamento || ''}" id="editFormaPagamento"></div>
+            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento || ''}" id="editVencimento"></div>
+            <div class="input-group"><label>Data Instalação</label><input value="${a.dataInstalacao || ''}" id="editDataInstalacao"></div>
+            <div class="input-group"><label>Contrato</label><input value="${a.contrato || ''}" id="editContrato"></div>
+            <div class="input-group"><label>Tipo de Venda</label><input value="${a.tipoVenda || ''}" id="editTipoVenda"></div>
+            <div class="input-group"><label>Agendamento</label><input value="${a.agendamento || ''}" id="editAgendamento"></div>
+            <div class="input-group"><label>Plano</label><input value="${a.plano || ''}" id="editPlano"></div>
+            <div class="input-group"><label>Data Ag.</label><input value="${a.dataAg || ''}" id="editDataAg"></div>
+        </div>
+    `;
+    document.getElementById('modalAtivacao').style.display = 'flex';
+}
+function fecharModalAtivacao() { document.getElementById('modalAtivacao').style.display = 'none'; }
 
 // ===== GERENCIAR STATUS =====
-function abrirGerenciadorStatus() { /* ... */ }
-function fecharModalStatus() { /* ... */ }
-function carregarListaStatusFlags() { /* ... */ }
-function adicionarStatusFlag() { /* ... */ }
-function removerStatusFlag(id) { /* ... */ }
+function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
+function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
+function carregarListaStatusFlags() {
+    const container = document.getElementById('listaStatusFlags');
+    if (!container) return;
+    container.innerHTML = DB.statusFlags.map(f => `
+        <div class="flag-item">
+            <span class="flag-color" style="background:${f.cor};"></span>
+            <span>${f.nome}</span>
+            <button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button>
+        </div>
+    `).join('');
+}
+function adicionarStatusFlag() {
+    const nome = document.getElementById('novoStatusNome').value.trim();
+    const cor = document.getElementById('novoStatusCor').value;
+    if (!nome) return alert('Digite um nome para a flag!');
+    DB.statusFlags.push({ id: Date.now(), nome, cor });
+    salvarDB();
+    carregarListaStatusFlags();
+    document.getElementById('novoStatusNome').value = '';
+}
+function removerStatusFlag(id) {
+    DB.statusFlags = DB.statusFlags.filter(f => f.id !== id);
+    salvarDB();
+    carregarListaStatusFlags();
+    if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
+}
 
-// ===== RELATÓRIOS (NOVO) =====
+// ===== RELATÓRIOS =====
 function carregarRelatorios() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
@@ -333,7 +524,6 @@ function gerarVendasQuinzenaAnterior() {
     const dia = hoje.getDate();
     let vendas = [];
     if (dia <= 15) {
-        // segunda quinzena do mês passado
         const mesAnterior = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
         const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
         vendas = gerarVendasMesAnterior().filter(v => {
@@ -341,7 +531,6 @@ function gerarVendasQuinzenaAnterior() {
             return y === ano && m === mesAnterior && d >= 16;
         });
     } else {
-        // primeira quinzena deste mês
         vendas = gerarVendasMesAtual().filter(v => {
             const d = parseInt(v.data.split('-')[2]);
             return d >= 1 && d <= 15;
@@ -499,10 +688,34 @@ function baixarPDF() {
 }
 
 // ===== VENDEDOR SCREEN =====
-function mostrarSecaoVendedor(secao){ /* ... */ }
-function carregarMeusClientes(){ /* ... */ }
-function carregarMinhasVendas(){ /* ... */ }
-function cadastrarCliente(){ /* ... */ }
+function mostrarSecaoVendedor(secao){
+    document.querySelectorAll('#vendedorScreen .section-active,#vendedorScreen .section-hidden').forEach(s=>{s.style.display='none';s.className='section-hidden';});
+    const el=document.getElementById(`secao-${secao}`); if(el){el.style.display='block';el.className='section-active';}
+    document.querySelectorAll('#vendedorScreen .nav-item').forEach(a=>a.classList.remove('active'));
+    event.target.closest('.nav-item').classList.add('active');
+    document.getElementById('tituloSecaoVendedor').innerHTML = {meusClientes:'🏢 Meus Clientes',novoCliente:'➕ Novo Cliente',minhasVendas:'💰 Minhas Vendas'}[secao];
+    if(secao==='meusClientes') carregarMeusClientes();
+    if(secao==='minhasVendas') carregarMinhasVendas();
+}
+function carregarMeusClientes(){
+    const meus=DB.clientes.filter(c=>c.vendedor_id===sessao.id);
+    document.getElementById('totalMeusClientes').textContent=meus.length;
+    document.getElementById('meusAtivos').textContent=meus.filter(c=>c.status==='ativo').length;
+    document.getElementById('meusProspectos').textContent=meus.filter(c=>c.status==='prospecto').length;
+    document.getElementById('tabelaMeusClientes').innerHTML = meus.length?meus.map(c=>`<tr><td><strong>${c.nome}</strong></td><td>${c.telefone}</td><td>${c.email}</td><td>${c.plano}</td><td>R$ ${c.valor.toFixed(2)}</td><td class="status-${c.status}">● ${c.status}</td></tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhum cliente</td></tr>';
+}
+function carregarMinhasVendas(){
+    const minhas=DB.clientes.filter(c=>c.vendedor_id===sessao.id && c.status==='ativo');
+    document.getElementById('tabelaMinhasVendas').innerHTML = minhas.length?minhas.map(c=>`<tr><td><strong>${c.nome}</strong></td><td>${c.plano}</td><td>R$ ${c.valor.toFixed(2)}</td><td>${new Date(c.data+'T00:00:00').toLocaleDateString('pt-BR')}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:30px;">Nenhuma venda</td></tr>';
+}
+function cadastrarCliente(){
+    const n=document.getElementById('nomeCliente').value.trim(), cnpj=document.getElementById('cnpjCliente').value.trim(), tel=document.getElementById('telefoneCliente').value.trim(), email=document.getElementById('emailCliente').value.trim(), plano=document.getElementById('planoCliente').value;
+    if(!n||!cnpj||!tel||!email||!plano) return alert('Preencha todos os campos!');
+    const valores={Básico:299.9,Empresarial:499.9,Premium:899.9};
+    DB.clientes.push({id:DB.clientes.length+1,nome:n,cnpj,telefone:tel,email,vendedor_id:sessao.id,status:'prospecto',plano,valor:valores[plano],data:new Date().toISOString().split('T')[0]});
+    salvarDB(); ['nomeCliente','cnpjCliente','telefoneCliente','emailCliente'].forEach(id=>document.getElementById(id).value=''); document.getElementById('planoCliente').value='';
+    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor('meusClientes');
+}
 
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
