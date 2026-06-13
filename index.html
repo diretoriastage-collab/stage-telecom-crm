@@ -231,7 +231,7 @@
                     </div>
                 </div>
                 
-                <!-- outras seções (vendedores, clientes, relatórios, config) iguais às anteriores -->
+                <!-- SEÇÃO VENDEDORES -->
                 <div id="secao-vendedores" class="section-hidden">
                     <button onclick="mostrarFormVendedor()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Novo Vendedor</span></button>
                     <div id="formVendedor" class="form-glass" style="display:none;">
@@ -254,6 +254,8 @@
                         </table>
                     </div>
                 </div>
+                
+                <!-- SEÇÃO CLIENTES -->
                 <div id="secao-clientes" class="section-hidden">
                     <div class="table-glass">
                         <table>
@@ -262,6 +264,8 @@
                         </table>
                     </div>
                 </div>
+                
+                <!-- SEÇÃO RELATÓRIOS -->
                 <div id="secao-relatorios" class="section-hidden">
                     <div class="metrics-grid-full">
                         <div class="metric-glass"><div class="metric-info"><span class="metric-label">Receita Total Ativa</span><span class="metric-value" id="totalPlanos">R$ 0</span></div></div>
@@ -269,6 +273,8 @@
                         <div class="metric-glass"><div class="metric-info"><span class="metric-label">Total de Vendas</span><span class="metric-value" id="totalVendas">0</span></div></div>
                     </div>
                 </div>
+                
+                <!-- SEÇÃO CONFIGURAÇÕES -->
                 <div id="secao-config" class="section-hidden">
                     <div class="form-glass">
                         <h3><i class="fas fa-cog"></i> Configurações do Sistema</h3>
@@ -283,9 +289,26 @@
                 </div>
             </div>
         </main>
+        <!-- MODAL DE EDIÇÃO DE VENDEDOR -->
+        <div id="modalEditarVendedor" class="modal-overlay" style="display:none;">
+            <div class="modal-glass">
+                <h3><i class="fas fa-user-edit"></i> Editar Vendedor</h3>
+                <input type="hidden" id="editVendedorId">
+                <div class="form-grid">
+                    <input type="text" id="editNomeVendedor" placeholder="Nome completo">
+                    <input type="text" id="editUsuarioVendedor" placeholder="Nome de usuário">
+                    <input type="email" id="editEmailVendedor" placeholder="Email">
+                    <input type="password" id="editSenhaVendedor" placeholder="Nova senha (deixe em branco para manter)">
+                </div>
+                <div class="form-actions">
+                    <button onclick="salvarEdicaoVendedor()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar</button>
+                    <button onclick="fecharModalEditar()" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- DASHBOARD VENDEDOR (mantido) -->
+    <!-- DASHBOARD VENDEDOR -->
     <div id="vendedorScreen" class="dashboard-wrapper" style="display:none;">
         <aside class="sidebar-glass">
             <div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div>
