@@ -1,1584 +1,891 @@
-/* ============================================
-   STAGE TELECOM CRM - DESIGN PREMIUM GLASS
-   Cores: Vermelho Empresarial
-   ============================================ */
-
-:root {
-    --primary: #e74c3c;
-    --primary-dark: #c0392b;
-    --primary-light: #ff6b6b;
-    --accent: #ff4757;
-    --accent-orange: #ff6348;
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-shadow: 0 8px 32px rgba(231, 76, 60, 0.1);
-    --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.6);
-    --bg-gradient: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 30%, #2d0a0a 60%, #1a0a0a 100%);
-    --card-gradient: linear-gradient(135deg, rgba(231, 76, 60, 0.15), rgba(192, 57, 43, 0.05));
-    --success: #2ed573;
-    --warning: #ffa502;
-    --danger: #ff4757;
-    --info: #00a8ff;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: var(--bg-gradient);
-    color: var(--text-primary);
-    overflow-x: hidden;
-    min-height: 100vh;
-}
-
-/* ===== PARTÍCULAS DE FUNDO ===== */
-.particles {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    background: 
-        radial-gradient(circle at 20% 30%, rgba(231, 76, 60, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(255, 71, 87, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, rgba(255, 99, 72, 0.08) 0%, transparent 50%);
-    animation: particleFloat 20s ease-in-out infinite;
-}
-
-.particles-layer-2 {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    background: 
-        radial-gradient(circle at 70% 20%, rgba(255, 71, 87, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 30% 80%, rgba(231, 76, 60, 0.1) 0%, transparent 40%);
-    animation: particleFloat 25s ease-in-out infinite reverse;
-}
-
-@keyframes particleFloat {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(30px, -30px) scale(1.05); }
-    66% { transform: translate(-20px, 20px) scale(0.95); }
-}
-
-/* ===== SCROLLBAR CUSTOM ===== */
-::-webkit-scrollbar {
-    width: 6px;
-}
-::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-}
-::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-light);
-}
-
-/* ===== LOGIN ===== */
-.login-wrapper {
-    position: relative;
-    z-index: 1;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.login-container {
-    position: relative;
-    width: 100%;
-    max-width: 450px;
-}
-
-/* Glass Card */
-.glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
-    border-radius: 30px;
-    padding: 40px 35px;
-    box-shadow: var(--glass-shadow), 0 0 60px rgba(231, 76, 60, 0.05);
-    animation: cardAppear 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes cardAppear {
-    from { opacity: 0; transform: translateY(40px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.login-header {
-    text-align: center;
-    margin-bottom: 35px;
-}
-
-.logo-pulse {
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 20px;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border-radius: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 38px;
-    color: white;
-    box-shadow: 0 0 40px rgba(231, 76, 60, 0.4);
-    animation: pulseLogo 2s ease-in-out infinite;
-    transform: rotate(-5deg);
-}
-
-@keyframes pulseLogo {
-    0%, 100% { box-shadow: 0 0 40px rgba(231, 76, 60, 0.4); }
-    50% { box-shadow: 0 0 70px rgba(231, 76, 60, 0.8); }
-}
-
-.brand-title {
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    color: #fff;
-    text-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
-}
-
-.brand-title span {
-    color: var(--primary-light);
-}
-
-.brand-subtitle {
-    color: var(--text-secondary);
-    font-size: 13px;
-    margin-top: 5px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-}
-
-/* Input Glass */
-.input-glass {
-    position: relative;
-    margin-bottom: 20px;
-}
-
-.input-glass i {
-    position: absolute;
-    left: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--primary-light);
-    font-size: 18px;
-    z-index: 2;
-    transition: 0.3s;
-}
-
-.input-glass input {
-    width: 100%;
-    padding: 16px 20px 16px 50px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    color: #fff;
-    font-size: 15px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    z-index: 1;
-}
-
-.input-glass input:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 30px rgba(231, 76, 60, 0.2);
-}
-
-.input-glass input::placeholder {
-    color: rgba(255, 255, 255, 0.3);
-}
-
-.input-glow {
-    position: absolute;
-    bottom: -2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 2px;
-    background: var(--primary);
-    transition: width 0.4s ease;
-}
-
-.input-glass input:focus ~ .input-glow {
-    width: 80%;
-}
-
-/* Login Options */
-.login-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    font-size: 12px;
-}
-
-.remember-me {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.remember-me input[type="checkbox"] {
-    accent-color: var(--primary);
-    width: 16px;
-    height: 16px;
-}
-
-.forgot-password {
-    color: var(--primary-light);
-    text-decoration: none;
-    transition: 0.3s;
-}
-
-.forgot-password:hover {
-    color: var(--primary);
-    text-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
-}
-
-/* Botão Login */
-.btn-glass-login {
-    width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border: none;
-    border-radius: 16px;
-    color: white;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.btn-glass-login:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 15px 40px rgba(231, 76, 60, 0.5);
-}
-
-.btn-glass-login:active {
-    transform: translateY(-1px);
-}
-
-.btn-shine {
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.15) 50%, transparent 70%);
-    animation: shine 3s infinite;
-}
-
-@keyframes shine {
-    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-}
-
-/* Error Message */
-.error-message {
-    color: #ff4757;
-    text-align: center;
-    font-size: 13px;
-    min-height: 20px;
-    margin-top: 10px;
-    text-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
-}
-
-/* Login Footer */
-.login-footer {
-    text-align: center;
-    margin-top: 25px;
-}
-
-.connection-dots {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
-.dot {
-    width: 8px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-}
-
-.dot.active {
-    background: var(--success);
-    box-shadow: 0 0 10px rgba(46, 213, 115, 0.5);
-    animation: dotPulse 1.5s infinite;
-}
-
-@keyframes dotPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-}
-
-.login-footer p {
-    color: var(--text-secondary);
-    font-size: 11px;
-}
-
-/* ===== CARDS FLUTUANTES ===== */
-.floating-card {
-    position: absolute;
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
-    border-radius: 20px;
-    padding: 15px 20px;
-    color: white;
-    animation: floatCard 4s ease-in-out infinite;
-    box-shadow: var(--glass-shadow);
-    text-align: center;
-    z-index: 2;
-}
-
-.floating-card i {
-    font-size: 24px;
-    color: var(--primary-light);
-    margin-bottom: 5px;
-}
-
-.floating-card span {
-    display: block;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.floating-card small {
-    color: var(--text-secondary);
-    font-size: 10px;
-    text-transform: uppercase;
-}
-
-.card-1 {
-    top: -30px;
-    right: -40px;
-    animation-delay: 0s;
-}
-
-.card-2 {
-    bottom: -20px;
-    left: -40px;
-    animation-delay: 2s;
-}
-
-@keyframes floatCard {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-15px); }
-}
-
-/* ===== DASHBOARD ===== */
-.dashboard-wrapper {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    min-height: 100vh;
-}
-
-/* Sidebar Glass */
-.sidebar-glass {
-    width: 280px;
-    background: rgba(10, 0, 0, 0.9);
-    backdrop-filter: blur(30px);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 30px 20px;
-    position: fixed;
-    height: 100vh;
-    left: 0;
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    z-index: 10;
-}
-
-.sidebar-brand {
-    text-align: center;
-    margin-bottom: 30px;
-    padding-bottom: 25px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.brand-icon {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border-radius: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    margin: 0 auto 10px;
-    box-shadow: 0 0 25px rgba(231, 76, 60, 0.3);
-}
-
-.sidebar-brand h2 {
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: 2px;
-}
-
-.sidebar-brand span {
-    color: var(--primary-light);
-    font-size: 12px;
-    letter-spacing: 3px;
-}
-
-.user-profile-glass {
-    padding: 15px;
-    background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(255, 71, 87, 0.1));
-    border-radius: 16px;
-    margin-bottom: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    text-align: center;
-}
-
-/* Navegação */
-.nav-glass {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    border-radius: 14px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    font-size: 14px;
-}
-
-.nav-item:hover {
-    background: rgba(255, 255, 255, 0.03);
-    color: #fff;
-}
-
-.nav-item.active {
-    background: linear-gradient(135deg, rgba(231, 76, 60, 0.3), rgba(255, 71, 87, 0.15));
-    color: #fff;
-    box-shadow: 0 5px 20px rgba(231, 76, 60, 0.15);
-}
-
-.nav-indicator {
-    position: absolute;
-    right: 15px;
-    width: 6px;
-    height: 6px;
-    background: var(--primary-light);
-    border-radius: 50%;
-    opacity: 0;
-    transition: 0.3s;
-}
-
-.nav-item.active .nav-indicator {
-    opacity: 1;
-    box-shadow: 0 0 10px var(--primary-light);
-}
-
-.btn-glass-logout {
-    width: 100%;
-    padding: 14px;
-    background: rgba(255, 71, 87, 0.1);
-    border: 1px solid rgba(255, 71, 87, 0.2);
-    border-radius: 14px;
-    color: #ff4757;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.3s;
-    font-size: 14px;
-    margin-top: auto;
-}
-
-.btn-glass-logout:hover {
-    background: rgba(255, 71, 87, 0.2);
-    box-shadow: 0 5px 20px rgba(255, 71, 87, 0.2);
-}
-
-/* Main Content */
-.main-glass {
-    margin-left: 280px;
-    flex: 1;
-    padding: 25px;
-}
-
-/* Top Bar */
-.topbar-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    padding: 15px 25px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-}
-
-.search-glass {
-    position: relative;
-    flex: 1;
-    max-width: 400px;
-}
-
-.search-glass i {
-    position: absolute;
-    left: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: rgba(255, 255, 255, 0.3);
-}
-
-.search-glass input {
-    width: 100%;
-    padding: 12px 20px 12px 45px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 14px;
-    color: #fff;
-    font-size: 14px;
-    transition: 0.3s;
-}
-
-.search-glass input:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.topbar-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.btn-glass-icon {
-    width: 42px;
-    height: 42px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    color: #fff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    position: relative;
-    transition: 0.3s;
-}
-
-.btn-glass-icon:hover {
-    background: rgba(231, 76, 60, 0.2);
-    border-color: var(--primary);
-}
-
-.badge-pulse {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: var(--primary);
-    color: white;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: badgePulse 2s infinite;
-    font-weight: 700;
-}
-
-@keyframes badgePulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-}
-
-.btn-glass-logout-top {
-    width: 42px;
-    height: 42px;
-    background: rgba(255, 71, 87, 0.2);
-    border: 1px solid rgba(255, 71, 87, 0.3);
-    border-radius: 12px;
-    color: #ff4757;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    transition: 0.3s;
-}
-
-.btn-glass-logout-top:hover {
-    background: rgba(255, 71, 87, 0.3);
-}
-
-/* Content Area */
-.content-area {
-    animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.page-title {
-    font-size: 22px;
-    margin-bottom: 25px;
-    color: #fff;
-}
-
-.page-title i {
-    color: var(--primary-light);
-    margin-right: 10px;
-}
-
-.section-active {
-    display: block;
-}
-
-.section-hidden {
-    display: none;
-}
-
-/* ===== DASHBOARD TOP ROW ===== */
-.dashboard-top-row {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 25px;
-    align-items: stretch;
-}
-
-.metrics-grid-horizontal {
-    flex: 2;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-}
-
-.metric-glass-mini {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-}
-
-.metric-glass-mini:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(231, 76, 60, 0.15);
-    border-color: rgba(231, 76, 60, 0.3);
-}
-
-.metric-icon-mini {
-    width: 45px;
-    height: 45px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: white;
-    flex-shrink: 0;
-}
-
-.metric-info-mini {
-    flex: 1;
-}
-
-.metric-label-mini {
-    font-size: 11px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    display: block;
-    margin-bottom: 3px;
-}
-
-.metric-value-mini {
-    font-size: 22px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #fff, var(--primary-light));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-/* ===== RELÓGIO DIGITAL ===== */
-.clock-panel {
-    flex: 0 0 280px;
-    display: flex;
-    align-items: stretch;
-}
-
-.clock-glass {
-    width: 100%;
-    background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(192, 57, 43, 0.05));
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;
-    padding: 25px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.clock-glass::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(231, 76, 60, 0.1) 0%, transparent 70%);
-    animation: clockGlow 3s ease-in-out infinite;
-}
-
-@keyframes clockGlow {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.1); opacity: 1; }
-}
-
-.clock-date {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    position: relative;
-    z-index: 1;
-}
-
-.clock-time {
-    font-size: 48px;
-    font-weight: 800;
-    background: linear-gradient(135deg, #fff, #ff6b6b);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: 3px;
-    position: relative;
-    z-index: 1;
-    font-family: 'Courier New', monospace;
-}
-
-.clock-period {
-    font-size: 13px;
-    color: var(--primary-light);
-    margin-top: 8px;
-    letter-spacing: 3px;
-    position: relative;
-    z-index: 1;
-}
-
-.clock-pulse-dot {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 8px;
-    height: 8px;
-    background: var(--success);
-    border-radius: 50%;
-    animation: pulseDot 2s infinite;
-    z-index: 1;
-}
-
-@keyframes pulseDot {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
-    50% { box-shadow: 0 0 0 15px rgba(46, 213, 115, 0); }
-}
-
-/* ===== MIDDLE ROW ===== */
-.dashboard-middle-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 25px;
-}
-
-/* Painel Glass */
-.panel-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px;
-    padding: 25px;
-    transition: all 0.3s;
-}
-
-.panel-glass:hover {
-    box-shadow: 0 10px 30px rgba(231, 76, 60, 0.1);
-    border-color: rgba(231, 76, 60, 0.2);
-}
-
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.panel-header h3 {
-    font-size: 14px;
-    letter-spacing: 1px;
-    color: #fff;
-}
-
-.panel-date {
-    font-size: 11px;
-    color: var(--text-secondary);
-}
-
-/* Vendas Diárias */
-.vendas-resumo {
-    text-align: center;
-    margin-bottom: 25px;
-}
-
-.vendas-numero {
-    font-size: 52px;
-    font-weight: 800;
-    background: linear-gradient(135deg, #ff6b6b, #ff4757);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    display: block;
-    line-height: 1;
-}
-
-.vendas-label {
-    font-size: 11px;
-    color: var(--text-secondary);
-    letter-spacing: 2px;
-    margin-top: 5px;
-    display: block;
-}
-
-.vendas-meta {
-    margin-top: 15px;
-}
-
-.meta-bar {
-    width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 8px;
-}
-
-.meta-bar.large {
-    height: 10px;
-}
-
-.meta-progress {
-    height: 100%;
-    background: linear-gradient(90deg, #ff6b6b, #ff4757);
-    border-radius: 10px;
-    transition: width 1s ease;
-    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
-}
-
-.meta-text {
-    font-size: 11px;
-    color: var(--text-secondary);
-}
-
-.meta-info {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-/* Ranking */
-.ranking-section,
-.produtos-section {
-    margin-top: 20px;
-}
-
-.ranking-section h4,
-.produtos-section h4 {
-    font-size: 12px;
-    color: var(--primary-light);
-    margin-bottom: 15px;
-    letter-spacing: 1px;
-}
-
-.ranking-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.ranking-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 12px;
-    transition: 0.3s;
-}
-
-.ranking-item:hover {
-    background: rgba(231, 76, 60, 0.1);
-}
-
-.ranking-posicao {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
-    flex-shrink: 0;
-}
-
-.ranking-posicao.top1 {
-    background: linear-gradient(135deg, #ffd700, #ffa500);
-    color: #000;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
-}
-
-.ranking-posicao.top2 {
-    background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
-    color: #000;
-}
-
-.ranking-posicao.top3 {
-    background: linear-gradient(135deg, #cd7f32, #a0522d);
-    color: #fff;
-}
-
-.ranking-posicao.normal {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.ranking-info {
-    flex: 1;
-}
-
-.ranking-nome {
-    font-weight: 600;
-    font-size: 13px;
-    display: block;
-}
-
-.ranking-vendas {
-    font-size: 11px;
-    color: var(--text-secondary);
-}
-
-.ranking-pontos {
-    font-weight: 700;
-    color: var(--primary-light);
-    font-size: 16px;
-}
-
-/* Produtos */
-.produtos-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.produto-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 10px;
-}
-
-.produto-nome {
-    font-size: 13px;
-}
-
-.produto-qtd {
-    font-weight: 700;
-    color: var(--primary-light);
-    font-size: 14px;
-}
-
-.produto-bar {
-    width: 60px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 5px;
-    overflow: hidden;
-}
-
-.produto-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ff6b6b, #ff4757);
-    border-radius: 5px;
-    transition: width 1s ease;
-}
-
-/* ===== COMPARATIVO ===== */
-.comparativo-botoes {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.btn-compare {
-    flex: 1;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
-
-.btn-compare.active {
-    background: linear-gradient(135deg, rgba(231, 76, 60, 0.3), rgba(255, 71, 87, 0.15));
-    border-color: var(--primary);
-    color: #fff;
-    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.15);
-}
-
-.comp-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: var(--text-secondary);
-    margin-bottom: 15px;
-    letter-spacing: 1px;
-}
-
-.comp-cards {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.comp-card {
-    flex: 1;
-    text-align: center;
-    padding: 15px;
-    border-radius: 16px;
-}
-
-.comp-card.atual {
-    background: rgba(46, 213, 115, 0.1);
-    border: 1px solid rgba(46, 213, 115, 0.2);
-}
-
-.comp-card.passado {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.comp-label {
-    font-size: 10px;
-    color: var(--text-secondary);
-    letter-spacing: 1px;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.comp-value {
-    font-size: 28px;
-    font-weight: 800;
-}
-
-.comp-card.atual .comp-value {
-    color: var(--success);
-}
-
-.comp-vs {
-    font-size: 16px;
-    font-weight: 800;
-    color: rgba(255, 255, 255, 0.2);
-}
-
-.comp-diferenca {
-    text-align: center;
-    padding: 12px;
-    border-radius: 12px;
-    margin-bottom: 15px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.comp-diferenca.positivo {
-    background: rgba(46, 213, 115, 0.1);
-    color: var(--success);
-    border: 1px solid rgba(46, 213, 115, 0.2);
-}
-
-.comp-diferenca.negativo {
-    background: rgba(255, 71, 87, 0.1);
-    color: var(--danger);
-    border: 1px solid rgba(255, 71, 87, 0.2);
-}
-
-.comp-destaque,
-.comp-produtos,
-.meta-mensal {
-    margin-top: 20px;
-}
-
-.comp-destaque h4,
-.comp-produtos h4,
-.meta-mensal h4 {
-    font-size: 11px;
-    color: var(--primary-light);
-    margin-bottom: 10px;
-    letter-spacing: 1px;
-}
-
-.destaque-card {
-    padding: 12px;
-    background: rgba(255, 215, 0, 0.1);
-    border: 1px solid rgba(255, 215, 0, 0.2);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.destaque-icon {
-    font-size: 24px;
-}
-
-.destaque-nome {
-    font-weight: 700;
-    font-size: 14px;
-}
-
-.destaque-info {
-    font-size: 11px;
-    color: var(--text-secondary);
-}
-
-.comp-produto-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    font-size: 11px;
-}
-
-.comp-produto-nome {
-    width: 80px;
-    font-size: 11px;
-    flex-shrink: 0;
-}
-
-.comp-produto-barras {
-    flex: 1;
-    display: flex;
-    gap: 3px;
-    align-items: center;
-}
-
-.comp-produto-atual,
-.comp-produto-passado {
-    height: 18px;
-    border-radius: 4px;
-    transition: width 1s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    font-weight: 700;
-    min-width: 25px;
-}
-
-.comp-produto-atual {
-    background: linear-gradient(135deg, #ff6b6b, #ff4757);
-}
-
-.comp-produto-passado {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-}
-
-/* ===== TABELA ===== */
-.table-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px;
-    overflow: hidden;
-}
-
-.table-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.table-header h3 {
-    font-size: 14px;
-}
-
-.table-responsive {
-    overflow-x: auto;
-}
-
-.table-glass table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.table-glass thead {
-    background: rgba(231, 76, 60, 0.1);
-}
-
-.table-glass th {
-    padding: 14px 18px;
-    text-align: left;
-    font-weight: 600;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--primary-light);
-}
-
-.table-glass td {
-    padding: 12px 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 13px;
-}
-
-.table-glass tbody tr {
-    transition: 0.3s;
-}
-
-.table-glass tbody tr:hover {
-    background: rgba(231, 76, 60, 0.05);
-}
-
-/* ===== BOTÕES ===== */
-.btn-glass-flutuante {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border: none;
-    padding: 14px 28px;
-    border-radius: 50px;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 10px 30px rgba(231, 76, 60, 0.4);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 25px;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-glass-flutuante:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(231, 76, 60, 0.6);
-}
-
-.btn-glass-sm {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-    padding: 8px 16px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.btn-glass-sm:hover {
-    background: rgba(231, 76, 60, 0.2);
-}
-
-.btn-glass-primary {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
-    color: white;
-    cursor: pointer;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: 0.3s;
-}
-
-.btn-glass-primary:hover {
-    box-shadow: 0 10px 25px rgba(231, 76, 60, 0.4);
-}
-
-.btn-glass-danger {
-    background: rgba(255, 71, 87, 0.2);
-    border: 1px solid rgba(255, 71, 87, 0.3);
-    padding: 12px 24px;
-    border-radius: 12px;
-    color: #ff4757;
-    cursor: pointer;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: 0.3s;
-}
-
-.btn-glass-danger:hover {
-    background: rgba(255, 71, 87, 0.3);
-}
-
-/* ===== FORM ===== */
-.form-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    padding: 25px;
-    margin-bottom: 20px;
-}
-
-.form-glass h3 {
-    margin-bottom: 20px;
-    color: #fff;
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.form-grid input,
-.form-grid select {
-    padding: 14px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    color: #fff;
-    font-size: 14px;
-    transition: 0.3s;
-}
-
-.form-grid input:focus,
-.form-grid select:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.form-grid select option {
-    background: #1a0a0a;
-    color: #fff;
-}
-
-.form-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.input-group label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    letter-spacing: 1px;
-}
-
-/* Status */
-.status-ativo {
-    color: #2ed573;
-    text-shadow: 0 0 10px rgba(46, 213, 115, 0.3);
-}
-
-.status-prospecto {
-    color: #ffa502;
-    text-shadow: 0 0 10px rgba(255, 165, 2, 0.3);
-}
-
-/* Mini Stats */
-.stats-mini {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-    margin-bottom: 25px;
-}
-
-.mini-stat {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-}
-
-.mini-label {
-    font-size: 11px;
-    color: var(--text-secondary);
-    display: block;
-    margin-bottom: 8px;
-    letter-spacing: 1px;
-}
-
-.mini-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--primary-light);
-}
-
-.metrics-grid-full {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-}
-
-/* ===== RESPONSIVO ===== */
-@media (max-width: 1400px) {
-    .dashboard-middle-row {
-        grid-template-columns: 1fr;
+// ============================================
+// STAGE TELECOM CRM - SCRIPT COMPLETO
+// ============================================
+
+// ===== BANCO DE DADOS LOCAL =====
+let DB = JSON.parse(localStorage.getItem('stage_db')) || {
+    usuarios: [
+        { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true },
+        { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true },
+        { id: 3, usuario: "maria.santos", senha: "vend123", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true },
+        { id: 4, usuario: "pedro.costa", senha: "vend123", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true }
+    ],
+    clientes: [
+        { id: 1, nome: "TechBrasil Ltda", cnpj: "00.000.000/0001-00", telefone: "(11) 3456-7890", email: "contato@techbrasil.com.br", vendedor_id: 2, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-01-15" },
+        { id: 2, nome: "Comércio Digital SA", cnpj: "11.111.111/0001-11", telefone: "(21) 2345-6789", email: "digital@comercio.com.br", vendedor_id: 2, status: "ativo", plano: "Empresarial", valor: 499.90, data: "2024-02-20" },
+        { id: 3, nome: "NetConnect Provedor", cnpj: "22.222.222/0001-22", telefone: "(31) 3456-7890", email: "vendas@netconnect.com.br", vendedor_id: 3, status: "prospecto", plano: "Básico", valor: 299.90, data: "2024-03-10" },
+        { id: 4, nome: "Fibra Ótica Brasil", cnpj: "33.333.333/0001-33", telefone: "(41) 3456-7890", email: "contato@fibraotica.com.br", vendedor_id: 3, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-04-05" },
+        { id: 5, nome: "Telecom Solutions", cnpj: "44.444.444/0001-44", telefone: "(51) 3456-7890", email: "vendas@telecomsolutions.com.br", vendedor_id: 4, status: "prospecto", plano: "Empresarial", valor: 499.90, data: "2024-05-15" },
+        { id: 6, nome: "Internet Rápida Ltda", cnpj: "55.555.555/0001-55", telefone: "(61) 3456-7890", email: "suporte@internetrapida.com.br", vendedor_id: 4, status: "ativo", plano: "Básico", valor: 299.90, data: "2024-06-01" }
+    ],
+    config: {
+        metaDiaria: 10,
+        metaMensal: 50
     }
+};
+
+function salvarDB() {
+    localStorage.setItem('stage_db', JSON.stringify(DB));
 }
 
-@media (max-width: 1200px) {
-    .dashboard-top-row {
-        flex-direction: column;
+// ===== SESSÃO =====
+let sessao = JSON.parse(localStorage.getItem('stage_session'));
+let relogioInterval;
+let comparativoAtual = 'diario';
+
+// ===== LOGIN =====
+function fazerLogin() {
+    const usuario = document.getElementById('usuario').value.trim();
+    const senha = document.getElementById('senha').value.trim();
+    const erro = document.getElementById('mensagemErro');
+    
+    if (!usuario || !senha) {
+        erro.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Preencha todos os campos!';
+        erro.style.color = '#ffa502';
+        return;
     }
     
-    .clock-panel {
-        flex: 0 0 auto;
-    }
+    const user = DB.usuarios.find(u => u.usuario === usuario && u.senha === senha && u.ativo);
     
-    .metrics-grid-horizontal {
-        grid-template-columns: repeat(2, 1fr);
+    if (user) {
+        sessao = {
+            id: user.id,
+            nome: user.nome,
+            email: user.email,
+            tipo: user.tipo
+        };
+        localStorage.setItem('stage_session', JSON.stringify(sessao));
+        
+        erro.innerHTML = '<i class="fas fa-check-circle"></i> Login realizado! Redirecionando...';
+        erro.style.color = '#2ed573';
+        
+        // Lembrar usuário
+        if (document.getElementById('lembrar')?.checked) {
+            localStorage.setItem('stage_remember', usuario);
+        }
+        
+        setTimeout(() => {
+            if (user.tipo === 'admin') mostrarAdmin();
+            else mostrarVendedor();
+        }, 600);
+    } else {
+        erro.innerHTML = '<i class="fas fa-times-circle"></i> Usuário ou senha inválidos!';
+        erro.style.color = '#ff4757';
+        document.getElementById('senha').value = '';
+        document.getElementById('senha').focus();
     }
 }
 
-@media (max-width: 1024px) {
-    .sidebar-glass {
-        width: 80px;
-        padding: 20px 10px;
+// ===== LOGOUT =====
+function logout() {
+    if (relogioInterval) clearInterval(relogioInterval);
+    localStorage.removeItem('stage_session');
+    sessao = null;
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('adminScreen').style.display = 'none';
+    document.getElementById('vendedorScreen').style.display = 'none';
+    document.getElementById('usuario').value = '';
+    document.getElementById('senha').value = '';
+}
+
+// ===== MOSTRAR TELAS =====
+function mostrarAdmin() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminScreen').style.display = 'flex';
+    document.getElementById('vendedorScreen').style.display = 'none';
+    
+    document.getElementById('userInfoAdmin').innerHTML = `
+        <div style="font-weight: 700; font-size: 15px;">${sessao.nome}</div>
+        <div style="font-size: 11px; color: var(--primary-light); margin-top: 3px;">👑 Administrador</div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 3px;">${sessao.email}</div>
+    `;
+    
+    carregarDashboard();
+    iniciarRelogio();
+    carregarConfiguracoes();
+}
+
+function mostrarVendedor() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminScreen').style.display = 'none';
+    document.getElementById('vendedorScreen').style.display = 'flex';
+    
+    document.getElementById('userInfoVendedor').innerHTML = `
+        <div style="font-weight: 700; font-size: 15px;">${sessao.nome}</div>
+        <div style="font-size: 11px; color: var(--primary-light); margin-top: 3px;">💼 Vendedor</div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 3px;">${sessao.email}</div>
+    `;
+    
+    carregarMeusClientes();
+}
+
+// ===== RELÓGIO EM TEMPO REAL =====
+function atualizarRelogio() {
+    const agora = new Date();
+    
+    const diasSemana = ['DOMINGO', 'SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA', 'SÁBADO'];
+    const meses = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    
+    const dataFormatada = `${diasSemana[agora.getDay()]}, ${agora.getDate()} DE ${meses[agora.getMonth()]} DE ${agora.getFullYear()}`;
+    const horas = String(agora.getHours()).padStart(2, '0');
+    const minutos = String(agora.getMinutes()).padStart(2, '0');
+    const segundos = String(agora.getSeconds()).padStart(2, '0');
+    const periodo = agora.getHours() < 12 ? '☀️ MANHÃ' : agora.getHours() < 18 ? '🌤️ TARDE' : '🌙 NOITE';
+    
+    const dataEl = document.getElementById('dataAtual');
+    const horaEl = document.getElementById('horaAtual');
+    const periodoEl = document.getElementById('periodoDia');
+    
+    if (dataEl) dataEl.textContent = dataFormatada;
+    if (horaEl) horaEl.textContent = `${horas}:${minutos}:${segundos}`;
+    if (periodoEl) periodoEl.textContent = periodo;
+}
+
+function iniciarRelogio() {
+    atualizarRelogio();
+    if (relogioInterval) clearInterval(relogioInterval);
+    relogioInterval = setInterval(atualizarRelogio, 1000);
+}
+
+// ===== CARREGAR CONFIGURAÇÕES =====
+function carregarConfiguracoes() {
+    const metaDiariaInput = document.getElementById('metaDiariaInput');
+    const metaMensalInput = document.getElementById('metaMensalInput');
+    
+    if (metaDiariaInput) metaDiariaInput.value = DB.config.metaDiaria;
+    if (metaMensalInput) metaMensalInput.value = DB.config.metaMensal;
+}
+
+function salvarConfiguracoes() {
+    const metaDiaria = parseInt(document.getElementById('metaDiariaInput').value) || 10;
+    const metaMensal = parseInt(document.getElementById('metaMensalInput').value) || 50;
+    
+    DB.config.metaDiaria = metaDiaria;
+    DB.config.metaMensal = metaMensal;
+    salvarDB();
+    
+    alert('✅ Configurações salvas com sucesso!');
+    carregarDashboard();
+}
+
+// ===== DADOS DE VENDAS (SIMULADOS) =====
+function gerarDadosVendas() {
+    const hoje = new Date();
+    const dataHoje = hoje.toISOString().split('T')[0];
+    
+    let vendasHoje = JSON.parse(localStorage.getItem('vendas_diarias')) || [];
+    
+    if (vendasHoje.length === 0 || vendasHoje[0]?.data !== dataHoje) {
+        const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo);
+        const planos = [
+            { nome: 'Básico', valor: 299.90 },
+            { nome: 'Empresarial', valor: 499.90 },
+            { nome: 'Premium', valor: 899.90 },
+            { nome: 'Ultra', valor: 1499.90 }
+        ];
+        
+        vendasHoje = [];
+        const numVendas = Math.floor(Math.random() * 8) + 3;
+        
+        for (let i = 0; i < numVendas; i++) {
+            const vendedor = vendedores[Math.floor(Math.random() * vendedores.length)];
+            const plano = planos[Math.floor(Math.random() * planos.length)];
+            
+            vendasHoje.push({
+                id: Date.now() + i,
+                vendedor_id: vendedor.id,
+                vendedor_nome: vendedor.nome,
+                plano: plano.nome,
+                valor: plano.valor,
+                data: dataHoje,
+                hora: `${String(Math.floor(Math.random() * 24)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`
+            });
+        }
+        
+        localStorage.setItem('vendas_diarias', JSON.stringify(vendasHoje));
     }
     
-    .sidebar-glass span,
-    .sidebar-brand h2,
-    .sidebar-brand span,
-    .user-profile-glass,
-    .nav-item span,
-    .btn-glass-logout span {
-        display: none;
+    return vendasHoje;
+}
+
+function gerarVendasDiaPassado() {
+    const hoje = new Date();
+    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, hoje.getDate());
+    const dataMesPassado = mesPassado.toISOString().split('T')[0];
+    
+    let vendas = JSON.parse(localStorage.getItem('vendas_mes_passado_dia')) || [];
+    
+    if (vendas.length === 0 || vendas[0]?.data !== dataMesPassado) {
+        const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo);
+        const planos = [
+            { nome: 'Básico', valor: 299.90 },
+            { nome: 'Empresarial', valor: 499.90 },
+            { nome: 'Premium', valor: 899.90 }
+        ];
+        
+        vendas = [];
+        const numVendas = Math.floor(Math.random() * 6) + 2;
+        
+        for (let i = 0; i < numVendas; i++) {
+            const vendedor = vendedores[Math.floor(Math.random() * vendedores.length)];
+            const plano = planos[Math.floor(Math.random() * planos.length)];
+            
+            vendas.push({
+                id: Date.now() + i,
+                vendedor_id: vendedor.id,
+                vendedor_nome: vendedor.nome,
+                plano: plano.nome,
+                valor: plano.valor,
+                data: dataMesPassado
+            });
+        }
+        
+        localStorage.setItem('vendas_mes_passado_dia', JSON.stringify(vendas));
     }
     
-    .nav-item {
-        justify-content: center;
-        padding: 14px;
+    return vendas;
+}
+
+function gerarVendasMesAtual() {
+    const hoje = new Date();
+    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+    
+    let vendas = JSON.parse(localStorage.getItem('vendas_mes_atual')) || [];
+    
+    if (vendas.length === 0 || !vendas[0]?.data.startsWith(mesAtual)) {
+        const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo);
+        const planos = [
+            { nome: 'Básico', valor: 299.90 },
+            { nome: 'Empresarial', valor: 499.90 },
+            { nome: 'Premium', valor: 899.90 }
+        ];
+        
+        vendas = [];
+        const numVendas = Math.floor(Math.random() * 30) + 15;
+        
+        for (let i = 0; i < numVendas; i++) {
+            const vendedor = vendedores[Math.floor(Math.random() * vendedores.length)];
+            const plano = planos[Math.floor(Math.random() * planos.length)];
+            const dia = String(Math.floor(Math.random() * hoje.getDate()) + 1).padStart(2, '0');
+            
+            vendas.push({
+                id: Date.now() + i,
+                vendedor_id: vendedor.id,
+                vendedor_nome: vendedor.nome,
+                plano: plano.nome,
+                valor: plano.valor,
+                data: `${mesAtual}-${dia}`
+            });
+        }
+        
+        localStorage.setItem('vendas_mes_atual', JSON.stringify(vendas));
     }
     
-    .main-glass {
-        margin-left: 80px;
+    return vendas;
+}
+
+function gerarVendasMesAnterior() {
+    const hoje = new Date();
+    const mesAnterior = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
+    const anoAnterior = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
+    const mesKey = `${anoAnterior}-${String(mesAnterior).padStart(2, '0')}`;
+    
+    let vendas = JSON.parse(localStorage.getItem('vendas_mes_anterior')) || [];
+    
+    if (vendas.length === 0 || !vendas[0]?.data.startsWith(mesKey)) {
+        const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo);
+        const planos = [
+            { nome: 'Básico', valor: 299.90 },
+            { nome: 'Empresarial', valor: 499.90 },
+            { nome: 'Premium', valor: 899.90 }
+        ];
+        
+        vendas = [];
+        const numVendas = Math.floor(Math.random() * 25) + 10;
+        
+        for (let i = 0; i < numVendas; i++) {
+            const vendedor = vendedores[Math.floor(Math.random() * vendedores.length)];
+            const plano = planos[Math.floor(Math.random() * planos.length)];
+            const dia = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
+            
+            vendas.push({
+                id: Date.now() + i,
+                vendedor_id: vendedor.id,
+                vendedor_nome: vendedor.nome,
+                plano: plano.nome,
+                valor: plano.valor,
+                data: `${mesKey}-${dia}`
+            });
+        }
+        
+        localStorage.setItem('vendas_mes_anterior', JSON.stringify(vendas));
+    }
+    
+    return vendas;
+}
+
+// ===== DASHBOARD PRINCIPAL =====
+function carregarDashboard() {
+    const totalClientes = DB.clientes.length;
+    const vendedoresAtivos = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo).length;
+    const clientesAtivos = DB.clientes.filter(c => c.status === 'ativo').length;
+    const taxa = totalClientes > 0 ? ((clientesAtivos / totalClientes) * 100).toFixed(1) : 0;
+    
+    const mesAtual = new Date().getMonth();
+    const receitaMes = DB.clientes
+        .filter(c => c.status === 'ativo' && new Date(c.data).getMonth() === mesAtual)
+        .reduce((t, c) => t + c.valor, 0);
+    
+    document.getElementById('totalClientes').textContent = totalClientes;
+    document.getElementById('vendasMes').textContent = `R$ ${receitaMes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('vendedoresAtivos').textContent = vendedoresAtivos;
+    document.getElementById('taxaConversao').textContent = `${taxa}%`;
+    
+    // Carregar vendas diárias
+    carregarVendasDiarias();
+    
+    // Carregar comparativo
+    mostrarComparativo(comparativoAtual);
+    
+    // Tabela de clientes
+    const tabela = document.getElementById('tabelaClientes');
+    const ultimos = [...DB.clientes].reverse().slice(0, 6);
+    
+    tabela.innerHTML = ultimos.map(c => {
+        const vend = DB.usuarios.find(u => u.id === c.vendedor_id);
+        return `
+            <tr>
+                <td><strong>${c.nome}</strong></td>
+                <td><span style="background: rgba(231,76,60,0.2); padding: 5px 12px; border-radius: 20px; font-size: 12px;">${c.plano}</span></td>
+                <td>R$ ${c.valor.toFixed(2)}</td>
+                <td>${vend ? vend.nome : 'N/A'}</td>
+                <td class="status-${c.status}">● ${c.status}</td>
+                <td>${new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// ===== VENDAS DIÁRIAS =====
+function carregarVendasDiarias() {
+    const hoje = new Date();
+    const dataHoje = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    
+    document.getElementById('dataVendasDiarias').textContent = dataHoje;
+    
+    const vendasHoje = gerarDadosVendas();
+    const metaDiaria = DB.config.metaDiaria;
+    
+    document.getElementById('totalVendasHoje').textContent = vendasHoje.length;
+    document.getElementById('metaDiaria').textContent = metaDiaria;
+    
+    // Barra de progresso
+    const progresso = Math.min((vendasHoje.length / metaDiaria) * 100, 100);
+    document.getElementById('metaProgresso').style.width = `${progresso}%`;
+    
+    // Ranking de vendedores
+    carregarRanking(vendasHoje);
+    
+    // Produtos mais vendidos
+    carregarProdutos(vendasHoje);
+}
+
+function carregarRanking(vendas) {
+    const ranking = {};
+    
+    vendas.forEach(v => {
+        if (!ranking[v.vendedor_id]) {
+            ranking[v.vendedor_id] = {
+                nome: v.vendedor_nome,
+                vendas: 0,
+                valor: 0
+            };
+        }
+        ranking[v.vendedor_id].vendas++;
+        ranking[v.vendedor_id].valor += v.valor;
+    });
+    
+    const rankingArray = Object.values(ranking).sort((a, b) => b.vendas - a.vendas);
+    
+    const container = document.getElementById('rankingVendedores');
+    
+    if (rankingArray.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color: rgba(255,255,255,0.4); padding: 20px;">Nenhuma venda hoje</p>';
+        return;
+    }
+    
+    container.innerHTML = rankingArray.map((r, i) => {
+        const posicao = i + 1;
+        let classePosicao = 'normal';
+        if (posicao === 1) classePosicao = 'top1';
+        else if (posicao === 2) classePosicao = 'top2';
+        else if (posicao === 3) classePosicao = 'top3';
+        
+        const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : posicao;
+        
+        return `
+            <div class="ranking-item">
+                <div class="ranking-posicao ${classePosicao}">${medalha}</div>
+                <div class="ranking-info">
+                    <span class="ranking-nome">${r.nome}</span>
+                    <span class="ranking-vendas">${r.vendas} vendas • R$ ${r.valor.toFixed(2)}</span>
+                </div>
+                <span class="ranking-pontos">${r.vendas}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function carregarProdutos(vendas) {
+    const produtos = {};
+    
+    vendas.forEach(v => {
+        if (!produtos[v.plano]) {
+            produtos[v.plano] = { nome: v.plano, quantidade: 0, valor: 0 };
+        }
+        produtos[v.plano].quantidade++;
+        produtos[v.plano].valor += v.valor;
+    });
+    
+    const produtosArray = Object.values(produtos).sort((a, b) => b.quantidade - a.quantidade);
+    const maxQtd = produtosArray.length > 0 ? produtosArray[0].quantidade : 1;
+    
+    const container = document.getElementById('produtosVendidos');
+    
+    if (produtosArray.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color: rgba(255,255,255,0.4); padding: 20px;">Nenhum produto vendido</p>';
+        return;
+    }
+    
+    container.innerHTML = produtosArray.map(p => `
+        <div class="produto-item">
+            <span class="produto-nome">${p.nome}</span>
+            <div class="produto-bar">
+                <div class="produto-bar-fill" style="width: ${(p.quantidade / maxQtd) * 100}%"></div>
+            </div>
+            <span class="produto-qtd">${p.quantidade}x</span>
+        </div>
+    `).join('');
+}
+
+// ===== COMPARATIVO =====
+function mostrarComparativo(tipo) {
+    comparativoAtual = tipo;
+    
+    document.querySelectorAll('.btn-compare').forEach(b => b.classList.remove('active'));
+    document.getElementById(tipo === 'diario' ? 'btnDiario' : 'btnMensal').classList.add('active');
+    
+    document.getElementById('comparativoDiario').style.display = tipo === 'diario' ? 'block' : 'none';
+    document.getElementById('comparativoMensal').style.display = tipo === 'mensal' ? 'block' : 'none';
+    
+    if (tipo === 'diario') carregarComparativoDiario();
+    else carregarComparativoMensal();
+}
+
+function carregarComparativoDiario() {
+    const hoje = new Date();
+    const dataHoje = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, hoje.getDate());
+    const dataPassado = mesPassado.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+    
+    document.getElementById('compDataHoje').textContent = dataHoje;
+    document.getElementById('compDataPassado').textContent = dataPassado;
+    
+    const vendasHoje = gerarDadosVendas();
+    const vendasPassado = gerarVendasDiaPassado();
+    
+    document.getElementById('compVendasHoje').textContent = vendasHoje.length;
+    document.getElementById('compVendasPassado').textContent = vendasPassado.length;
+    
+    const diferenca = vendasHoje.length - vendasPassado.length;
+    const diffEl = document.getElementById('compDiferencaDiario');
+    
+    if (diferenca > 0) {
+        diffEl.className = 'comp-diferenca positivo';
+        diffEl.innerHTML = `📈 ${diferenca} vendas a mais que o mesmo dia do mês passado (+${((diferenca / Math.max(vendasPassado.length, 1)) * 100).toFixed(1)}%)`;
+    } else if (diferenca < 0) {
+        diffEl.className = 'comp-diferenca negativo';
+        diffEl.innerHTML = `📉 ${Math.abs(diferenca)} vendas a menos que o mesmo dia do mês passado (${((diferenca / Math.max(vendasPassado.length, 1)) * 100).toFixed(1)}%)`;
+    } else {
+        diffEl.className = 'comp-diferenca positivo';
+        diffEl.innerHTML = `➡️ Mesmo número de vendas que o mês passado`;
+    }
+    
+    // Destaque do dia
+    carregarDestaque(vendasHoje, 'destaqueDiario', 'HOJE');
+    
+    // Comparação de produtos
+    carregarComparacaoProdutos(vendasHoje, vendasPassado, 'compProdutosDiario');
+}
+
+function carregarComparativoMensal() {
+    const hoje = new Date();
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    
+    document.getElementById('compMesAtual').textContent = meses[hoje.getMonth()];
+    document.getElementById('compMesPassado').textContent = meses[hoje.getMonth() === 0 ? 11 : hoje.getMonth() - 1];
+    
+    const vendasAtual = gerarVendasMesAtual();
+    const vendasAnterior = gerarVendasMesAnterior();
+    
+    document.getElementById('compVendasMesAtual').textContent = vendasAtual.length;
+    document.getElementById('compVendasMesAnterior').textContent = vendasAnterior.length;
+    
+    const diferenca = vendasAtual.length - vendasAnterior.length;
+    const diffEl = document.getElementById('compDiferencaMensal');
+    
+    if (diferenca > 0) {
+        diffEl.className = 'comp-diferenca positivo';
+        diffEl.innerHTML = `📈 ${diferenca} vendas a mais que o mês anterior (+${((diferenca / Math.max(vendasAnterior.length, 1)) * 100).toFixed(1)}%)`;
+    } else if (diferenca < 0) {
+        diffEl.className = 'comp-diferenca negativo';
+        diffEl.innerHTML = `📉 ${Math.abs(diferenca)} vendas a menos que o mês anterior (${((diferenca / Math.max(vendasAnterior.length, 1)) * 100).toFixed(1)}%)`;
+    } else {
+        diffEl.className = 'comp-diferenca positivo';
+        diffEl.innerHTML = `➡️ Mesmo número de vendas que o mês anterior`;
+    }
+    
+    // Destaque do mês
+    carregarDestaque(vendasAtual, 'destaqueMensal', 'MÊS');
+    
+    // Comparação de produtos
+    carregarComparacaoProdutos(vendasAtual, vendasAnterior, 'compProdutosMensal');
+    
+    // Meta mensal
+    const metaMensal = DB.config.metaMensal;
+    const realizado = vendasAtual.length;
+    const pct = Math.min((realizado / metaMensal) * 100, 100).toFixed(1);
+    
+    document.getElementById('metaMensalValor').textContent = metaMensal;
+    document.getElementById('metaMensalRealizado').textContent = realizado;
+    document.getElementById('metaMensalPct').textContent = `${pct}%`;
+    document.getElementById('metaMensalProgresso').style.width = `${pct}%`;
+}
+
+function carregarDestaque(vendas, containerId, periodo) {
+    const container = document.getElementById(containerId);
+    
+    if (vendas.length === 0) {
+        container.innerHTML = '<p style="color: rgba(255,255,255,0.4);">Nenhuma venda no período</p>';
+        return;
+    }
+    
+    // Encontrar melhor vendedor
+    const ranking = {};
+    vendas.forEach(v => {
+        if (!ranking[v.vendedor_id]) {
+            ranking[v.vendedor_id] = { nome: v.vendedor_nome, vendas: 0, valor: 0 };
+        }
+        ranking[v.vendedor_id].vendas++;
+        ranking[v.vendedor_id].valor += v.valor;
+    });
+    
+    const melhor = Object.values(ranking).sort((a, b) => b.vendas - a.vendas)[0];
+    
+    container.innerHTML = `
+        <div class="destaque-card">
+            <div class="destaque-icon">🏆</div>
+            <div>
+                <div class="destaque-nome">${melhor.nome}</div>
+                <div class="destaque-info">${melhor.vendas} vendas • R$ ${melhor.valor.toFixed(2)} no ${periodo}</div>
+            </div>
+        </div>
+    `;
+}
+
+function carregarComparacaoProdutos(vendasAtual, vendasPassado, containerId) {
+    const container = document.getElementById(containerId);
+    
+    const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
+    const maxVendas = Math.max(
+        ...produtos.map(p => {
+            const atual = vendasAtual.filter(v => v.plano === p).length;
+            const passado = vendasPassado.filter(v => v.plano === p).length;
+            return Math.max(atual, passado);
+        }),
+        1
+    );
+    
+    container.innerHTML = produtos.map(p => {
+        const qtdAtual = vendasAtual.filter(v => v.plano === p).length;
+        const qtdPassado = vendasPassado.filter(v => v.plano === p).length;
+        
+        return `
+            <div class="comp-produto-item">
+                <span class="comp-produto-nome">${p}</span>
+                <div class="comp-produto-barras">
+                    <div class="comp-produto-atual" style="width: ${(qtdAtual / maxVendas) * 100}%; min-width: ${qtdAtual > 0 ? '25px' : '0'}">
+                        ${qtdAtual > 0 ? qtdAtual : ''}
+                    </div>
+                    <div class="comp-produto-passado" style="width: ${(qtdPassado / maxVendas) * 100}%; min-width: ${qtdPassado > 0 ? '25px' : '0'}">
+                        ${qtdPassado > 0 ? qtdPassado : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ===== NAVEGAÇÃO ADMIN =====
+function mostrarSecao(secao) {
+    document.querySelectorAll('.section-active, .section-hidden').forEach(s => {
+        s.style.display = 'none';
+        s.className = 'section-hidden';
+    });
+    
+    const secaoEl = document.getElementById(`secao-${secao}`);
+    if (secaoEl) {
+        secaoEl.style.display = 'block';
+        secaoEl.className = 'section-active';
+    }
+    
+    document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
+    const navItem = document.querySelector(`[data-section="${secao}"]`);
+    if (navItem) navItem.classList.add('active');
+    
+    const titulos = {
+        dashboard: '📊 Dashboard',
+        vendedores: '👥 Gerenciar Vendedores',
+        clientes: '🏢 Todos os Clientes',
+        relatorios: '📈 Relatórios',
+        config: '⚙️ Configurações'
+    };
+    document.getElementById('tituloSecao').innerHTML = titulos[secao] || secao;
+    
+    if (secao === 'vendedores') carregarVendedores();
+    if (secao === 'clientes') carregarTodosClientes();
+    if (secao === 'relatorios') carregarRelatorios();
+    if (secao === 'config') carregarConfiguracoes();
+}
+
+// ===== ADMIN - VENDEDORES =====
+function mostrarFormVendedor() {
+    const form = document.getElementById('formVendedor');
+    form.style.display = 'block';
+    form.style.animation = 'cardAppear 0.5s ease';
+}
+
+function cadastrarVendedor() {
+    const nome = document.getElementById('nomeVendedor').value.trim();
+    const usuario = document.getElementById('usuarioVendedor').value.trim();
+    const senha = document.getElementById('senhaVendedor').value.trim();
+    const email = document.getElementById('emailVendedor').value.trim();
+    
+    if (!nome || !usuario || !senha || !email) {
+        alert('⚠️ Preencha todos os campos!');
+        return;
+    }
+    
+    if (DB.usuarios.find(u => u.usuario === usuario)) {
+        alert('⚠️ Nome de usuário já existe!');
+        return;
+    }
+    
+    DB.usuarios.push({
+        id: DB.usuarios.length + 1,
+        usuario, senha, nome, email,
+        tipo: 'vendedor',
+        ativo: true
+    });
+    
+    salvarDB();
+    carregarVendedores();
+    
+    document.getElementById('formVendedor').style.display = 'none';
+    ['nomeVendedor', 'usuarioVendedor', 'senhaVendedor', 'emailVendedor'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    
+    alert('✅ Vendedor cadastrado com sucesso!');
+}
+
+function carregarVendedores() {
+    const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor');
+    const tabela = document.getElementById('tabelaVendedores');
+    
+    tabela.innerHTML = vendedores.map(v => {
+        const clientes = DB.clientes.filter(c => c.vendedor_id === v.id).length;
+        const vendasHoje = gerarDadosVendas().filter(vd => vd.vendedor_id === v.id).length;
+        
+        return `
+            <tr>
+                <td>
+                    <strong>${v.nome}</strong>
+                    <br><small style="color: rgba(255,255,255,0.4);">${vendasHoje} vendas hoje</small>
+                </td>
+                <td>@${v.usuario}</td>
+                <td>${v.email}</td>
+                <td><span style="background: rgba(231,76,60,0.2); padding: 4px 12px; border-radius: 15px;">${clientes} clientes</span></td>
+                <td class="${v.ativo ? 'status-ativo' : ''}">${v.ativo ? '● Ativo' : '○ Inativo'}</td>
+                <td>
+                    <button onclick="toggleVendedor(${v.id})" style="background: ${v.ativo ? 'rgba(255,71,87,0.2)' : 'rgba(46,213,115,0.2)'}; border: 1px solid ${v.ativo ? 'rgba(255,71,87,0.3)' : 'rgba(46,213,115,0.3)'}; color: white; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 12px; transition: 0.3s;">
+                        ${v.ativo ? '🔒 Desativar' : '🔓 Ativar'}
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function toggleVendedor(id) {
+    const vendedor = DB.usuarios.find(u => u.id === id);
+    if (vendedor) {
+        vendedor.ativo = !vendedor.ativo;
+        salvarDB();
+        carregarVendedores();
+        carregarDashboard();
     }
 }
 
-@media (max-width: 768px) {
-    .floating-card {
-        display: none;
-    }
+// ===== ADMIN - CLIENTES =====
+function carregarTodosClientes() {
+    const tabela = document.getElementById('tabelaTodosClientes');
     
-    .metrics-grid-horizontal {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .stats-mini {
-        grid-template-columns: 1fr;
-    }
+    tabela.innerHTML = DB.clientes.map(c => {
+        const vend = DB.usuarios.find(u => u.id === c.vendedor_id);
+        return `
+            <tr>
+                <td><strong>${c.nome}</strong></td>
+                <td>${c.cnpj}</td>
+                <td>${c.telefone}</td>
+                <td>${c.plano}</td>
+                <td>R$ ${c.valor.toFixed(2)}</td>
+                <td>${vend ? vend.nome : 'N/A'}</td>
+                <td class="status-${c.status}">● ${c.status}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
-@media (max-width: 480px) {
-    .clock-time {
-        font-size: 36px;
+// ===== ADMIN - RELATÓRIOS =====
+function carregarRelatorios() {
+    const ativos = DB.clientes.filter(c => c.status === 'ativo');
+    const totalAtivo = ativos.reduce((t, c) => t + c.valor, 0);
+    const media = ativos.length > 0 ? totalAtivo / ativos.length : 0;
+    const totalVendasMes = gerarVendasMesAtual().length;
+    
+    document.getElementById('totalPlanos').textContent = `R$ ${totalAtivo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('mediaCliente').textContent = `R$ ${media.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    document.getElementById('totalVendas').textContent = totalVendasMes;
+}
+
+// ===== VENDEDOR =====
+function mostrarSecaoVendedor(secao) {
+    document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => {
+        s.style.display = 'none';
+        s.className = 'section-hidden';
+    });
+    
+    const secaoEl = document.getElementById(`secao-${secao}`);
+    if (secaoEl) {
+        secaoEl.style.display = 'block';
+        secaoEl.className = 'section-active';
     }
     
-    .vendas-numero {
-        font-size: 40px;
-    }
+    document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
+    event.target.closest('.nav-item').classList.add('active');
+    
+    const titulos = {
+        meusClientes: '🏢 Meus Clientes',
+        novoCliente: '➕ Novo Cliente',
+        minhasVendas: '💰 Minhas Vendas'
+    };
+    document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
+    
+    if (secao === 'meusClientes') carregarMeusClientes();
+    if (secao === 'minhasVendas') carregarMinhasVendas();
 }
+
+function carregarMeusClientes() {
+    const meus = DB.clientes.filter(c => c.vendedor_id === sessao.id);
+    const ativos = meus.filter(c => c.status === 'ativo').length;
+    const prospectos = meus.filter(c => c.status === 'prospecto').length;
+    
+    document.getElementById('totalMeusClientes').textContent = meus.length;
+    document.getElementById('meusAtivos').textContent = ativos;
+    document.getElementById('meusProspectos').textContent = prospectos;
+    
+    const tabela = document.getElementById('tabelaMeusClientes');
+    tabela.innerHTML = meus.length > 0 ? meus.map(c => `
+        <tr>
+            <td><strong>${c.nome}</strong></td>
+            <td>${c.telefone}</td>
+            <td>${c.email}</td>
+            <td>${c.plano}</td>
+            <td>R$ ${c.valor.toFixed(2)}</td>
+            <td class="status-${c.status}">● ${c.status}</td>
+        </tr>
+    `).join('') : '<tr><td colspan="6" style="text-align:center; padding: 30px; color: rgba(255,255,255,0.4);">Nenhum cliente cadastrado</td></tr>';
+}
+
+function carregarMinhasVendas() {
+    const minhas = DB.clientes.filter(c => c.vendedor_id === sessao.id && c.status === 'ativo');
+    const tabela = document.getElementById('tabelaMinhasVendas');
+    
+    tabela.innerHTML = minhas.length > 0 ? minhas.map(c => `
+        <tr>
+            <td><strong>${c.nome}</strong></td>
+            <td>${c.plano}</td>
+            <td>R$ ${c.valor.toFixed(2)}</td>
+            <td>${new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+        </tr>
+    `).join('') : '<tr><td colspan="4" style="text-align:center; padding: 30px; color: rgba(255,255,255,0.4);">Nenhuma venda realizada</td></tr>';
+}
+
+function cadastrarCliente() {
+    const nome = document.getElementById('nomeCliente').value.trim();
+    const cnpj = document.getElementById('cnpjCliente').value.trim();
+    const telefone = document.getElementById('telefoneCliente').value.trim();
+    const email = document.getElementById('emailCliente').value.trim();
+    const plano = document.getElementById('planoCliente').value;
+    
+    if (!nome || !cnpj || !telefone || !email || !plano) {
+        alert('⚠️ Preencha todos os campos obrigatórios!');
+        return;
+    }
+    
+    const valores = { 'Básico': 299.90, 'Empresarial': 499.90, 'Premium': 899.90 };
+    
+    DB.clientes.push({
+        id: DB.clientes.length + 1,
+        nome, cnpj, telefone, email,
+        vendedor_id: sessao.id,
+        status: 'prospecto',
+        plano,
+        valor: valores[plano],
+        data: new Date().toISOString().split('T')[0]
+    });
+    
+    salvarDB();
+    
+    ['nomeCliente', 'cnpjCliente', 'telefoneCliente', 'emailCliente'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('planoCliente').value = '';
+    
+    alert('✅ Cliente cadastrado com sucesso!');
+    mostrarSecaoVendedor('meusClientes');
+}
+
+// ===== INICIAR =====
+document.addEventListener('DOMContentLoaded', () => {
+    // Restaurar usuário lembrado
+    const usuarioLembrado = localStorage.getItem('stage_remember');
+    if (usuarioLembrado) {
+        document.getElementById('usuario').value = usuarioLembrado;
+        document.getElementById('lembrar').checked = true;
+    }
+    
+    // Verificar sessão ativa
+    if (sessao) {
+        if (sessao.tipo === 'admin') mostrarAdmin();
+        else mostrarVendedor();
+    }
+    
+    // Enter no login
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') {
+            fazerLogin();
+        }
+    });
+});
