@@ -6,7 +6,6 @@
     <title>STAGE TELECOM | CRM Premium</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <!-- Gráficos e PDF -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -85,8 +84,8 @@
                 <a href="#" onclick="mostrarSecao('relatorios')" class="nav-item" data-section="relatorios">
                     <i class="fas fa-chart-pie"></i><span>Relatórios</span><div class="nav-indicator"></div>
                 </a>
-                <a href="#" onclick="mostrarSecao('config')" class="nav-item" data-section="config">
-                    <i class="fas fa-cog"></i><span>Configurações</span><div class="nav-indicator"></div>
+                <a href="#" onclick="mostrarSecao('metas')" class="nav-item" data-section="metas">
+                    <i class="fas fa-chart-line"></i><span>METAS</span><div class="nav-indicator"></div>
                 </a>
             </nav>
             <button onclick="logout()" class="btn-glass-logout">
@@ -238,7 +237,7 @@
                         </div>
                         <div class="table-responsive">
                             <table>
-                                <thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Vendedor</th><th>Status</th><th>Data</th></tr></thead>
+                                <thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Vendedor</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
                                 <tbody id="tabelaClientes"></tbody>
                             </table>
                         </div>
@@ -248,7 +247,6 @@
                 <!-- SEÇÃO CADASTRO -->
                 <div id="secao-cadastro" class="section-hidden">
                     <button onclick="mostrarFormCadastro()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Novo Usuário</span></button>
-                    
                     <div id="formCadastro" class="form-glass" style="display:none;">
                         <h3><i class="fas fa-user-plus"></i> Cadastrar Usuário</h3>
                         <div class="form-grid">
@@ -266,20 +264,17 @@
                             <button onclick="document.getElementById('formCadastro').style.display='none'" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
                         </div>
                     </div>
-                    
                     <div class="table-glass">
                         <table>
                             <thead><tr><th>Usuário</th><th>Login</th><th>Email</th><th>Categoria</th><th>Status</th><th>Ações</th></tr></thead>
                             <tbody id="tabelaUsuarios"></tbody>
                         </table>
                     </div>
-                    
                     <div style="margin-top: 20px; text-align: right;">
                         <button onclick="toggleLixeira()" class="btn-glass-lixeira" id="btnLixeira">
                             <i class="fas fa-trash-alt"></i> Lixeira (<span id="contadorLixeira">0</span>)
                         </button>
                     </div>
-                    
                     <div id="lixeiraUsuarios" class="table-glass" style="display:none; margin-top: 10px;">
                         <div class="table-header">
                             <h3><i class="fas fa-trash-restore"></i> Lixeira de Usuários</h3>
@@ -307,14 +302,12 @@
                             <i class="fas fa-tags"></i> Gerenciar Status
                         </button>
                     </div>
-                    
                     <div class="table-glass" style="margin-top: 20px;">
                         <table>
-                            <thead><tr><th>Cliente</th><th>Produto</th><th>Vendedor</th><th>Status</th><th>Detalhes</th></tr></thead>
+                            <thead><tr><th>Cliente</th><th>Produto</th><th>Vendedor</th><th>Status</th><th>Detalhes</th><th>Instalação</th></tr></thead>
                             <tbody id="tabelaAtivacoes"></tbody>
                         </table>
                     </div>
-                    
                     <div id="modalAtivacao" class="modal-overlay" style="display:none;">
                         <div class="modal-glass" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
                             <h3><i class="fas fa-search"></i> Detalhes da Ativação</h3>
@@ -324,7 +317,6 @@
                             </div>
                         </div>
                     </div>
-                    
                     <div id="modalStatus" class="modal-overlay" style="display:none;">
                         <div class="modal-glass" style="max-width: 600px;">
                             <h3><i class="fas fa-tags"></i> Gerenciar Flags de Status</h3>
@@ -355,12 +347,10 @@
                                 <button onclick="baixarPDF()" class="btn-glass-primary"><i class="fas fa-download"></i> Baixar PDF</button>
                             </div>
                         </div>
-
                         <div class="bloco-relatorio">
                             <h3>🏷️ Comparativo de Produtos</h3>
                             <div class="tabela-comparativa" id="tabelaComparativaProdutos"></div>
                         </div>
-
                         <div class="bloco-relatorio">
                             <h3>👥 Vendas por Vendedor</h3>
                             <div class="grid-relatorio">
@@ -370,12 +360,10 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="bloco-relatorio">
                             <h3>🏢 Vendas por Equipe</h3>
                             <div class="tabela-equipes" id="tabelaEquipesRelatorio"></div>
                         </div>
-
                         <div class="bloco-relatorio">
                             <h3>🏆 Ranking de Vendedores</h3>
                             <div id="rankingRelatorio"></div>
@@ -383,22 +371,57 @@
                     </div>
                 </div>
                 
-                <!-- SEÇÃO CONFIGURAÇÕES -->
-                <div id="secao-config" class="section-hidden">
-                    <div class="form-glass">
-                        <h3><i class="fas fa-cog"></i> Configurações do Sistema</h3>
-                        <div class="form-grid">
-                            <div class="input-group"><label>Nome da Empresa</label><input type="text" value="STAGE TELECOM"></div>
-                            <div class="input-group"><label>Email de Contato</label><input type="email" value="contato@stagetelecom.com.br"></div>
-                            <div class="input-group"><label>Meta Diária de Vendas</label><input type="number" id="metaDiariaInput" value="10" min="1"></div>
-                            <div class="input-group"><label>Meta Mensal de Vendas</label><input type="number" id="metaMensalInput" value="50" min="1"></div>
+                <!-- SEÇÃO METAS (antiga configurações) -->
+                <div id="secao-metas" class="section-hidden">
+                    <div class="sub-abas">
+                        <button class="sub-aba-btn active" onclick="mostrarSubAba('metas_definicao')">📊 METAS</button>
+                        <button class="sub-aba-btn" onclick="mostrarSubAba('promocoes')">🎁 PROMOÇÕES</button>
+                    </div>
+                    <div id="subaba-metas_definicao" class="sub-aba-content active">
+                        <div class="form-glass">
+                            <h3><i class="fas fa-bullseye"></i> Metas por Período</h3>
+                            <div class="periodo-tabs">
+                                <button class="periodo-btn active" data-periodo="diario">DIÁRIO</button>
+                                <button class="periodo-btn" data-periodo="quinzenal">QUINZENAL</button>
+                                <button class="periodo-btn" data-periodo="mensal">MENSAL</button>
+                            </div>
+                            <div id="metas-container"></div>
+                            <div class="form-actions">
+                                <button onclick="salvarTodasMetas()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Metas</button>
+                            </div>
                         </div>
-                        <div class="form-actions"><button onclick="salvarConfiguracoes()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Configurações</button></div>
+                    </div>
+                    <div id="subaba-promocoes" class="sub-aba-content" style="display:none;">
+                        <div class="form-glass">
+                            <h3><i class="fas fa-gift"></i> Criar Nova Promoção Bônus</h3>
+                            <div class="form-grid">
+                                <select id="promoTipo">
+                                    <option value="vendas">Vendas</option>
+                                    <option value="produtos">Produtos</option>
+                                    <option value="instalacoes">Instalações</option>
+                                </select>
+                                <input type="number" id="promoQuantidade" placeholder="Quantidade para bater a meta" min="1">
+                                <input type="text" id="promoPremio" placeholder="Prêmio (ex: R$ 500,00)">
+                                <input type="datetime-local" id="promoInicio">
+                                <input type="datetime-local" id="promoFim">
+                            </div>
+                            <div class="form-actions">
+                                <button onclick="criarPromocao()" class="btn-glass-primary"><i class="fas fa-plus"></i> Criar Promoção</button>
+                            </div>
+                        </div>
+                        <div class="table-glass">
+                            <div class="table-header"><h3>Promoções Ativas/Histórico</h3></div>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead><tr><th>Período</th><th>Tipo</th><th>Meta</th><th>Prêmio</th><th>Status</th><th>Ações</th></tr></thead>
+                                    <tbody id="listaPromocoes"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
-        <!-- MODAL DE EDIÇÃO DE USUÁRIO -->
         <div id="modalEditarUsuario" class="modal-overlay" style="display:none;">
             <div class="modal-glass">
                 <h3><i class="fas fa-user-edit"></i> Editar Usuário</h3>
@@ -427,9 +450,9 @@
             <div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div>
             <div class="user-profile-glass" id="userInfoVendedor"></div>
             <nav class="nav-glass">
-                <a href="#" onclick="mostrarSecaoVendedor('meusClientes')" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
-                <a href="#" onclick="mostrarSecaoVendedor('novoCliente')" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
-                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas')" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('meusClientes', event)" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('novoCliente', event)" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas', event)" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
             </nav>
             <button onclick="logout()" class="btn-glass-logout"><i class="fas fa-power-off"></i><span>Encerrar Sessão</span></button>
         </aside>
@@ -448,7 +471,7 @@
                     </div>
                     <div class="table-glass">
                         <table>
-                            <thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead>
+                            <thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
                             <tbody id="tabelaMeusClientes"></tbody>
                         </table>
                     </div>
@@ -481,6 +504,28 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Modais de notificação -->
+    <div id="modalParabens" class="modal-overlay" style="display:none;">
+        <div class="modal-glass animated bounceIn">
+            <div style="text-align:center;">
+                <i class="fas fa-trophy" style="font-size: 60px; color: #ffd700; margin-bottom: 15px;"></i>
+                <h2 style="color: #ffd700;">🎉 PARABÉNS! 🎉</h2>
+                <p id="msgParabens" style="font-size: 18px; margin: 15px 0;">Você bateu a meta bônus!</p>
+                <p id="premioParabens" style="color: var(--primary-light);"></p>
+                <button onclick="fecharModalParabens()" class="btn-glass-primary" style="margin-top: 20px;">Fechar</button>
+            </div>
+        </div>
+    </div>
+    <div id="modalAdminNotificacao" class="modal-overlay" style="display:none;">
+        <div class="modal-glass">
+            <h3><i class="fas fa-bell"></i> Notificação do Sistema</h3>
+            <div id="conteudoAdminNotificacao"></div>
+            <div class="form-actions" style="margin-top:20px;">
+                <button onclick="fecharModalAdminNotificacao()" class="btn-glass-primary">OK</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
