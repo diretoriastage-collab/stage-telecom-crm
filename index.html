@@ -12,7 +12,7 @@
 <body>
     <div class="particles"></div>
     <div class="particles-layer-2"></div>
-    
+
     <!-- LOGIN -->
     <div id="loginScreen" class="login-wrapper">
         <div class="login-container">
@@ -106,7 +106,7 @@
             </div>
             <div class="content-area">
                 <h2 class="page-title" id="tituloSecao"><i class="fas fa-th-large"></i> Dashboard</h2>
-                
+
                 <!-- SEÇÃO DASHBOARD -->
                 <div id="secao-dashboard" class="section-active">
                     <div class="dashboard-top-row">
@@ -230,8 +230,9 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Removida a tabela Clientes Recentes -->
                 </div>
-                
+
                 <!-- SEÇÃO CADASTRO -->
                 <div id="secao-cadastro" class="section-hidden">
                     <button onclick="mostrarFormCadastro()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Novo Usuário</span></button>
@@ -274,7 +275,7 @@
                         </table>
                     </div>
                 </div>
-                
+
                 <!-- SEÇÃO ATIVAÇÕES -->
                 <div id="secao-ativacoes" class="section-hidden">
                     <div class="ativacoes-top">
@@ -320,10 +321,10 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- SEÇÃO RELATÓRIOS -->
                 <div id="secao-relatorios" class="section-hidden">
-                    <div class="relatorios-container">
+                    <div class="relatorios-container" id="relatorioPrint">
                         <div class="relatorios-header">
                             <h2><i class="fas fa-chart-bar"></i> Relatórios de Vendas</h2>
                             <div class="relatorios-filtros">
@@ -358,7 +359,6 @@
                         </div>
                     </div>
                 </div>
-                
                 <!-- MODAL PDF -->
                 <div id="modalPDF" class="modal-overlay" style="display:none;">
                     <div class="modal-glass" style="width: 210mm; max-width: 100%; background: #fff; color: #000; padding: 20px; overflow-y: auto; max-height: 90vh;">
@@ -368,14 +368,14 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- SEÇÃO METAS -->
                 <div id="secao-metas" class="section-hidden">
                     <div class="metas-tabs">
-                        <button class="meta-tab active" onclick="mostrarAbaMeta('definir')">🎯 Definir Metas</button>
-                        <button class="meta-tab" onclick="mostrarAbaMeta('promocoes')">🏆 Promoções</button>
+                        <button class="meta-tab active" onclick="mostrarAbaMeta('definir', this)">🎯 Definir Metas</button>
+                        <button class="meta-tab" onclick="mostrarAbaMeta('promocoes', this)">🏆 Promoções</button>
                     </div>
-                    
+
                     <!-- Aba Definir Metas -->
                     <div id="aba-definir" class="aba-meta active">
                         <div class="form-glass">
@@ -386,7 +386,6 @@
                                 <div class="input-group"><label>Meta Mensal</label><input type="number" id="metaMensalVendas" min="1" value="150"></div>
                             </div>
                         </div>
-                        
                         <div class="form-glass" style="margin-top:20px;">
                             <h3><i class="fas fa-box"></i> Metas de Produtos</h3>
                             <div class="form-grid">
@@ -398,7 +397,6 @@
                             <button onclick="adicionarMetaProduto()" class="btn-glass-primary" style="margin-top:10px;"><i class="fas fa-plus"></i> Adicionar Meta</button>
                             <div class="table-glass" style="margin-top:20px;" id="tabelaMetasProdutosContainer"><table><thead><tr><th>Produto</th><th>Diária</th><th>Quinzenal</th><th>Mensal</th><th>Ações</th></tr></thead><tbody id="tabelaMetasProdutos"></tbody></table></div>
                         </div>
-                        
                         <div class="form-glass" style="margin-top:20px;">
                             <h3><i class="fas fa-wrench"></i> Metas de Instalações</h3>
                             <div class="form-grid">
@@ -411,12 +409,9 @@
                             <button onclick="adicionarMetaInstalacao()" class="btn-glass-primary" style="margin-top:10px;"><i class="fas fa-plus"></i> Adicionar Meta</button>
                             <div class="table-glass" style="margin-top:20px;" id="tabelaMetasInstalacoesContainer"><table><thead><tr><th>Tipo</th><th>Entidade</th><th>Diária</th><th>Quinzenal</th><th>Mensal</th><th>Ações</th></tr></thead><tbody id="tabelaMetasInstalacoes"></tbody></table></div>
                         </div>
-                        
-                        <div class="form-actions" style="margin-top:20px;">
-                            <button onclick="salvarMetas()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Metas</button>
-                        </div>
+                        <div class="form-actions" style="margin-top:20px;"><button onclick="salvarMetas()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Metas</button></div>
                     </div>
-                    
+
                     <!-- Aba Promoções -->
                     <div id="aba-promocoes" class="aba-meta" style="display:none;">
                         <button onclick="mostrarFormPromocao()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Nova Promoção</span></button>
@@ -445,8 +440,8 @@
                 </div>
             </div>
         </main>
-        
-        <!-- MODAIS DE PARABÉNS / AVISO -->
+
+        <!-- MODAIS -->
         <div id="modalParabens" class="modal-overlay" style="display:none;">
             <div class="modal-glass modal-parabens">
                 <div class="parabens-icon">🎉</div>
@@ -455,7 +450,6 @@
                 <button onclick="document.getElementById('modalParabens').style.display='none'" class="btn-glass-primary" style="margin-top:20px;">OK</button>
             </div>
         </div>
-        
         <div id="modalEditarUsuario" class="modal-overlay" style="display:none;">
             <div class="modal-glass">
                 <h3><i class="fas fa-user-edit"></i> Editar Usuário</h3>
@@ -521,7 +515,6 @@
             </div>
         </main>
     </div>
-    
     <div id="modalParabensVendedor" class="modal-overlay" style="display:none;">
         <div class="modal-glass modal-parabens">
             <div class="parabens-icon">🎉</div>
