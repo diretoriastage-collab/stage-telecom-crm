@@ -1,5 +1,6 @@
 // ============================================
 // STAGE TELECOM CRM - SCRIPT COMPLETO
+// Relógio 100% funcional (intervalo global)
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db')) || {
     usuarios: [
@@ -21,8 +22,26 @@ let DB = JSON.parse(localStorage.getItem('stage_db')) || {
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
 let sessao = JSON.parse(localStorage.getItem('stage_session'));
-let relogioInterval = null;
 let comparativoAtual = 'diario';
+
+// ===== RELÓGIO GLOBAL (INICIA AUTOMATICAMENTE) =====
+setInterval(() => {
+    const agora = new Date();
+    const diasSemana = ['DOMINGO','SEGUNDA','TERÇA','QUARTA','QUINTA','SEXTA','SÁBADO'];
+    const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+    const dataFormatada = `${diasSemana[agora.getDay()]}, ${agora.getDate()} DE ${meses[agora.getMonth()]} DE ${agora.getFullYear()}`;
+    const horas = String(agora.getHours()).padStart(2,'0');
+    const minutos = String(agora.getMinutes()).padStart(2,'0');
+    const segundos = String(agora.getSeconds()).padStart(2,'0');
+    const periodo = agora.getHours() < 12 ? '☀️ MANHÃ' : agora.getHours() < 18 ? '🌤️ TARDE' : '🌙 NOITE';
+
+    const dataEl = document.getElementById('dataAtual');
+    const horaEl = document.getElementById('horaAtual');
+    const periodoEl = document.getElementById('periodoDia');
+    if (dataEl) dataEl.textContent = dataFormatada;
+    if (horaEl) horaEl.textContent = `${horas}:${minutos}:${segundos}`;
+    if (periodoEl) periodoEl.textContent = periodo;
+}, 1000);
 
 // ===== LOGIN =====
 function fazerLogin() {
@@ -47,37 +66,11 @@ function fazerLogin() {
 }
 
 function logout() {
-    if (relogioInterval) { clearInterval(relogioInterval); relogioInterval = null; }
     localStorage.removeItem('stage_session');
     sessao = null;
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'none';
-}
-
-// ===== RELÓGIO EM TEMPO REAL (CORRIGIDO) =====
-function atualizarRelogio() {
-    const agora = new Date();
-    const diasSemana = ['DOMINGO','SEGUNDA','TERÇA','QUARTA','QUINTA','SEXTA','SÁBADO'];
-    const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-    const dataFormatada = `${diasSemana[agora.getDay()]}, ${agora.getDate()} DE ${meses[agora.getMonth()]} DE ${agora.getFullYear()}`;
-    const horas = String(agora.getHours()).padStart(2,'0');
-    const minutos = String(agora.getMinutes()).padStart(2,'0');
-    const segundos = String(agora.getSeconds()).padStart(2,'0');
-    const periodo = agora.getHours() < 12 ? '☀️ MANHÃ' : agora.getHours() < 18 ? '🌤️ TARDE' : '🌙 NOITE';
-
-    const dataEl = document.getElementById('dataAtual');
-    const horaEl = document.getElementById('horaAtual');
-    const periodoEl = document.getElementById('periodoDia');
-    if (dataEl) dataEl.textContent = dataFormatada;
-    if (horaEl) horaEl.textContent = `${horas}:${minutos}:${segundos}`;
-    if (periodoEl) periodoEl.textContent = periodo;
-}
-
-function iniciarRelogio() {
-    if (relogioInterval) clearInterval(relogioInterval);
-    atualizarRelogio();
-    relogioInterval = setInterval(atualizarRelogio, 1000);
 }
 
 function mostrarAdmin() {
@@ -86,7 +79,6 @@ function mostrarAdmin() {
     document.getElementById('vendedorScreen').style.display = 'none';
     document.getElementById('userInfoAdmin').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
     carregarDashboard();
-    iniciarRelogio();
     carregarConfiguracoes();
 }
 function mostrarVendedor() {
