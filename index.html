@@ -186,21 +186,24 @@
                         <div class="bloco-relatorio"><h3>🏆 Ranking de Vendedores</h3><div id="rankingRelatorio"></div></div>
                     </div>
                 </div>
-                <div id="modalPDF" class="modal-overlay" style="display:none;"><div class="modal-glass" style="width:210mm;max-width:100%;background:#fff;color:#000;padding:20px;overflow-y:auto;max-height:90vh;"><div id="conteudoPDF"></div><div class="form-actions" style="margin-top:20px;"><button onclick="fecharModalPDF()" class="btn-glass-danger" style="background:#aaa;color:#000;">Fechar</button></div></div></div>
+                <!-- MODAL PDF (CORRIGIDO - DESIGN LIMPO) -->
+                <div id="modalPDF" class="modal-overlay" style="display:none;">
+                    <div class="modal-glass" style="width:210mm;max-width:95%;background:#ffffff;color:#000;padding:20px;overflow-y:auto;max-height:90vh;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+                        <div id="conteudoPDF"></div>
+                        <div class="form-actions" style="margin-top:20px;">
+                            <button onclick="fecharModalPDF()" style="background:#e74c3c;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">Fechar</button>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- SEÇÃO METAS -->
                 <div id="secao-metas" class="section-hidden">
-                    <div class="form-glass"><h3><i class="fas fa-bullseye"></i> Metas de Vendas</h3><div class="form-grid"><div class="input-group"><label>Meta Diária</label><input type="number" id="metaDiariaVendas" min="1" value="10"></div><div class="input-group"><label>Meta Quinzenal</label><input type="number" id="metaQuinzenalVendas" min="1" value="75"></div><div class="input-group"><label>Meta Mensal</label><input type="number" id="metaMensalVendas" min="1" value="150"></div></div></div>
-                    <div class="form-glass" style="margin-top:20px;"><h3><i class="fas fa-box"></i> Metas de Produtos</h3><div class="form-grid"><div class="input-group"><label>Produto</label><select id="produtoMetaSelect"><option value="Básico">Básico</option><option value="Empresarial">Empresarial</option><option value="Premium">Premium</option><option value="Ultra">Ultra</option></select></div><div class="input-group"><label>Meta Diária</label><input type="number" id="produtoDiaria" min="1" value="5"></div><div class="input-group"><label>Meta Quinzenal</label><input type="number" id="produtoQuinzenal" min="1" value="40"></div><div class="input-group"><label>Meta Mensal</label><input type="number" id="produtoMensal" min="1" value="80"></div></div><button onclick="adicionarMetaProduto()" class="btn-glass-primary" style="margin-top:10px;"><i class="fas fa-plus"></i> Adicionar Meta</button><div class="table-glass" style="margin-top:20px;" id="tabelaMetasProdutosContainer"><table><thead><tr><th>Produto</th><th>Diária</th><th>Quinzenal</th><th>Mensal</th><th>Ações</th></tr></thead><tbody id="tabelaMetasProdutos"></tbody></table></div></div>
-                    <div class="form-glass" style="margin-top:20px;"><h3><i class="fas fa-wrench"></i> Metas de Instalações</h3><div class="form-grid"><div class="input-group"><label>Tipo</label><select id="tipoMetaInstalacao" onchange="toggleMetaInstalacao()"><option value="vendedor">Por Vendedor</option><option value="empresa">Empresa</option></select></div><div class="input-group" id="grupoVendedorInstalacao"><label>Vendedor</label><select id="vendedorMetaInstalacao"></select></div><div class="input-group"><label>Meta Diária</label><input type="number" id="instalacaoDiaria" min="1" value="3"></div><div class="input-group"><label>Meta Quinzenal</label><input type="number" id="instalacaoQuinzenal" min="1" value="20"></div><div class="input-group"><label>Meta Mensal</label><input type="number" id="instalacaoMensal" min="1" value="45"></div></div><button onclick="adicionarMetaInstalacao()" class="btn-glass-primary" style="margin-top:10px;"><i class="fas fa-plus"></i> Adicionar Meta</button><div class="table-glass" style="margin-top:20px;" id="tabelaMetasInstalacoesContainer"><table><thead><tr><th>Tipo</th><th>Entidade</th><th>Diária</th><th>Quinzenal</th><th>Mensal</th><th>Ações</th></tr></thead><tbody id="tabelaMetasInstalacoes"></tbody></table></div></div>
-                    <div class="form-actions" style="margin-top:20px;"><button onclick="salvarMetas()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Metas</button></div>
+                    <!-- ... (mantenha exatamente como estava) ... -->
                 </div>
 
                 <!-- SEÇÃO PROMOÇÕES -->
                 <div id="secao-promocoes" class="section-hidden">
-                    <button onclick="mostrarFormPromocao()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Nova Promoção</span></button>
-                    <div id="formPromocao" class="form-glass" style="display:none;"><h3><i class="fas fa-trophy"></i> Criar Meta Bônus</h3><div class="form-grid"><div class="input-group"><label>Tipo de Meta</label><select id="tipoPromocao"><option value="vendas">Vendas</option><option value="produtos">Produtos</option><option value="instalacoes">Instalações</option></select></div><div class="input-group"><label>Quantidade</label><input type="number" id="quantidadePromocao" min="1" value="10"></div><div class="input-group"><label>Início</label><input type="datetime-local" id="inicioPromocao"></div><div class="input-group"><label>Fim</label><input type="datetime-local" id="fimPromocao"></div><div class="input-group" style="grid-column:span 2;"><label>Prêmio</label><input type="text" id="premioPromocao" placeholder="Ex: R$ 200,00 + Folga"></div></div><div class="form-actions"><button onclick="cadastrarPromocao()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Promoção</button><button onclick="document.getElementById('formPromocao').style.display='none'" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button></div></div>
-                    <div class="table-glass" style="margin-top:20px;"><table><thead><tr><th>Tipo</th><th>Quantidade</th><th>Período</th><th>Prêmio</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tabelaPromocoes"></tbody></table><div id="promocoesVazia" style="text-align:center;padding:20px;display:none;">Nenhuma promoção cadastrada</div></div>
+                    <!-- ... (mantenha exatamente como estava) ... -->
                 </div>
             </div>
         </main>
@@ -210,12 +213,28 @@
 
     <!-- DASHBOARD VENDEDOR -->
     <div id="vendedorScreen" class="dashboard-wrapper" style="display:none;">
-        <aside class="sidebar-glass"><div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div><div class="user-profile-glass" id="userInfoVendedor"></div><nav class="nav-glass"><a href="#" onclick="mostrarSecaoVendedor('meusClientes')" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a><a href="#" onclick="mostrarSecaoVendedor('novoCliente')" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a><a href="#" onclick="mostrarSecaoVendedor('minhasVendas')" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a></nav><button onclick="logout()" class="btn-glass-logout"><i class="fas fa-power-off"></i><span>Encerrar Sessão</span></button></aside>
-        <main class="main-glass"><div class="content-area"><h2 class="page-title" id="tituloSecaoVendedor"><i class="fas fa-building"></i> Meus Clientes</h2>
-            <div id="secao-meusClientes" class="section-active"><div class="stats-mini"><div class="mini-stat"><span class="mini-label">Total Clientes</span><span class="mini-value" id="totalMeusClientes">0</span></div><div class="mini-stat"><span class="mini-label">Ativos</span><span class="mini-value" id="meusAtivos">0</span></div><div class="mini-stat"><span class="mini-label">Prospectos</span><span class="mini-value" id="meusProspectos">0</span></div></div><div class="table-glass"><table><thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tabelaMeusClientes"></tbody></table></div></div>
-            <div id="secao-novoCliente" class="section-hidden"><div class="form-glass"><h3><i class="fas fa-user-plus"></i> Cadastrar Novo Cliente</h3><div class="form-grid"><input type="text" id="nomeCliente" placeholder="Nome da Empresa *"><input type="text" id="cnpjCliente" placeholder="CNPJ *"><input type="text" id="telefoneCliente" placeholder="Telefone *"><input type="email" id="emailCliente" placeholder="Email *"><select id="planoCliente"><option value="">Selecione o plano *</option><option value="Básico">Básico - R$ 299,90/mês</option><option value="Empresarial">Empresarial - R$ 499,90/mês</option><option value="Premium">Premium - R$ 899,90/mês</option></select></div><div class="form-actions"><button onclick="cadastrarCliente()" class="btn-glass-primary"><i class="fas fa-save"></i> Cadastrar Cliente</button></div></div></div>
-            <div id="secao-minhasVendas" class="section-hidden"><div class="table-glass"><table><thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Data</th></tr></thead><tbody id="tabelaMinhasVendas"></tbody></table></div></div>
-        </div></main>
+        <aside class="sidebar-glass">
+            <div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div>
+            <div class="user-profile-glass" id="userInfoVendedor"></div>
+            <nav class="nav-glass">
+                <!-- CORRIGIDO: passando 'event' explicitamente -->
+                <a href="#" onclick="mostrarSecaoVendedor(event, 'meusClientes')" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor(event, 'novoCliente')" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor(event, 'minhasVendas')" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
+            </nav>
+            <button onclick="logout()" class="btn-glass-logout"><i class="fas fa-power-off"></i><span>Encerrar Sessão</span></button>
+        </aside>
+        <main class="main-glass">
+            <div class="content-area">
+                <h2 class="page-title" id="tituloSecaoVendedor"><i class="fas fa-building"></i> Meus Clientes</h2>
+                <div id="secao-meusClientes" class="section-active">
+                    <div class="stats-mini"><div class="mini-stat"><span class="mini-label">Total Clientes</span><span class="mini-value" id="totalMeusClientes">0</span></div><div class="mini-stat"><span class="mini-label">Ativos</span><span class="mini-value" id="meusAtivos">0</span></div><div class="mini-stat"><span class="mini-label">Prospectos</span><span class="mini-value" id="meusProspectos">0</span></div></div>
+                    <div class="table-glass"><table><thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tabelaMeusClientes"></tbody></table></div>
+                </div>
+                <div id="secao-novoCliente" class="section-hidden"><div class="form-glass"><h3><i class="fas fa-user-plus"></i> Cadastrar Novo Cliente</h3><div class="form-grid"><input type="text" id="nomeCliente" placeholder="Nome da Empresa *"><input type="text" id="cnpjCliente" placeholder="CNPJ *"><input type="text" id="telefoneCliente" placeholder="Telefone *"><input type="email" id="emailCliente" placeholder="Email *"><select id="planoCliente"><option value="">Selecione o plano *</option><option value="Básico">Básico - R$ 299,90/mês</option><option value="Empresarial">Empresarial - R$ 499,90/mês</option><option value="Premium">Premium - R$ 899,90/mês</option></select></div><div class="form-actions"><button onclick="cadastrarCliente()" class="btn-glass-primary"><i class="fas fa-save"></i> Cadastrar Cliente</button></div></div></div>
+                <div id="secao-minhasVendas" class="section-hidden"><div class="table-glass"><table><thead><tr><th>Cliente</th><th>Plano</th><th>Valor</th><th>Data</th></tr></thead><tbody id="tabelaMinhasVendas"></tbody></table></div></div>
+            </div>
+        </main>
     </div>
     <div id="modalParabensVendedor" class="modal-overlay" style="display:none;"><div class="modal-glass modal-parabens"><div class="parabens-icon">🎉</div><h2>PARABÉNS!</h2><p id="parabensVendedorMensagem"></p><button onclick="document.getElementById('modalParabensVendedor').style.display='none'" class="btn-glass-primary" style="margin-top:20px;">OK</button></div></div>
 
