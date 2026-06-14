@@ -1420,7 +1420,7 @@ function limparMensagensAntigas(dias = 90) {
 limparMensagensAntigas(90);
 
 // ===== BAIXAR PLANILHA EXCEL UNIFICADA =====
-function baixarPlanilha(tipo) {
+function baixarPlanilha(tipo, mesAno = null) {
     let vendas = [];
     const hoje = new Date();
     const dataHoje = hoje.toISOString().split('T')[0];
@@ -1429,6 +1429,9 @@ function baixarPlanilha(tipo) {
         vendas = obterVendasAprovadasPorData(dataHoje);
     } else if (tipo === 'mes') {
         vendas = obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1);
+    } else if (tipo === 'personalizado' && mesAno) {
+        const [ano, mes] = mesAno.split('-').map(Number);
+        vendas = obterVendasAprovadasPorMes(ano, mes);
     }
     
     if (vendas.length === 0) {
@@ -1437,10 +1440,15 @@ function baixarPlanilha(tipo) {
     }
     
     const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-    const dataFormatada = `${hoje.getDate()} DE ${meses[hoje.getMonth()]} DE ${hoje.getFullYear()}`;
-    const tituloPeriodo = tipo === 'hoje' ? `VENDAS DO DIA - ${dataFormatada}` : `VENDAS DO MÊS ATÉ ${dataFormatada}`;
-    const totalVendas = vendas.length;
-    const totalValor = vendas.reduce((acc, v) => acc + (parseFloat(v.valor) || 0), 0);
+    let tituloPeriodo;
+    if (tipo === 'hoje') {
+        tituloPeriodo = `VENDAS DO DIA - ${hoje.getDate()} DE ${meses[hoje.getMonth()]} DE ${hoje.getFullYear()}`;
+    } else if (tipo === 'mes') {
+        tituloPeriodo = `VENDAS DO MÊS - ${meses[hoje.getMonth()]} DE ${hoje.getFullYear()}`;
+    } else if (tipo === 'personalizado') {
+        const [ano, mes] = mesAno.split('-').map(Number);
+        tituloPeriodo = `VENDAS DO MÊS - ${meses[mes-1]} DE ${ano}`;
+    }
     
     // Montar HTML da planilha
     let html = `
@@ -1457,14 +1465,13 @@ function baixarPlanilha(tipo) {
             .logo { font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: 2px; }
             .logo span { color: #ff6b6b; }
             .slogan { font-size: 11px; color: #999; letter-spacing: 3px; text-transform: uppercase; margin-top: 5px; }
-            .info-bar { background: #f5f5f5; padding: 12px 18px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; font-size: 13px; }
+            .info-bar { background: #f5f5f5; padding: 12px 18px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; }
             .info-bar strong { color: #e74c3c; }
             table { width: 100%; border-collapse: collapse; }
-            th { background: #e74c3c; color: #ffffff; padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #c0392b; }
-            td { padding: 10px 15px; border: 1px solid #ddd; font-size: 12px; }
+            th { background: #e74c3c; color: #ffffff; padding: 12px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #c0392b; text-align: center; }
+            td { padding: 8px; border: 1px solid #ddd; font-size: 11px; }
             tr:nth-child(even) { background: #f9f9f9; }
             tr:hover { background: #fff0f0; }
-            .valor { font-weight: 700; color: #2ed573; }
             .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #999; }
         </style>
     </head>
@@ -1474,19 +1481,43 @@ function baixarPlanilha(tipo) {
             <div class="slogan">Sistema de Gestão Empresarial</div>
         </div>
         <div class="info-bar">
-            <span>📅 <strong>${tituloPeriodo}</strong></span>
-            <span>📊 Total de Vendas: <strong>${totalVendas}</strong></span>
-            <span>💰 Valor Total: <strong>R$ ${totalValor.toFixed(2)}</strong></span>
+            📅 <strong>${tituloPeriodo}</strong> | Total de Vendas: <strong>${vendas.length}</strong>
         </div>
         <table>
             <thead>
                 <tr>
                     <th>#</th>
+                    <th>Status</th>
                     <th>Cliente</th>
                     <th>CPF</th>
+                    <th>Data Nasc.</th>
+                    <th>Nome da Mãe</th>
+                    <th>RG</th>
+                    <th>Órgão Exp.</th>
+                    <th>Data Exp.</th>
+                    <th>Email</th>
+                    <th>Tel 1</th>
+                    <th>Tel 2</th>
+                    <th>CEP</th>
+                    <th>Logradouro</th>
+                    <th>N°</th>
+                    <th>Complemento</th>
+                    <th>Bairro</th>
+                    <th>Estado</th>
+                    <th>Cidade</th>
+                    <th>Ponto Ref.</th>
                     <th>Plano</th>
                     <th>Velocidade</th>
                     <th>Valor (R$)</th>
+                    <th>Vencimento</th>
+                    <th>Pagamento</th>
+                    <th>HP</th>
+                    <th>Viabilidade</th>
+                    <th>Plano Tipo</th>
+                    <th>Tipo Aprov.</th>
+                    <th>Contrato</th>
+                    <th>Data Inst.</th>
+                    <th>Período Inst.</th>
                     <th>Vendedor</th>
                     <th>Data Aprovação</th>
                 </tr>
@@ -1495,21 +1526,73 @@ function baixarPlanilha(tipo) {
     
     vendas.forEach((v, i) => {
         const vendedor = DB.usuarios.find(u => u.id === v.vendedor_id);
-        const nomeCliente = v.nomeCompleto || v.nomeCliente || 'N/A';
-        const cpf = v.cpf || 'N/A';
-        const plano = v.produto || v.plano || 'N/A';
-        const velocidade = v.velocidade || 'N/A';
+        const status = v.status || 'Aprovado';
+        const nomeCliente = v.nomeCompleto || v.nomeCliente || '';
+        const cpf = v.cpf || '';
+        const dataNasc = v.dataNasc ? new Date(v.dataNasc+'T00:00:00').toLocaleDateString('pt-BR') : '';
+        const nomeMae = v.nomeMae || '';
+        const rg = v.rg || '';
+        const orgaoExp = v.orgaoExpeditor || '';
+        const dataExp = v.dataExpedicao ? new Date(v.dataExpedicao+'T00:00:00').toLocaleDateString('pt-BR') : '';
+        const email = v.email || '';
+        const tel1 = v.telefone1 || '';
+        const tel2 = v.telefone2 || '';
+        const cep = v.cep || '';
+        const logradouro = v.logradouro || '';
+        const numero = v.numero || '';
+        const complemento = v.complemento || '';
+        const bairro = v.bairro || '';
+        const uf = v.uf || '';
+        const cidade = v.cidade || '';
+        const pontoRef = v.pontoReferencia || '';
+        const plano = v.produto || v.plano || '';
+        const velocidade = v.velocidade || '';
         const valor = parseFloat(v.valor) || 0;
-        const dataAprov = v.data ? new Date(v.data + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
+        const vencimento = v.vencimento ? new Date(v.vencimento+'T00:00:00').toLocaleDateString('pt-BR') : '';
+        const formaPag = v.formaPagamento || '';
+        const hp = v.hp || '';
+        const viabilidade = v.viabilidade || '';
+        const planoTipo = v.planoTipo || '';
+        const tipoAprov = v.tipoAprovacao || '';
+        const contrato = v.contrato || '';
+        const infoData = v.infoData ? new Date(v.infoData+'T00:00:00').toLocaleDateString('pt-BR') : '';
+        const infoPeriodo = v.infoPeriodo || '';
+        const dataAprov = v.data ? new Date(v.data+'T00:00:00').toLocaleDateString('pt-BR') : '';
         
         html += `
                 <tr>
                     <td>${i + 1}</td>
+                    <td>${status}</td>
                     <td>${nomeCliente}</td>
                     <td>${cpf}</td>
+                    <td>${dataNasc}</td>
+                    <td>${nomeMae}</td>
+                    <td>${rg}</td>
+                    <td>${orgaoExp}</td>
+                    <td>${dataExp}</td>
+                    <td>${email}</td>
+                    <td>${tel1}</td>
+                    <td>${tel2}</td>
+                    <td>${cep}</td>
+                    <td>${logradouro}</td>
+                    <td>${numero}</td>
+                    <td>${complemento}</td>
+                    <td>${bairro}</td>
+                    <td>${uf}</td>
+                    <td>${cidade}</td>
+                    <td>${pontoRef}</td>
                     <td>${plano}</td>
                     <td>${velocidade}</td>
-                    <td class="valor">R$ ${valor.toFixed(2)}</td>
+                    <td>R$ ${valor.toFixed(2)}</td>
+                    <td>${vencimento}</td>
+                    <td>${formaPag}</td>
+                    <td>${hp}</td>
+                    <td>${viabilidade}</td>
+                    <td>${planoTipo}</td>
+                    <td>${tipoAprov}</td>
+                    <td>${contrato}</td>
+                    <td>${infoData}</td>
+                    <td>${infoPeriodo}</td>
                     <td>${vendedor ? vendedor.nome : 'N/A'}</td>
                     <td>${dataAprov}</td>
                 </tr>`;
@@ -1519,7 +1602,7 @@ function baixarPlanilha(tipo) {
             </tbody>
         </table>
         <div class="footer">
-            © ${hoje.getFullYear()} STAGE TELECOM | Relatório gerado em ${dataFormatada} às ${String(hoje.getHours()).padStart(2,'0')}:${String(hoje.getMinutes()).padStart(2,'0')}
+            © ${hoje.getFullYear()} STAGE TELECOM | Relatório gerado em ${hoje.getDate()} DE ${meses[hoje.getMonth()]} DE ${hoje.getFullYear()} às ${String(hoje.getHours()).padStart(2,'0')}:${String(hoje.getMinutes()).padStart(2,'0')}
         </div>
     </body>
     </html>`;
@@ -1529,14 +1612,56 @@ function baixarPlanilha(tipo) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const nomeArquivo = tipo === 'hoje' 
-        ? `Stage_Telecom_Vendas_Hoje_${dataHoje}.xls` 
-        : `Stage_Telecom_Vendas_Mes_${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}.xls`;
+    let nomeArquivo;
+    if (tipo === 'hoje') {
+        nomeArquivo = `Stage_Telecom_Vendas_Hoje_${dataHoje}.xls`;
+    } else if (tipo === 'mes') {
+        nomeArquivo = `Stage_Telecom_Vendas_Mes_${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}.xls`;
+    } else {
+        nomeArquivo = `Stage_Telecom_Vendas_${mesAno}.xls`;
+    }
     link.download = nomeArquivo;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    
+    // Fechar dropdown
+    document.getElementById('dropdownPlanilha').style.display = 'none';
+}
+
+// ===== CONTROLE DO DROPDOWN =====
+function toggleDropdown() {
+    const dropdown = document.getElementById('dropdownPlanilha');
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+}
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', function(e) {
+    const wrapper = document.querySelector('.dropdown-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('dropdownPlanilha').style.display = 'none';
+    }
+});
+
+// ===== SELEÇÃO DE MÊS PERSONALIZADO =====
+function abrirSelecaoMes() {
+    document.getElementById('dropdownPlanilha').style.display = 'none';
+    document.getElementById('modalSelecionarMes').style.display = 'flex';
+}
+
+function fecharSelecaoMes() {
+    document.getElementById('modalSelecionarMes').style.display = 'none';
+}
+
+function confirmarSelecaoMes() {
+    const mesAno = document.getElementById('inputMesPlanilha').value;
+    if (!mesAno) {
+        alert('Selecione um mês!');
+        return;
+    }
+    fecharSelecaoMes();
+    baixarPlanilha('personalizado', mesAno);
 }
 
 // ===== INICIAR =====
