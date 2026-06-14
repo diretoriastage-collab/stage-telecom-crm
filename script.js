@@ -138,81 +138,57 @@ function mostrarVendedor() {
 function obterVendasAprovadas() {
     return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false);
 }
-
 function obterVendasAprovadasPorData(data) {
     return obterVendasAprovadas().filter(a => a.data === data);
 }
-
 function obterVendasAprovadasPorMes(ano, mes) {
     return obterVendasAprovadas().filter(a => {
         const [aAno, aMes] = a.data.split('-').map(Number);
         return aAno === ano && aMes === mes;
     });
 }
-
 function obterVendasAprovadasHoje() {
     const hoje = new Date().toISOString().split('T')[0];
     return obterVendasAprovadasPorData(hoje);
 }
-
 function obterVendasAprovadasMesAtual() {
     const hoje = new Date();
     return obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1);
 }
-
 function obterVendasAprovadasMesAnterior() {
     const hoje = new Date();
     const mes = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
     const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
     return obterVendasAprovadasPorMes(ano, mes);
 }
-
 function obterVendasAprovadasDiaPassado() {
     const hoje = new Date();
     const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, hoje.getDate());
     const data = mesPassado.toISOString().split('T')[0];
     return obterVendasAprovadasPorData(data);
 }
-
 function gerarDadosVendas() {
     return obterVendasAprovadasHoje().map(v => ({
-        id: v.id,
-        vendedor_id: v.vendedor_id,
-        vendedor_nome: v.vendedorNome,
-        plano: v.produto,
-        valor: parseFloat(v.valor) || 0,
-        data: v.data,
-        hora: '00:00'
+        id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome,
+        plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data, hora: '00:00'
     }));
 }
 function gerarVendasDiaPassado() {
     return obterVendasAprovadasDiaPassado().map(v => ({
-        id: v.id,
-        vendedor_id: v.vendedor_id,
-        vendedor_nome: v.vendedorNome,
-        plano: v.produto,
-        valor: parseFloat(v.valor) || 0,
-        data: v.data
+        id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome,
+        plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data
     }));
 }
 function gerarVendasMesAtual() {
     return obterVendasAprovadasMesAtual().map(v => ({
-        id: v.id,
-        vendedor_id: v.vendedor_id,
-        vendedor_nome: v.vendedorNome,
-        plano: v.produto,
-        valor: parseFloat(v.valor) || 0,
-        data: v.data
+        id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome,
+        plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data
     }));
 }
 function gerarVendasMesAnterior() {
     return obterVendasAprovadasMesAnterior().map(v => ({
-        id: v.id,
-        vendedor_id: v.vendedor_id,
-        vendedor_nome: v.vendedorNome,
-        plano: v.produto,
-        valor: parseFloat(v.valor) || 0,
-        data: v.data
+        id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome,
+        plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data
     }));
 }
 
@@ -426,14 +402,10 @@ function carregarAtivacoes() {
             <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
         </tr>`;
     }).join('');
-    if (DB.ativacoes.length > 0 && novasVendas) {
-        document.getElementById('balaoNovaVenda').style.display = 'flex';
-        setTimeout(() => { document.getElementById('balaoNovaVenda').style.display = 'none'; novasVendas = false; }, 5000);
-    }
     filtrarAtivacoes();
 }
 function filtrarAtivacoes() {
-    const termo = document.getElementById('buscaAtivacao').value.toLowerCase();
+    const termo = document.getElementById('buscaAtivacao')?.value?.toLowerCase() || '';
     const linhas = document.querySelectorAll('#tabelaAtivacoes tr');
     linhas.forEach(linha => { const texto = linha.textContent.toLowerCase(); linha.style.display = texto.includes(termo) ? '' : 'none'; });
 }
@@ -472,7 +444,7 @@ function abrirModalAtivacao(id) {
             <div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div>
         </div>`;
     document.getElementById('modalAtivacao').style.display = 'flex';
-    carregarAtivacoes(); // atualiza "Tratando" imediatamente
+    carregarAtivacoes();
 }
 function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
@@ -516,12 +488,10 @@ function fecharModalAtivacao() {
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
-    if (document.getElementById('secao-dashboard')?.classList.contains('section-active')) {
-        carregarDashboard();
-    }
+    carregarDashboard();
 }
 
-// ===== VERIFICAÇÃO DE NOVAS VENDAS (TREMER + BALÃO) =====
+// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL QUE VIBRA) =====
 let intervaloNovasVendas = null;
 function iniciarVerificacaoNovasVendas() {
     if (intervaloNovasVendas) clearInterval(intervaloNovasVendas);
@@ -531,18 +501,46 @@ function iniciarVerificacaoNovasVendas() {
         const maxId = idsAtuais.length ? Math.max(...idsAtuais) : 0;
         if (maxId > ultimoIdAtivacao) {
             ultimoIdAtivacao = maxId;
-            const balao = document.getElementById('balaoNovaVenda');
-            if (balao) balao.style.display = 'flex';
-            document.body.classList.add('shake-tela');
-            setTimeout(() => document.body.classList.remove('shake-tela'), 600);
-            if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
-                carregarAtivacoes();
-            }
+            mostrarModalNovaVenda();
+            carregarDashboard(); // atualiza dashboard automaticamente
         }
     }, 3000);
 }
-function fecharBalãoNovaVenda() {
-    document.getElementById('balaoNovaVenda').style.display = 'none';
+
+function mostrarModalNovaVenda() {
+    // Remove modal anterior se existir
+    const existente = document.getElementById('modalNovaVenda');
+    if (existente) existente.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modalNovaVenda';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '99999';
+    modal.innerHTML = `
+        <div class="modal-glass modal-parabens modal-vibrando" style="text-align:center;max-width:450px;">
+            <div class="parabens-icon" style="font-size:64px;">🔔</div>
+            <h2 style="color:#ffd700;font-size:28px;margin:15px 0;">NOVA VENDA!</h2>
+            <p style="color:#fff;font-size:16px;">Uma nova venda foi recebida no sistema.</p>
+            <button onclick="fecharModalNovaVenda()" class="btn-glass-primary" style="margin-top:20px;background:#ff4757;">Fechar (X)</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    // Vibração via CSS
+    setTimeout(() => {
+        const modalGlass = modal.querySelector('.modal-glass');
+        if (modalGlass) {
+            modalGlass.style.animation = 'shake 0.5s ease-in-out infinite';
+        }
+    }, 100);
+    // Tocar alerta sonoro
+    tocarAlerta();
+}
+
+function fecharModalNovaVenda() {
+    const modal = document.getElementById('modalNovaVenda');
+    if (modal) modal.remove();
+    novasVendas = false;
 }
 
 // ===== GERENCIAR STATUS =====
@@ -863,12 +861,8 @@ function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
 }
 function gerarVendasParaData(data) {
     return obterVendasAprovadasPorData(data).map(v => ({
-        id: v.id,
-        vendedor_id: v.vendedor_id,
-        vendedor_nome: v.vendedorNome,
-        plano: v.produto,
-        valor: parseFloat(v.valor) || 0,
-        data: v.data
+        id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome,
+        plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data
     }));
 }
 function verificarVencedoresPromocao(promocao) {
@@ -1071,7 +1065,7 @@ function mostrarSecaoVendedor(e, secao) {
     if (secao === 'instalacoes') carregarInstalacoes();
 }
 
-// ===== CHAT (SINCRONIZADO VIA localStorage) =====
+// ===== CHAT (SINCRONIZADO VIA localStorage, POLLING CORRIGIDO) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
@@ -1185,11 +1179,14 @@ function iniciarPollingChat() {
     if (chatIntervalo) clearInterval(chatIntervalo);
     chatIntervalo = setInterval(() => {
         if (!sessao) return;
+        // Sempre atualiza a badge e a lista de conversas
         atualizarBadge();
+        if (document.getElementById('chatSidebar').style.display !== 'none') {
+            atualizarListaConversas();
+        }
+        // Se estiver com uma conversa aberta, re-renderiza as mensagens
         if (chatConversationAtual && document.getElementById('chatMain').style.display === 'flex') {
             renderizarMensagensChat();
-        } else {
-            if (document.getElementById('chatSidebar').style.display !== 'none') atualizarListaConversas();
         }
     }, 2000);
 }
