@@ -68,6 +68,11 @@ async function hashSenha(senha) {
 // ===== CONFIGURAÇÃO GOOGLE SHEETS =====
 const GOOGLE_SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwlD0lCiWUMJx4gdZI-WnOqjzXFA8aWUoWQ7u9iDKcezikGv8H7BoqxuegBRnb2Q2q6SA/exec'; // <-- Substitua SEU_ID pela URL do seu Web App
 
+// ===== PAGINAÇÃO =====
+let paginaAtualAtivacoes = 1;
+let paginaAtualVendasAprovadas = 1;
+const itensPorPagina = 15;
+
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
@@ -316,8 +321,8 @@ function mostrarSecao(secao) {
         dashboard:'📊 Dashboard', cadastro:'👥 Cadastro', ativacoes:'⚡ Ativações', vendasAprovadas:'✅ Vendas Aprovadas', relatorios:'📈 Relatórios', metas:'🎯 Metas', promocoes:'🏆 Promoções'
     }[secao]||secao;
     if(secao==='cadastro') carregarUsuarios();
-    if(secao==='ativacoes') carregarAtivacoes();
-    if(secao==='vendasAprovadas') carregarVendasAprovadas();
+    if(secao==='ativacoes') { paginaAtualAtivacoes = 1; carregarAtivacoes(); }
+    if(secao==='vendasAprovadas') { paginaAtualVendasAprovadas = 1; carregarVendasAprovadas(); }
     if(secao==='relatorios') carregarRelatorios();
     if(secao==='metas') carregarMetas();
     if(secao==='promocoes') carregarPromocoes();
@@ -412,12 +417,31 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (apenas não aprovadas) =====
-function carregarAtivacoes() {
+// ===== ATIVAÇÕES COM PAGINAÇÃO =====
+function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
-    const naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => b.id - a.id);
-    tabela.innerHTML = naoAprovadas.map(a => {
+    
+    let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => b.id - a.id);
+    
+    // Aplica filtro de busca, se existir
+    const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
+    if (termo) {
+        naoAprovadas = naoAprovadas.filter(a => {
+            const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
+            const texto = `${a.nomeCompleto||a.nomeCliente} ${a.produto||a.plano} ${vendedor?vendedor.nome:''} ${a.status} ${a.tratandoPor||''}`.toLowerCase();
+            return texto.includes(termo);
+        });
+    }
+    
+    const total = naoAprovadas.length;
+    const totalPaginas = Math.ceil(total / itensPorPagina);
+    paginaAtualAtivacoes = Math.min(pagina, totalPaginas || 1);
+    const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    const itensExibidos = naoAprovadas.slice(inicio, fim);
+    
+    tabela.innerHTML = itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
         const tratando = a.tratandoPor || '—';
@@ -429,19 +453,85 @@ function carregarAtivacoes() {
             <td><span style="font-size:12px;">${tratando}</span></td>
             <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
         </tr>`;
-    }).join('');
-    filtrarAtivacoes();
+    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
+    
+    atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
+
+function mudarPaginaAtivacoes(direcao) {
+    if (direcao === 'anterior' && paginaAtualAtivacoes > 1) {
+        carregarAtivacoes(paginaAtualAtivacoes - 1);
+    } else if (direcao === 'proximo') {
+        const totalPaginas = Math.ceil(DB.ativacoes.filter(a => a.status !== 'Aprovado').length / itensPorPagina);
+        if (paginaAtualAtivacoes < totalPaginas) {
+            carregarAtivacoes(paginaAtualAtivacoes + 1);
+        }
+    }
+}
+
 function filtrarAtivacoes() {
-    const input = document.getElementById('buscaAtivacao');
-    if (!input) return;
-    const termo = input.value.trim().toLowerCase();
-    const linhas = document.querySelectorAll('#tabelaAtivacoes tr');
-    linhas.forEach(linha => {
-        const texto = linha.textContent.toLowerCase();
-        linha.style.display = texto.includes(termo) ? '' : 'none';
-    });
+    paginaAtualAtivacoes = 1;
+    carregarAtivacoes(1);
 }
+
+// ===== VENDAS APROVADAS COM PAGINAÇÃO =====
+function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
+    const tabela = document.getElementById('tabelaVendasAprovadas');
+    if (!tabela) return;
+    
+    let aprovadas = obterVendasAprovadas().sort((a,b) => b.id - a.id);
+    
+    const filtroData = document.getElementById('filtroDataAprovadas')?.value;
+    if (filtroData) {
+        aprovadas = aprovadas.filter(a => a.data === filtroData);
+    }
+    
+    const total = aprovadas.length;
+    const totalPaginas = Math.ceil(total / itensPorPagina);
+    paginaAtualVendasAprovadas = Math.min(pagina, totalPaginas || 1);
+    const inicio = (paginaAtualVendasAprovadas - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    const itensExibidos = aprovadas.slice(inicio, fim);
+    
+    tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
+        const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
+        return `<tr>
+            <td><strong>${a.nomeCompleto || a.nomeCliente}</strong></td>
+            <td>${a.produto || a.plano}</td>
+            <td>${vendedor?vendedor.nome:'N/A'}</td>
+            <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
+            <td>${new Date(a.data+'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            <td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
+    
+    atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
+}
+
+function mudarPaginaVendasAprovadas(direcao) {
+    if (direcao === 'anterior' && paginaAtualVendasAprovadas > 1) {
+        carregarVendasAprovadas(paginaAtualVendasAprovadas - 1);
+    } else if (direcao === 'proximo') {
+        const totalPaginas = Math.ceil(obterVendasAprovadas().length / itensPorPagina);
+        if (paginaAtualVendasAprovadas < totalPaginas) {
+            carregarVendasAprovadas(paginaAtualVendasAprovadas + 1);
+        }
+    }
+}
+
+function atualizarControlesPaginacao(idContainer, pagina, totalPaginas, totalItens) {
+    const container = document.getElementById(idContainer);
+    if (!container) return;
+    const btnAnterior = container.querySelector('button:first-of-type');
+    const btnProximo = container.querySelector('button:last-of-type');
+    const info = container.querySelector('span');
+    
+    if (info) info.textContent = `Página ${pagina} de ${totalPaginas || 1} (${totalItens} itens)`;
+    if (btnAnterior) btnAnterior.disabled = pagina <= 1;
+    if (btnProximo) btnProximo.disabled = pagina >= totalPaginas || totalPaginas === 0;
+}
+
+// ===== ATIVAÇÕES (MODAIS, ETC) =====
 function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) return;
@@ -580,17 +670,14 @@ function enviarParaGoogleSheets(venda) {
         dataAprovacao: venda.data ? new Date(venda.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
 
-    // Constrói query string
     const params = new URLSearchParams(payload);
     params.append('acao', 'enviarVenda');
-    params.append('callback', 'jsonpCallback');
-
-    // Cria script dinâmico para JSONP
-    const script = document.createElement('script');
     const callbackName = 'jsonpCallback_' + Date.now();
-    script.src = GOOGLE_SHEET_WEBAPP_URL + '?' + params.toString().replace('jsonpCallback', callbackName);
+    params.append('callback', callbackName);
 
-    // Define callback global temporário
+    const script = document.createElement('script');
+    script.src = GOOGLE_SHEET_WEBAPP_URL + '?' + params.toString();
+
     window[callbackName] = function(res) {
         if (res && res.ok) {
             console.log('✅ Venda enviada para Google Sheets');
@@ -603,29 +690,58 @@ function enviarParaGoogleSheets(venda) {
 
     document.body.appendChild(script);
 }
-// ===== VENDAS APROVADAS =====
-function carregarVendasAprovadas() {
-    const tabela = document.getElementById('tabelaVendasAprovadas');
-    if (!tabela) return;
-    let aprovadas = obterVendasAprovadas().sort((a,b) => b.id - a.id);
-    const filtroData = document.getElementById('filtroDataAprovadas')?.value;
-    if (filtroData) {
-        aprovadas = aprovadas.filter(a => a.data === filtroData);
+
+// ===== INFORMAÇÕES ADICIONAIS =====
+function abrirModalInfoAdicional() {
+    if (!vendaSendoVisualizada) return;
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (!a) return;
+    document.getElementById('infoContrato').value = a.contrato || '';
+    document.getElementById('infoData').value = a.infoData || '';
+    document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
+    document.getElementById('modalInfoAdicional').style.display = 'flex';
+}
+function fecharModalInfoAdicional() {
+    document.getElementById('modalInfoAdicional').style.display = 'none';
+}
+function salvarInfoAdicional() {
+    if (!vendaSendoVisualizada) return;
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (!a) return;
+    const contrato = document.getElementById('infoContrato').value.trim();
+    const data = document.getElementById('infoData').value;
+    const periodo = document.getElementById('infoPeriodo').value;
+    if (!contrato || !data || !periodo) {
+        alert('Preencha todos os campos!');
+        return;
     }
-    tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
-        const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        return `<tr>
-            <td><strong>${a.nomeCompleto || a.nomeCliente}</strong></td>
-            <td>${a.produto || a.plano}</td>
-            <td>${vendedor?vendedor.nome:'N/A'}</td>
-            <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
-            <td>${new Date(a.data+'T00:00:00').toLocaleDateString('pt-BR')}</td>
-            <td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
-        </tr>`;
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
+    a.contrato = contrato;
+    a.infoData = data;
+    a.infoPeriodo = periodo;
+    salvarDB();
+    const nomeCliente = a.nomeCompleto || a.nomeCliente;
+    const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+    alert(`CLIENTE: ${nomeCliente}\nVENDA AGENDADA NO DIA ${dataFormatada}\nPERÍODO ${periodo}`);
+    fecharModalInfoAdicional();
 }
 
-// ===== SINCRONIZAÇÃO EM TEMPO REAL =====
+// ===== GERENCIAR STATUS =====
+function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
+function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
+function carregarListaStatusFlags() {
+    const container = document.getElementById('listaStatusFlags');
+    if (!container) return;
+    container.innerHTML = DB.statusFlags.map(f => `<div class="flag-item"><span class="flag-color" style="background:${f.cor};"></span><span>${f.nome}</span><button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button></div>`).join('');
+}
+function adicionarStatusFlag() {
+    const nome = document.getElementById('novoStatusNome').value.trim();
+    const cor = document.getElementById('novoStatusCor').value;
+    if (!nome) return alert('Digite um nome para a flag!');
+    DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = '';
+}
+function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
+
+// ===== SINCRONIZAÇÃO =====
 window.addEventListener('storage', function(e) {
     if (e.key === 'stage_db') {
         DB = JSON.parse(e.newValue);
@@ -660,7 +776,6 @@ window.addEventListener('storage', function(e) {
     }
 });
 
-// ===== NOTIFICAÇÃO DE NOVA VENDA =====
 function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
@@ -685,22 +800,6 @@ function fecharModalNovaVenda() {
     if (modal) modal.remove();
     novasVendas = false;
 }
-
-// ===== GERENCIAR STATUS =====
-function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
-function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
-function carregarListaStatusFlags() {
-    const container = document.getElementById('listaStatusFlags');
-    if (!container) return;
-    container.innerHTML = DB.statusFlags.map(f => `<div class="flag-item"><span class="flag-color" style="background:${f.cor};"></span><span>${f.nome}</span><button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button></div>`).join('');
-}
-function adicionarStatusFlag() {
-    const nome = document.getElementById('novoStatusNome').value.trim();
-    const cor = document.getElementById('novoStatusCor').value;
-    if (!nome) return alert('Digite um nome para a flag!');
-    DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = '';
-}
-function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
 
 // ===== RELATÓRIOS =====
 function carregarRelatorios() {
@@ -873,7 +972,7 @@ function gerarPDF() {
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
-// ===== METAS (com gerenciamento de produtos e opções de venda) =====
+// ===== METAS =====
 function carregarMetas() {
     document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
     document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
@@ -887,7 +986,6 @@ function carregarMetas() {
     carregarTabelaProdutos();
     carregarOpcoesVendaAdmin();
 }
-
 function carregarSelectProdutos() {
     const select = document.getElementById('produtoMetaSelect');
     if (select) {
@@ -898,7 +996,6 @@ function carregarSelectProdutos() {
         selectVenda.innerHTML = '<option value="">Selecione o plano</option>' + DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
     }
 }
-
 function adicionarMetaProduto() {
     const produto = document.getElementById('produtoMetaSelect').value;
     const diaria = parseInt(document.getElementById('produtoDiaria').value) || 0;
@@ -927,7 +1024,6 @@ function carregarMetasInstalacoes() {
 function removerMetaInstalacao(id) { DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id); salvarDB(); carregarMetas(); }
 function salvarMetas() { DB.metas.diariaVendas = parseInt(document.getElementById('metaDiariaVendas').value) || 10; DB.metas.quinzenalVendas = parseInt(document.getElementById('metaQuinzenalVendas').value) || 75; DB.metas.mensalVendas = parseInt(document.getElementById('metaMensalVendas').value) || 150; salvarDB(); alert('✅ Metas de vendas atualizadas!'); }
 
-// Gerenciamento de Produtos
 function carregarTabelaProdutos() {
     const tbody = document.getElementById('tabelaProdutos');
     if (!tbody) return;
@@ -969,8 +1065,6 @@ function excluirProduto(index) {
         carregarSelectProdutos();
     }
 }
-
-// Opções de Venda (Admin)
 function carregarOpcoesVendaAdmin() {
     const vel = document.getElementById('opcoesVelocidade');
     const formPag = document.getElementById('opcoesFormaPagamento');
@@ -979,7 +1073,6 @@ function carregarOpcoesVendaAdmin() {
     if (formPag) formPag.value = (DB.opcoesVenda.formasPagamento || []).join(', ');
     if (val) val.value = (DB.opcoesVenda.valores || []).join(', ');
 }
-
 function salvarOpcoesVenda() {
     const velRaw = document.getElementById('opcoesVelocidade').value;
     const formPagRaw = document.getElementById('opcoesFormaPagamento').value;
@@ -991,8 +1084,6 @@ function salvarOpcoesVenda() {
     alert('✅ Opções de venda salvas!');
     carregarOpcoesVenda();
 }
-
-// Popula dropdowns do vendedor
 function carregarOpcoesVenda() {
     const selVel = document.getElementById('vVelocidade');
     const selForm = document.getElementById('vFormaPagamento');
@@ -1248,7 +1339,6 @@ function abrirModalVisualizacao(id) {
     html += `<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ${parseFloat(a.valor).toFixed(2)}</span>`;
     html += `</div>`;
 
-    // Informações Adicionais no topo
     if (a.contrato || a.infoData || a.infoPeriodo) {
         html += `<div style="background:rgba(46,213,115,0.1); border:1px solid rgba(46,213,115,0.3); border-radius:12px; padding:12px 15px; margin-bottom:20px;">`;
         html += `<h4 style="color:#2ed573; margin:0 0 10px 0; font-size:14px;">📋 Informações de Instalação</h4>`;
