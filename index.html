@@ -225,13 +225,28 @@
                         <input type="date" id="filtroDataAprovadas" onchange="carregarVendasAprovadas()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:8px 12px;border-radius:8px;">
                         <button onclick="document.getElementById('filtroDataAprovadas').value=''; carregarVendasAprovadas();" class="btn-glass-sm">Limpar filtro</button>
                         
-                        <!-- NOVOS BOTÕES DE DOWNLOAD -->
-                        <button onclick="baixarPlanilha('hoje')" class="btn-glass-primary" style="margin-left:auto; background: linear-gradient(135deg, #00a86b, #2ed573);">
-                            <i class="fas fa-download"></i> Baixar Vendas Hoje
-                        </button>
-                        <button onclick="baixarPlanilha('mes')" class="btn-glass-primary" style="background: linear-gradient(135deg, #0077b6, #00a8ff);">
-                            <i class="fas fa-download"></i> Baixar Vendas do Mês
-                        </button>
+                        <!-- NOVO BOTÃO ÚNICO COM DROPDOWN -->
+                        <div class="dropdown-wrapper" style="margin-left:auto;">
+                            <button onclick="toggleDropdown()" class="btn-glass-primary" style="background: linear-gradient(135deg, #e74c3c, #ff4757);">
+                                <i class="fas fa-download"></i> Baixar Planilha <i class="fas fa-chevron-down" style="margin-left:5px;"></i>
+                            </button>
+                            <div id="dropdownPlanilha" class="dropdown-menu" style="display:none;">
+                                <div class="dropdown-item" onclick="baixarPlanilha('hoje')"><i class="fas fa-calendar-day"></i> Baixar Vendas de Hoje</div>
+                                <div class="dropdown-item" onclick="baixarPlanilha('mes')"><i class="fas fa-calendar-alt"></i> Baixar Vendas do Mês Atual</div>
+                                <div class="dropdown-item" onclick="abrirSelecaoMes()"><i class="fas fa-calendar-check"></i> Selecionar Mês para Baixar</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Modal oculto para selecionar mês -->
+                    <div id="modalSelecionarMes" class="modal-overlay" style="display:none;">
+                        <div class="modal-glass" style="max-width:400px; text-align:center;">
+                            <h3><i class="fas fa-calendar-check"></i> Selecione o Mês</h3>
+                            <input type="month" id="inputMesPlanilha" style="width:100%;padding:12px;margin:15px 0;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;">
+                            <div class="form-actions" style="justify-content:center;">
+                                <button onclick="confirmarSelecaoMes()" class="btn-glass-primary"><i class="fas fa-download"></i> Baixar</button>
+                                <button onclick="fecharSelecaoMes()" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="table-glass">
                         <table>
