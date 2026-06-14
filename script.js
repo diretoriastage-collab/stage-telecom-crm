@@ -13,19 +13,12 @@ try {
 if (!DB) {
     DB = {
         usuarios: [
-            { id: 1, usuario: "admin", senha: "admin123", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null, equipe: "Gestão", categoria: "admin" },
-            { id: 2, usuario: "joao.silva", senha: "vend123", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null, equipe: "Alpha", categoria: "vendedor" },
-            { id: 3, usuario: "maria.santos", senha: "vend123", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null, equipe: "Alpha", categoria: "vendedor" },
-            { id: 4, usuario: "pedro.costa", senha: "vend123", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null, equipe: "Beta", categoria: "vendedor" }
+            { id: 1, usuario: "admin", senha: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null, equipe: "Gestão", categoria: "admin" },
+            { id: 2, usuario: "joao.silva", senha: "6b3a55e0e0a1b7d1f1d1e1e0d0c8b3e3b0a3a3b3c3d3e3f3a3b3c3d3e3f3a3b", nome: "João Silva", email: "joao@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null, equipe: "Alpha", categoria: "vendedor" },
+            { id: 3, usuario: "maria.santos", senha: "6b3a55e0e0a1b7d1f1d1e1e0d0c8b3e3b0a3a3b3c3d3e3f3a3b3c3d3e3f3a3b", nome: "Maria Santos", email: "maria@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null, equipe: "Alpha", categoria: "vendedor" },
+            { id: 4, usuario: "pedro.costa", senha: "6b3a55e0e0a1b7d1f1d1e1e0d0c8b3e3b0a3a3b3c3d3e3f3a3b3c3d3e3f3a3b", nome: "Pedro Costa", email: "pedro@stagetelecom.com.br", tipo: "vendedor", ativo: true, deletedAt: null, equipe: "Beta", categoria: "vendedor" }
         ],
-        clientes: [
-            { id: 1, nome: "TechBrasil Ltda", cnpj: "00.000.000/0001-00", telefone: "(11) 3456-7890", email: "contato@techbrasil.com.br", vendedor_id: 2, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-01-15" },
-            { id: 2, nome: "Comércio Digital SA", cnpj: "11.111.111/0001-11", telefone: "(21) 2345-6789", email: "digital@comercio.com.br", vendedor_id: 2, status: "ativo", plano: "Empresarial", valor: 499.90, data: "2024-02-20" },
-            { id: 3, nome: "NetConnect Provedor", cnpj: "22.222.222/0001-22", telefone: "(31) 3456-7890", email: "vendas@netconnect.com.br", vendedor_id: 3, status: "prospecto", plano: "Básico", valor: 299.90, data: "2024-03-10" },
-            { id: 4, nome: "Fibra Ótica Brasil", cnpj: "33.333.333/0001-33", telefone: "(41) 3456-7890", email: "contato@fibraotica.com.br", vendedor_id: 3, status: "ativo", plano: "Premium", valor: 899.90, data: "2024-04-05" },
-            { id: 5, nome: "Telecom Solutions", cnpj: "44.444.444/0001-44", telefone: "(51) 3456-7890", email: "vendas@telecomsolutions.com.br", vendedor_id: 4, status: "prospecto", plano: "Empresarial", valor: 499.90, data: "2024-05-15" },
-            { id: 6, nome: "Internet Rápida Ltda", cnpj: "55.555.555/0001-55", telefone: "(61) 3456-7890", email: "suporte@internetrapida.com.br", vendedor_id: 4, status: "ativo", plano: "Básico", valor: 299.90, data: "2024-06-01" }
-        ],
+        clientes: [],
         config: { metaDiaria: 10, metaMensal: 50 },
         statusFlags: [
             { id: 1, nome: "Ativo", cor: "#2ed573" },
@@ -63,6 +56,18 @@ DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor';
 
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
+// ===== HASH DE SENHAS (SHA-256) =====
+async function hashSenha(senha) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(senha);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ===== CONFIGURAÇÃO GOOGLE SHEETS =====
+const GOOGLE_SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzE31XpuwBKuc5fZZwilcie8acYFZxOEFQCzNAfDxaIpYTmGC67600tTXGqz0BdWyBY5A/exec'; // <-- Substitua SEU_ID pela URL do seu Web App
+
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
@@ -94,25 +99,31 @@ setInterval(() => {
 }, 1000);
 
 // ===== LOGIN =====
-function fazerLogin() {
+async function fazerLogin() {
     const usuario = document.getElementById('usuario').value.trim();
     const senha = document.getElementById('senha').value.trim();
     const erro = document.getElementById('mensagemErro');
     if (!usuario || !senha) { erro.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Preencha todos os campos!'; erro.style.color = '#ffa502'; return; }
-    const user = DB.usuarios.find(u => u.usuario === usuario && u.senha === senha && u.ativo && !u.deletedAt);
+    const user = DB.usuarios.find(u => u.usuario === usuario && u.ativo && !u.deletedAt);
     if (user) {
-        sessao = { id: user.id, nome: user.nome, email: user.email, tipo: user.tipo };
-        sessionStorage.setItem('stage_session', JSON.stringify(sessao));
-        erro.innerHTML = '<i class="fas fa-check-circle"></i> Login realizado! Redirecionando...';
-        erro.style.color = '#2ed573';
-        if (document.getElementById('lembrar')?.checked) localStorage.setItem('stage_remember', usuario);
-        setTimeout(() => { if (user.tipo === 'admin') mostrarAdmin(); else mostrarVendedor(); }, 600);
+        const hashDigitado = await hashSenha(senha);
+        if (user.senha === hashDigitado) {
+            sessao = { id: user.id, nome: user.nome, email: user.email, tipo: user.tipo };
+            sessionStorage.setItem('stage_session', JSON.stringify(sessao));
+            erro.innerHTML = '<i class="fas fa-check-circle"></i> Login realizado! Redirecionando...';
+            erro.style.color = '#2ed573';
+            if (document.getElementById('lembrar')?.checked) localStorage.setItem('stage_remember', usuario);
+            setTimeout(() => { if (user.tipo === 'admin') mostrarAdmin(); else mostrarVendedor(); }, 600);
+        } else {
+            erro.innerHTML = '<i class="fas fa-times-circle"></i> Usuário ou senha inválidos!';
+            erro.style.color = '#ff4757';
+        }
     } else {
         erro.innerHTML = '<i class="fas fa-times-circle"></i> Usuário ou senha inválidos!';
         erro.style.color = '#ff4757';
-        document.getElementById('senha').value = '';
-        document.getElementById('senha').focus();
     }
+    document.getElementById('senha').value = '';
+    document.getElementById('senha').focus();
 }
 
 function logout() {
@@ -312,9 +323,9 @@ function mostrarSecao(secao) {
     if(secao==='promocoes') carregarPromocoes();
 }
 
-// ===== CADASTRO DE USUÁRIOS (com campo Equipe) =====
+// ===== CADASTRO DE USUÁRIOS (com hash) =====
 function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
-function cadastrarUsuario(){
+async function cadastrarUsuario(){
     const n=document.getElementById('nomeUsuario').value.trim();
     const u=document.getElementById('usuarioUsuario').value.trim();
     const s=document.getElementById('senhaUsuario').value.trim();
@@ -323,7 +334,8 @@ function cadastrarUsuario(){
     const eq=document.getElementById('equipeUsuario').value.trim();
     if(!n||!u||!s||!e) return alert('Preencha todos os campos obrigatórios!');
     if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
-    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':(eq||'Geral')});
+    const senhaHash = await hashSenha(s);
+    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:senhaHash,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':(eq||'Geral')});
     salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display='none';
     ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>document.getElementById(id).value='');
 }
@@ -366,7 +378,7 @@ function abrirModalEditar(id){
     document.getElementById('modalEditarUsuario').style.display = 'flex';
 }
 function fecharModalEditar(){ document.getElementById('modalEditarUsuario').style.display = 'none'; }
-function salvarEdicaoUsuario(){
+async function salvarEdicaoUsuario(){
     const id = parseInt(document.getElementById('editUsuarioId').value);
     const nome = document.getElementById('editNomeUsuario').value.trim();
     const usuario = document.getElementById('editLoginUsuario').value.trim();
@@ -379,7 +391,7 @@ function salvarEdicaoUsuario(){
     const conflito = DB.usuarios.find(u=>u.usuario===usuario && u.id!==id && !u.deletedAt);
     if(conflito) return alert('Usuário já existe.');
     u.nome=nome; u.usuario=usuario; u.email=email; u.categoria=categoria; u.tipo=categoria;
-    if(novaSenha) u.senha=novaSenha;
+    if(novaSenha) u.senha = await hashSenha(novaSenha);
     u.equipe = categoria==='admin'?'Gestão':(equipe||'Geral');
     salvarDB(); carregarUsuarios(); fecharModalEditar();
 }
@@ -400,7 +412,7 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (apenas não aprovadas, mais recentes primeiro) =====
+// ===== ATIVAÇÕES (apenas não aprovadas) =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
@@ -482,6 +494,8 @@ function fecharModalAtivacao() {
                     a.status = 'Aprovado';
                     a.finalizada = true;
                     if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
+                    // Enviar para Google Sheets
+                    enviarParaGoogleSheets(a);
                 }
             } else {
                 a.status = novoStatus;
@@ -528,38 +542,50 @@ function fecharModalAtivacao() {
     carregarDashboard();
 }
 
-// ===== INFORMAÇÕES ADICIONAIS =====
-function abrirModalInfoAdicional() {
-    if (!vendaSendoVisualizada) return;
-    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
-    if (!a) return;
-    document.getElementById('infoContrato').value = a.contrato || '';
-    document.getElementById('infoData').value = a.infoData || '';
-    document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
-    document.getElementById('modalInfoAdicional').style.display = 'flex';
-}
-function fecharModalInfoAdicional() {
-    document.getElementById('modalInfoAdicional').style.display = 'none';
-}
-function salvarInfoAdicional() {
-    if (!vendaSendoVisualizada) return;
-    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
-    if (!a) return;
-    const contrato = document.getElementById('infoContrato').value.trim();
-    const data = document.getElementById('infoData').value;
-    const periodo = document.getElementById('infoPeriodo').value;
-    if (!contrato || !data || !periodo) {
-        alert('Preencha todos os campos!');
-        return;
-    }
-    a.contrato = contrato;
-    a.infoData = data;
-    a.infoPeriodo = periodo;
-    salvarDB();
-    const nomeCliente = a.nomeCompleto || a.nomeCliente;
-    const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
-    alert(`CLIENTE: ${nomeCliente}\nVENDA AGENDADA NO DIA ${dataFormatada}\nPERÍODO ${periodo}`);
-    fecharModalInfoAdicional();
+// ===== ENVIAR PARA GOOGLE SHEETS =====
+function enviarParaGoogleSheets(venda) {
+    const payload = {
+        status: venda.status,
+        nomeCliente: venda.nomeCompleto || venda.nomeCliente || '',
+        cpf: venda.cpf || '',
+        dataNasc: venda.dataNasc ? new Date(venda.dataNasc+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        nomeMae: venda.nomeMae || '',
+        rg: venda.rg || '',
+        orgaoExpeditor: venda.orgaoExpeditor || '',
+        dataExpedicao: venda.dataExpedicao ? new Date(venda.dataExpedicao+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        email: venda.email || '',
+        telefone1: venda.telefone1 || '',
+        telefone2: venda.telefone2 || '',
+        cep: venda.cep || '',
+        logradouro: venda.logradouro || '',
+        numero: venda.numero || '',
+        complemento: venda.complemento || '',
+        bairro: venda.bairro || '',
+        uf: venda.uf || '',
+        cidade: venda.cidade || '',
+        pontoReferencia: venda.pontoReferencia || '',
+        plano: venda.produto || venda.plano || '',
+        velocidade: venda.velocidade || '',
+        valor: venda.valor || '',
+        vencimento: venda.vencimento ? new Date(venda.vencimento+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        formaPagamento: venda.formaPagamento || '',
+        hp: venda.hp || '',
+        viabilidade: venda.viabilidade || '',
+        planoTipo: venda.planoTipo || '',
+        tipoAprovacao: venda.tipoAprovacao || '',
+        contrato: venda.contrato || '',
+        infoData: venda.infoData ? new Date(venda.infoData+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        infoPeriodo: venda.infoPeriodo || '',
+        vendedorNome: (DB.usuarios.find(u=>u.id===venda.vendedor_id) || {}).nome || 'N/A',
+        dataAprovacao: venda.data ? new Date(venda.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
+    };
+
+    fetch(GOOGLE_SHEET_WEBAPP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(err => console.warn('Falha ao enviar para Google Sheets:', err));
 }
 
 // ===== VENDAS APROVADAS =====
@@ -584,7 +610,7 @@ function carregarVendasAprovadas() {
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
 }
 
-// ========== SINCRONIZAÇÃO EM TEMPO REAL ==========
+// ===== SINCRONIZAÇÃO EM TEMPO REAL =====
 window.addEventListener('storage', function(e) {
     if (e.key === 'stage_db') {
         DB = JSON.parse(e.newValue);
@@ -619,7 +645,7 @@ window.addEventListener('storage', function(e) {
     }
 });
 
-// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL VIBRATÓRIO) =====
+// ===== NOTIFICAÇÃO DE NOVA VENDA =====
 function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
@@ -1450,15 +1476,10 @@ function baixarPlanilha(tipo, mesAno = null) {
         tituloPeriodo = `VENDAS DO MÊS - ${meses[mes-1]} DE ${ano}`;
     }
     
-    // Montar HTML da planilha
     let html = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head>
         <meta charset="UTF-8">
-        <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-        <x:Name>Vendas</x:Name>
-        <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-        </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
         <style>
             body { font-family: 'Segoe UI', Arial, sans-serif; }
             .header { background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%); padding: 20px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
@@ -1607,7 +1628,6 @@ function baixarPlanilha(tipo, mesAno = null) {
     </body>
     </html>`;
     
-    // Criar blob e baixar
     const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1626,7 +1646,6 @@ function baixarPlanilha(tipo, mesAno = null) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    // Fechar dropdown
     document.getElementById('dropdownPlanilha').style.display = 'none';
 }
 
@@ -1636,7 +1655,6 @@ function toggleDropdown() {
     dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 }
 
-// Fechar dropdown ao clicar fora
 document.addEventListener('click', function(e) {
     const wrapper = document.querySelector('.dropdown-wrapper');
     if (wrapper && !wrapper.contains(e.target)) {
