@@ -66,7 +66,7 @@ async function hashSenha(senha) {
 }
 
 // ===== CONFIGURAÇÃO GOOGLE SHEETS =====
-const GOOGLE_SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzE31XpuwBKuc5fZZwilcie8acYFZxOEFQCzNAfDxaIpYTmGC67600tTXGqz0BdWyBY5A/exec'; // <-- Substitua SEU_ID pela URL do seu Web App
+const GOOGLE_SHEET_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwlD0lCiWUMJx4gdZI-WnOqjzXFA8aWUoWQ7u9iDKcezikGv8H7BoqxuegBRnb2Q2q6SA/exec'; // <-- Substitua SEU_ID pela URL do seu Web App
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
