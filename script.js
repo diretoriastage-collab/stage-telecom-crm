@@ -1,5 +1,5 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO FINAL (CORRIGIDO)
+// STAGE TELECOM CRM - SCRIPT COMPLETO FINAL
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db'));
 
@@ -28,7 +28,8 @@ if (!DB) {
         ativacoes: [],
         metas: { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150, produtos: [], instalacoes: [] },
         promocoes: [],
-        notificacoes: []
+        notificacoes: [],
+        chatMessages: []
     };
 }
 
@@ -38,6 +39,7 @@ DB.ativacoes = DB.ativacoes || [];
 DB.metas = DB.metas || { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150, produtos: [], instalacoes: [] };
 DB.metas.produtos = DB.metas.produtos || [];
 DB.metas.instalacoes = DB.metas.instalacoes || [];
+DB.chatMessages = DB.chatMessages || [];
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
@@ -100,6 +102,7 @@ function mostrarAdmin() {
     document.getElementById('userInfoAdmin').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
     carregarDashboard();
     verificarPromocoesAdmin();
+    iniciarChat();
 }
 function mostrarVendedor() {
     document.getElementById('loginScreen').style.display = 'none';
@@ -108,6 +111,7 @@ function mostrarVendedor() {
     document.getElementById('userInfoVendedor').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
     carregarMeusClientes();
     verificarNotificacoesVendedor();
+    iniciarChat();
 }
 
 // ===== DADOS DE VENDAS =====
@@ -381,7 +385,6 @@ function carregarAtivacoes() {
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
         return `<tr><td><strong>${a.nomeCliente}</strong></td><td>${a.produto}</td><td>${vendedor?vendedor.nome:'N/A'}</td><td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td><td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td></tr>`;
     }).join('');
-    // Reativar balão sempre que houver ativações
     if (DB.ativacoes.length > 0) {
         novasVendas = true;
         document.getElementById('balaoNovaVenda').style.display = 'flex';
@@ -554,7 +557,7 @@ function carregarRankingRelatorio(atual) {
     document.getElementById('rankingRelatorio').innerHTML = html;
 }
 
-// ===== GERAR PDF (COMPLETO E CORRIGIDO) =====
+// ===== GERAR PDF (CORRIGIDO) =====
 function gerarPDF() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
@@ -569,15 +572,11 @@ function gerarPDF() {
         dadosAnterior = gerarVendasMesAnterior();
     }
 
-    // HTML explícito com textos pretos
     let html = `<div style="font-family:Arial,sans-serif;padding:15px;color:#000;background:#fff;max-width:700px;margin:0 auto;">`;
     html += `<h1 style="font-size:18px;color:#000;margin-bottom:10px;">📊 Relatório de Vendas - STAGE TELECOM</h1>`;
     html += `<p style="font-size:12px;color:#333;margin-bottom:20px;">Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
-
-    // Comparativo de produtos
     html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Comparativo de Produtos</h2>`;
-    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;">`;
-    html += `<tr style="background:#f5f5f5;"><th style="padding:8px;">Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th style="padding:8px;">Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr>`;
     const produtos = ['Básico','Empresarial','Premium','Ultra'];
     produtos.forEach(p => {
         const qAt = dadosAtual.filter(v => v.plano === p).length;
@@ -587,48 +586,32 @@ function gerarPDF() {
         html += `<tr><td style="padding:6px;">${p}</td><td>${qAt}</td><td>${qAnt}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
     html += `</table>`;
-
-    // Vendas por vendedor
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
     const dadosVend = vendedores.map(v => ({
         nome: v.nome,
         atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length,
         anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length
     })).sort((a,b) => b.atual - a.atual);
-
     html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Vendas por Vendedor</h2>`;
-    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;">`;
-    html += `<tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
     dadosVend.forEach(d => {
         const variacao = d.anterior > 0 ? ((d.atual - d.anterior) / d.anterior * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
         html += `<tr><td style="padding:6px;">${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
     html += `</table>`;
-
-    // Canvas para gráfico
     html += `<div style="text-align:center;margin:20px 0;"><canvas id="graficoPDF" width="500" height="220"></canvas></div>`;
-
-    // Ranking
     html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Ranking de Vendedores</h2>`;
     const maxVendas = dadosVend[0]?.atual || 1;
     dadosVend.forEach((v, i) => {
         const pct = Math.round((v.atual / maxVendas) * 100);
-        html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#000;">
-                    <span style="font-weight:bold;width:25px;">${i+1}º</span>
-                    <span style="flex:1;">${v.nome} - ${v.atual} vendas</span>
-                    <div style="width:120px;height:8px;background:#eee;border-radius:4px;">
-                        <div style="width:${pct}%;height:100%;background:#e74c3c;border-radius:4px;"></div>
-                    </div>
-                </div>`;
+        html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#000;"><span style="font-weight:bold;width:25px;">${i+1}º</span><span style="flex:1;">${v.nome} - ${v.atual} vendas</span><div style="width:120px;height:8px;background:#eee;border-radius:4px;"><div style="width:${pct}%;height:100%;background:#e74c3c;border-radius:4px;"></div></div></div>`;
     });
-
     html += `</div>`;
 
     document.getElementById('conteudoPDF').innerHTML = html;
     document.getElementById('modalPDF').style.display = 'flex';
 
-    // Aguarda a renderização e desenha o gráfico, depois gera PDF
     setTimeout(() => {
         const canvas = document.getElementById('graficoPDF');
         if (canvas) {
@@ -636,51 +619,21 @@ function gerarPDF() {
                 type: 'bar',
                 data: {
                     labels: dadosVend.map(d => d.nome),
-                    datasets: [
-                        { label: 'Atual', data: dadosVend.map(d => d.atual), backgroundColor: '#e74c3c' },
-                        { label: 'Anterior', data: dadosVend.map(d => d.anterior), backgroundColor: '#aaa' }
-                    ]
+                    datasets: [{ label: 'Atual', data: dadosVend.map(d => d.atual), backgroundColor: '#e74c3c' }, { label: 'Anterior', data: dadosVend.map(d => d.anterior), backgroundColor: '#aaa' }]
                 },
                 options: {
                     responsive: false,
-                    animation: {
-                        onComplete: function() {
-                            gerarArquivoPDF();  // Só gera depois que o gráfico terminou a animação
-                        }
-                    },
-                    plugins: {
-                        legend: { labels: { color: '#000', font: { size: 10 } } }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { color: '#000', font: { size: 9 } } },
-                        x: { ticks: { color: '#000', font: { size: 9 } } }
-                    }
+                    animation: { onComplete: function() { gerarArquivoPDF(); } },
+                    plugins: { legend: { labels: { color: '#000', font: { size: 10 } } } },
+                    scales: { y: { beginAtZero: true, ticks: { color: '#000', font: { size: 9 } } }, x: { ticks: { color: '#000', font: { size: 9 } } } }
                 }
             });
-        } else {
-            gerarArquivoPDF();  // Se não há canvas, gera diretamente
-        }
+        } else { gerarArquivoPDF(); }
     }, 300);
 
     function gerarArquivoPDF() {
         const elemento = document.getElementById('conteudoPDF');
-        html2pdf()
-            .set({
-                margin: 0.5,
-                filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`,
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { 
-                    scale: 2, 
-                    backgroundColor: '#ffffff',
-                    logging: false,
-                    allowTaint: true,
-                    useCORS: true
-                },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-                pagebreak: { mode: 'avoid-all' }
-            })
-            .from(elemento)
-            .save();
+        html2pdf().set({ margin: 0.5, filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, backgroundColor: '#ffffff', logging: false, allowTaint: true, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: 'avoid-all' } }).from(elemento).save();
     }
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
@@ -734,10 +687,7 @@ function cadastrarPromocao() {
     const premio = document.getElementById('premioPromocao').value.trim();
     if (!inicio || !fim || !premio || quantidade <= 0) return alert('Preencha todos os campos corretamente!');
     DB.promocoes.push({ id: Date.now(), tipo, quantidade, inicio, fim, premio, ativa: true, concluida: false, vencedores: [] });
-    salvarDB();
-    carregarPromocoes();
-    document.getElementById('formPromocao').style.display = 'none';
-    document.getElementById('premioPromocao').value = '';
+    salvarDB(); carregarPromocoes(); document.getElementById('formPromocao').style.display = 'none'; document.getElementById('premioPromocao').value = '';
     alert('✅ Promoção cadastrada!');
 }
 function carregarPromocoes() {
@@ -819,33 +769,15 @@ function tocarAlerta() {
 }
 
 // ===== VENDEDOR SCREEN =====
-// CORRIGIDO: recebe 'event' explicitamente
 function mostrarSecaoVendedor(e, secao) {
-    // Oculta todas as seções
-    document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => {
-        s.style.display = 'none';
-        s.className = 'section-hidden';
-    });
-    const el = document.getElementById(`secao-${secao}`);
-    if (el) {
-        el.style.display = 'block';
-        el.className = 'section-active';
-    }
-    // Remove active de todos e adiciona ao clicado
+    document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
+    const el = document.getElementById(`secao-${secao}`); if(el){ el.style.display = 'block'; el.className = 'section-active'; }
     document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
-    if (e && e.currentTarget) {
-        e.currentTarget.classList.add('active');
-    }
-    // Atualiza título
-    const titulos = {
-        meusClientes: '🏢 Meus Clientes',
-        novoCliente: '➕ Novo Cliente',
-        minhasVendas: '💰 Minhas Vendas'
-    };
+    if (e && e.currentTarget) { e.currentTarget.classList.add('active'); }
+    const titulos = { meusClientes: '🏢 Meus Clientes', novoCliente: '➕ Novo Cliente', minhasVendas: '💰 Minhas Vendas' };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
-
-    if (secao === 'meusClientes') carregarMeusClientes();
-    if (secao === 'minhasVendas') carregarMinhasVendas();
+    if(secao === 'meusClientes') carregarMeusClientes();
+    if(secao === 'minhasVendas') carregarMinhasVendas();
 }
 function carregarMeusClientes(){
     const meus=DB.clientes.filter(c=>c.vendedor_id===sessao.id);
@@ -864,7 +796,136 @@ function cadastrarCliente(){
     const valores={Básico:299.9,Empresarial:499.9,Premium:899.9};
     DB.clientes.push({id:DB.clientes.length+1,nome:n,cnpj,telefone:tel,email,vendedor_id:sessao.id,status:'prospecto',plano,valor:valores[plano],data:new Date().toISOString().split('T')[0]});
     salvarDB(); ['nomeCliente','cnpjCliente','telefoneCliente','emailCliente'].forEach(id=>document.getElementById(id).value=''); document.getElementById('planoCliente').value='';
-    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor(null, 'meusClientes'); // Passa null pois não há evento
+    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor(null, 'meusClientes');
+}
+
+// ===== CHAT =====
+let chatConversationAtual = null;
+let chatIntervalo = null;
+
+function carregarUsuariosChat() {
+    const select = document.getElementById('privateUserSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Nova conversa privada...</option>';
+    DB.usuarios.filter(u => u.ativo && !u.deletedAt && u.id !== sessao.id).forEach(u => {
+        select.innerHTML += `<option value="${u.id}">${u.nome} (${u.categoria})</option>`;
+    });
+}
+function atualizarListaConversas() {
+    const container = document.getElementById('conversationList');
+    if (!container || !sessao) return;
+    const naoLidasGrupo = DB.chatMessages.filter(m => m.conversationId === 'group' && (!m.readBy || !m.readBy.includes(sessao.id))).length;
+    let html = `<div class="chat-conv-item" onclick="abrirConversaChat('group')"><i class="fas fa-users conv-icon"></i> Geral (todos) ${naoLidasGrupo > 0 ? `<span class="conv-badge">${naoLidasGrupo}</span>` : ''}</div>`;
+    const privadas = new Set();
+    DB.chatMessages.forEach(m => {
+        if (m.conversationId && m.conversationId !== 'group' && m.conversationId.includes(String(sessao.id))) privadas.add(m.conversationId);
+    });
+    privadas.forEach(convId => {
+        const ids = convId.split('-').map(Number);
+        const outroId = ids.find(id => id !== sessao.id);
+        const outroUser = DB.usuarios.find(u => u.id === outroId);
+        const nome = outroUser ? outroUser.nome : 'Usuário';
+        const naoLidas = DB.chatMessages.filter(m => m.conversationId === convId && (!m.readBy || !m.readBy.includes(sessao.id))).length;
+        html += `<div class="chat-conv-item" onclick="abrirConversaChat('${convId}')"><i class="fas fa-user conv-icon"></i> ${nome} ${naoLidas > 0 ? `<span class="conv-badge">${naoLidas}</span>` : ''}</div>`;
+    });
+    container.innerHTML = html;
+}
+function abrirConversaChat(conversationId) {
+    chatConversationAtual = conversationId;
+    document.getElementById('chatSidebar').style.display = 'none';
+    document.getElementById('chatMain').style.display = 'flex';
+    marcarMensagensComoLidas(conversationId);
+    renderizarMensagensChat();
+    atualizarBadge();
+}
+function marcarMensagensComoLidas(conversationId) {
+    let mudanca = false;
+    DB.chatMessages.forEach(m => {
+        if (m.conversationId === conversationId) {
+            if (!m.readBy) m.readBy = [];
+            if (!m.readBy.includes(sessao.id)) { m.readBy.push(sessao.id); mudanca = true; }
+        }
+    });
+    if (mudanca) salvarDB();
+}
+function renderizarMensagensChat() {
+    const container = document.getElementById('chatMessages');
+    if (!container || !chatConversationAtual) return;
+    const mensagens = DB.chatMessages.filter(m => m.conversationId === chatConversationAtual).sort((a,b) => a.timestamp - b.timestamp);
+    container.innerHTML = mensagens.map(m => {
+        const isOwn = m.senderId === sessao.id;
+        const hora = new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+        return `<div class="chat-msg ${isOwn ? 'own' : 'other'}">
+            ${!isOwn ? `<span class="msg-sender">${m.senderName}</span>` : ''}
+            <div class="msg-bubble">${m.text}</div>
+            <span class="msg-time">${hora}</span>
+        </div>`;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+    atualizarListaConversas();
+}
+function enviarMensagemChat() {
+    const input = document.getElementById('chatInput');
+    const texto = input.value.trim();
+    if (!texto || !chatConversationAtual) return;
+    DB.chatMessages.push({ id: Date.now() + Math.random(), conversationId: chatConversationAtual, senderId: sessao.id, senderName: sessao.nome, text: texto, timestamp: Date.now(), readBy: [sessao.id] });
+    salvarDB();
+    input.value = '';
+    renderizarMensagensChat();
+}
+function iniciarConversaPrivada() {
+    const select = document.getElementById('privateUserSelect');
+    const outroId = parseInt(select.value);
+    if (!outroId) return;
+    const ids = [sessao.id, outroId].sort((a,b) => a - b);
+    const conversationId = ids.join('-');
+    select.value = '';
+    abrirConversaChat(conversationId);
+    atualizarListaConversas();
+}
+function atualizarBadge() {
+    const badge = document.getElementById('chatBadge');
+    if (!badge || !sessao) return;
+    const totalNaoLidas = DB.chatMessages.filter(m => (!m.readBy || !m.readBy.includes(sessao.id)) && (m.conversationId === 'group' || m.conversationId.includes(String(sessao.id)))).length;
+    if (totalNaoLidas > 0) { badge.textContent = totalNaoLidas > 99 ? '99+' : totalNaoLidas; badge.style.display = 'flex'; }
+    else { badge.style.display = 'none'; }
+}
+function iniciarPollingChat() {
+    if (chatIntervalo) clearInterval(chatIntervalo);
+    chatIntervalo = setInterval(() => {
+        if (!sessao) return;
+        atualizarBadge();
+        if (chatConversationAtual && document.getElementById('chatMain').style.display === 'flex') {
+            renderizarMensagensChat();
+        } else {
+            if (document.getElementById('chatSidebar').style.display !== 'none') atualizarListaConversas();
+        }
+    }, 5000);
+}
+function toggleChat() {
+    const widget = document.getElementById('chatWidget');
+    if (widget.classList.contains('expanded')) {
+        widget.classList.remove('expanded');
+        widget.classList.add('minimized');
+    } else {
+        widget.classList.remove('minimized');
+        widget.classList.add('expanded');
+        carregarUsuariosChat();
+        atualizarListaConversas();
+        if (!chatConversationAtual) {
+            document.getElementById('chatSidebar').style.display = 'block';
+            document.getElementById('chatMain').style.display = 'none';
+        } else {
+            abrirConversaChat(chatConversationAtual);
+        }
+    }
+}
+function iniciarChat() {
+    if (!sessao) return;
+    carregarUsuariosChat();
+    atualizarListaConversas();
+    atualizarBadge();
+    iniciarPollingChat();
 }
 
 // ===== INICIAR =====
