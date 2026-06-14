@@ -505,3 +505,39 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
   background: #1a0a0a;
   color: #fff;
 }
+
+/* ===== DROPDOWN PLANILHA ===== */
+.dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: rgba(20,5,5,0.98);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 8px 0;
+    min-width: 260px;
+    z-index: 100;
+    margin-top: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.dropdown-item {
+    padding: 12px 20px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dropdown-item:hover {
+    background: rgba(231,76,60,0.2);
+}
+.dropdown-item i {
+    color: var(--primary-light);
+}
