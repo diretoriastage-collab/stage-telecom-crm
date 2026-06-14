@@ -385,7 +385,7 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (COLUNA TRATANDO GARANTIDA, STATUS FUNCIONAL) =====
+// ===== ATIVAÇÕES (COLUNA TRATANDO GARANTIDA, STATUS FUNCIONAL, FILTRO CORRIGIDO) =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
@@ -405,9 +405,14 @@ function carregarAtivacoes() {
     filtrarAtivacoes();
 }
 function filtrarAtivacoes() {
-    const termo = document.getElementById('buscaAtivacao')?.value?.toLowerCase() || '';
+    const input = document.getElementById('buscaAtivacao');
+    if (!input) return;
+    const termo = input.value.trim().toLowerCase();
     const linhas = document.querySelectorAll('#tabelaAtivacoes tr');
-    linhas.forEach(linha => { const texto = linha.textContent.toLowerCase(); linha.style.display = texto.includes(termo) ? '' : 'none'; });
+    linhas.forEach(linha => {
+        const texto = linha.textContent.toLowerCase();
+        linha.style.display = texto.includes(termo) ? '' : 'none';
+    });
 }
 function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
@@ -415,8 +420,6 @@ function abrirModalAtivacao(id) {
     vendaSendoVisualizada = id;
     a.tratandoPor = sessao.nome;
     salvarDB();
-    document.getElementById('balaoNovaVenda').style.display = 'none';
-    novasVendas = false;
     const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
     document.getElementById('conteudoModalAtivacao').innerHTML = `
         <div class="form-grid">
@@ -503,12 +506,14 @@ function iniciarVerificacaoNovasVendas() {
             ultimoIdAtivacao = maxId;
             mostrarModalNovaVenda();
             carregarDashboard(); // atualiza dashboard automaticamente
+            if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
+                carregarAtivacoes();
+            }
         }
     }, 3000);
 }
 
 function mostrarModalNovaVenda() {
-    // Remove modal anterior se existir
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
 
@@ -526,14 +531,6 @@ function mostrarModalNovaVenda() {
         </div>
     `;
     document.body.appendChild(modal);
-    // Vibração via CSS
-    setTimeout(() => {
-        const modalGlass = modal.querySelector('.modal-glass');
-        if (modalGlass) {
-            modalGlass.style.animation = 'shake 0.5s ease-in-out infinite';
-        }
-    }, 100);
-    // Tocar alerta sonoro
     tocarAlerta();
 }
 
@@ -747,6 +744,11 @@ function carregarSelectProdutos() {
     const select = document.getElementById('produtoMetaSelect');
     if (!select) return;
     select.innerHTML = DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
+    // Atualiza também o select de envio de venda do vendedor
+    const selectVenda = document.getElementById('vPlano');
+    if (selectVenda) {
+        selectVenda.innerHTML = '<option value="">Selecione o plano</option>' + DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
 }
 function adicionarMetaProduto() {
     const produto = document.getElementById('produtoMetaSelect').value;
@@ -1179,12 +1181,10 @@ function iniciarPollingChat() {
     if (chatIntervalo) clearInterval(chatIntervalo);
     chatIntervalo = setInterval(() => {
         if (!sessao) return;
-        // Sempre atualiza a badge e a lista de conversas
         atualizarBadge();
         if (document.getElementById('chatSidebar').style.display !== 'none') {
             atualizarListaConversas();
         }
-        // Se estiver com uma conversa aberta, re-renderiza as mensagens
         if (chatConversationAtual && document.getElementById('chatMain').style.display === 'flex') {
             renderizarMensagensChat();
         }
