@@ -84,18 +84,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .btn-glass-logout { width: 100%; padding: 14px; background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.2); border-radius: 14px; color: #ff4757; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; font-size: 14px; margin-top: auto; }
 .btn-glass-logout:hover { background: rgba(255,71,87,0.2); box-shadow: 0 5px 20px rgba(255,71,87,0.2); }
 .main-glass { margin-left: 280px; flex: 1; padding: 25px; }
-.topbar-glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-.search-glass { position: relative; flex: 1; max-width: 400px; }
-.search-glass i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.3); }
-.search-glass input { width: 100%; padding: 12px 20px 12px 45px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; color: #fff; font-size: 14px; transition: 0.3s; }
-.search-glass input:focus { outline: none; border-color: var(--primary); background: rgba(255,255,255,0.05); }
-.topbar-actions { display: flex; gap: 10px; align-items: center; }
-.btn-glass-icon { width: 42px; height: 42px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; position: relative; transition: 0.3s; }
-.btn-glass-icon:hover { background: rgba(231,76,60,0.2); border-color: var(--primary); }
-.badge-pulse { position: absolute; top: -5px; right: -5px; background: var(--primary); color: white; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; animation: badgePulse 2s infinite; font-weight: 700; }
-@keyframes badgePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
-.btn-glass-logout-top { width: 42px; height: 42px; background: rgba(255,71,87,0.2); border: 1px solid rgba(255,71,87,0.3); border-radius: 12px; color: #ff4757; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.3s; }
-.btn-glass-logout-top:hover { background: rgba(255,71,87,0.3); }
 .content-area { animation: fadeIn 0.5s ease; }
 @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
 .page-title { font-size: 22px; margin-bottom: 25px; color: #fff; }
@@ -274,23 +262,46 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .barra-progresso-preenchimento { height: 100%; background: var(--primary); border-radius: 10px; }
 
 /* ===== PDF ===== */
-.relatorio-pdf { font-family: Arial, sans-serif; line-height: 1.4; }
-.relatorio-pdf h1, .relatorio-pdf h2, .relatorio-pdf h3 { color: #333; }
-.relatorio-pdf table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-.relatorio-pdf th, .relatorio-pdf td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 13px; }
-.relatorio-pdf th { background: #f2f2f2; font-weight: bold; }
-.relatorio-pdf .grafico-container { background: #fff; border: 1px solid #ddd; padding: 10px; margin-bottom: 20px; }
-.relatorio-pdf .ranking-item-relatorio { border: 1px solid #eee; padding: 8px; margin-bottom: 5px; background: #fafafa; }
-.relatorio-pdf .barra-progresso-relatorio { background: #eee; }
-.relatorio-pdf .barra-progresso-preenchimento { background: #e74c3c; }
+.relatorio-pdf { font-family: Arial, sans-serif; line-height: 1.3; }
+.relatorio-pdf h1 { font-size: 18px; }
+.relatorio-pdf h2 { font-size: 14px; }
+.relatorio-pdf table { font-size: 11px; }
+.relatorio-pdf .bloco-relatorio, .relatorio-pdf table, .relatorio-pdf .grafico-container { page-break-inside: avoid; }
+.relatorio-pdf .grafico-container canvas { max-width: 100%; height: auto; }
 
-/* ===== METAS E PROMOÇÕES ===== */
-.metas-tabs { display: flex; gap: 10px; margin-bottom: 25px; }
-.meta-tab { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); padding: 12px 24px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.3s; }
-.meta-tab.active { background: linear-gradient(135deg, rgba(231,76,60,0.3), rgba(255,71,87,0.15)); border-color: var(--primary); color: #fff; box-shadow: 0 5px 15px rgba(231,76,60,0.15); }
-.aba-meta { display: none; }
-.aba-meta.active { display: block; }
+/* ===== TOAST NOTIFICAÇÃO ===== */
+.toast-notificacao {
+    position: fixed; bottom: 30px; right: 30px;
+    background: linear-gradient(135deg, #2ed573, #1eaa50);
+    color: #fff; padding: 16px 20px; border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(46,213,115,0.5);
+    font-weight: 600; font-size: 14px; z-index: 9999;
+    display: none; align-items: center; gap: 12px;
+    animation: slideInRight 0.4s ease; max-width: 350px;
+}
+.toast-fechar { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; margin-left: auto; }
+@keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
+/* ===== TREMER TELA ===== */
+.shake-tela { animation: shake 0.5s ease-in-out; }
+@keyframes shake { 0%,100% { transform: translateX(0); } 10%,50%,90% { transform: translateX(-6px); } 30%,70% { transform: translateX(6px); } }
+
+/* ===== BALÃO NOVA VENDA ===== */
+.balao-nova-venda {
+    position: absolute; top: -15px; right: -10px;
+    background: linear-gradient(135deg, #ff4757, #ff6b6b);
+    color: #fff; padding: 6px 14px; border-radius: 30px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    box-shadow: 0 0 20px rgba(255,71,87,0.6);
+    animation: pulseBalao 1.5s ease-in-out infinite;
+    white-space: nowrap; z-index: 10;
+    display: flex; align-items: center; gap: 6px;
+}
+.pulse-dot { width: 8px; height: 8px; background: #fff; border-radius: 50%; animation: pulseDot 1s infinite; }
+@keyframes pulseBalao { 0%,100% { transform: scale(1); box-shadow: 0 0 20px rgba(255,71,87,0.6); } 50% { transform: scale(1.08); box-shadow: 0 0 35px rgba(255,71,87,0.9); } }
+@keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ===== MODAL PARABÉNS ===== */
 .modal-parabens { text-align: center; max-width: 450px !important; }
 .parabens-icon { font-size: 64px; animation: bounce 0.6s ease infinite alternate; }
 @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
