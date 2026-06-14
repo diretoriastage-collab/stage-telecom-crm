@@ -1,5 +1,5 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO FINAL
+// STAGE TELECOM CRM - SCRIPT COMPLETO FINAL (CORRIGIDO)
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db'));
 
@@ -381,14 +381,10 @@ function carregarAtivacoes() {
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
         return `<tr><td><strong>${a.nomeCliente}</strong></td><td>${a.produto}</td><td>${vendedor?vendedor.nome:'N/A'}</td><td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td><td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td></tr>`;
     }).join('');
-    if (DB.ativacoes.length > 0 && novasVendas) {
+    // Reativar balão sempre que houver ativações
+    if (DB.ativacoes.length > 0) {
+        novasVendas = true;
         document.getElementById('balaoNovaVenda').style.display = 'flex';
-        setTimeout(() => {
-            mostrarNotificacao('🔔 Uma nova venda foi enviada!');
-            tocarAlerta();
-            document.body.classList.add('shake-tela');
-            setTimeout(() => document.body.classList.remove('shake-tela'), 600);
-        }, 500);
     }
     filtrarAtivacoes();
 }
@@ -558,34 +554,134 @@ function carregarRankingRelatorio(atual) {
     document.getElementById('rankingRelatorio').innerHTML = html;
 }
 
-// ===== GERAR PDF (MELHORADO) =====
+// ===== GERAR PDF (COMPLETO E CORRIGIDO) =====
 function gerarPDF() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
-    if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
-    else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
-    else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
-    let html = `<div class="relatorio-pdf" style="padding:10px;"><h1 style="font-size:18px;">Relatório de Vendas - STAGE TELECOM</h1><p style="font-size:12px;">Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
+    if (periodo === 'diario') {
+        dadosAtual = gerarDadosVendas();
+        dadosAnterior = gerarVendasDiaPassado();
+    } else if (periodo === 'quinzena') {
+        dadosAtual = gerarVendasQuinzenaAtual();
+        dadosAnterior = gerarVendasQuinzenaAnterior();
+    } else {
+        dadosAtual = gerarVendasMesAtual();
+        dadosAnterior = gerarVendasMesAnterior();
+    }
+
+    // HTML explícito com textos pretos
+    let html = `<div style="font-family:Arial,sans-serif;padding:15px;color:#000;background:#fff;max-width:700px;margin:0 auto;">`;
+    html += `<h1 style="font-size:18px;color:#000;margin-bottom:10px;">📊 Relatório de Vendas - STAGE TELECOM</h1>`;
+    html += `<p style="font-size:12px;color:#333;margin-bottom:20px;">Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
+
+    // Comparativo de produtos
+    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Comparativo de Produtos</h2>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;">`;
+    html += `<tr style="background:#f5f5f5;"><th style="padding:8px;">Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr>`;
     const produtos = ['Básico','Empresarial','Premium','Ultra'];
-    html += `<h2 style="font-size:14px;">Comparativo de Produtos</h2><table style="font-size:11px;"><tr><th>Produto</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
-    produtos.forEach(p => { const qtdAtual = dadosAtual.filter(v=>v.plano===p).length; const qtdAnterior = dadosAnterior.filter(v=>v.plano===p).length; const variacao = qtdAnterior>0?(((qtdAtual-qtdAnterior)/qtdAnterior)*100).toFixed(1):(qtdAtual>0?100:0); html += `<tr><td>${p}</td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td>${variacao>=0?'+'+variacao:variacao}%</td></tr>`; });
+    produtos.forEach(p => {
+        const qAt = dadosAtual.filter(v => v.plano === p).length;
+        const qAnt = dadosAnterior.filter(v => v.plano === p).length;
+        const variacao = qAnt > 0 ? ((qAt - qAnt) / qAnt * 100).toFixed(1) : (qAt > 0 ? 100 : 0);
+        const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
+        html += `<tr><td style="padding:6px;">${p}</td><td>${qAt}</td><td>${qAnt}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+    });
     html += `</table>`;
-    const vendedores = DB.usuarios.filter(u=>u.tipo==='vendedor'&&!u.deletedAt);
-    const dados = vendedores.map(v=>({nome:v.nome,atual:dadosAtual.filter(vd=>vd.vendedor_id===v.id).length,anterior:dadosAnterior.filter(vd=>vd.vendedor_id===v.id).length})).sort((a,b)=>b.atual-a.atual);
-    html += `<h2 style="font-size:14px;">Vendas por Vendedor</h2><table style="font-size:11px;"><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
-    dados.forEach(d => { const variacao = d.anterior>0?(((d.atual-d.anterior)/d.anterior)*100).toFixed(1):(d.atual>0?100:0); html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td>${variacao>=0?'+'+variacao:variacao}%</td></tr>`; });
-    html += `</table><div class="grafico-container"><canvas id="graficoPDF" width="450" height="200"></canvas></div>`;
-    const ranking = dados.sort((a,b)=>b.atual-a.atual); const maxVendas = ranking[0]?.atual||1;
-    html += `<h2 style="font-size:14px;">Ranking</h2>`;
-    ranking.forEach((v,i)=>{ const pct = maxVendas>0?(v.atual/maxVendas*100).toFixed(0):0; html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;font-size:11px;"><span>${i+1}º</span><span style="flex:1;">${v.nome} - ${v.atual} vendas</span><div style="width:80px;height:6px;background:#eee;border-radius:3px;"><div style="width:${pct}%;height:100%;background:#e74c3c;"></div></div></div>`; });
+
+    // Vendas por vendedor
+    const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
+    const dadosVend = vendedores.map(v => ({
+        nome: v.nome,
+        atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length,
+        anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length
+    })).sort((a,b) => b.atual - a.atual);
+
+    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Vendas por Vendedor</h2>`;
+    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;">`;
+    html += `<tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
+    dadosVend.forEach(d => {
+        const variacao = d.anterior > 0 ? ((d.atual - d.anterior) / d.anterior * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
+        const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
+        html += `<tr><td style="padding:6px;">${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+    });
+    html += `</table>`;
+
+    // Canvas para gráfico
+    html += `<div style="text-align:center;margin:20px 0;"><canvas id="graficoPDF" width="500" height="220"></canvas></div>`;
+
+    // Ranking
+    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Ranking de Vendedores</h2>`;
+    const maxVendas = dadosVend[0]?.atual || 1;
+    dadosVend.forEach((v, i) => {
+        const pct = Math.round((v.atual / maxVendas) * 100);
+        html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#000;">
+                    <span style="font-weight:bold;width:25px;">${i+1}º</span>
+                    <span style="flex:1;">${v.nome} - ${v.atual} vendas</span>
+                    <div style="width:120px;height:8px;background:#eee;border-radius:4px;">
+                        <div style="width:${pct}%;height:100%;background:#e74c3c;border-radius:4px;"></div>
+                    </div>
+                </div>`;
+    });
+
     html += `</div>`;
+
     document.getElementById('conteudoPDF').innerHTML = html;
     document.getElementById('modalPDF').style.display = 'flex';
+
+    // Aguarda a renderização e desenha o gráfico, depois gera PDF
     setTimeout(() => {
-        const ctx = document.getElementById('graficoPDF');
-        if(ctx) { new Chart(ctx, { type:'bar', data:{ labels:dados.map(d=>d.nome), datasets:[{ label:'Atual', data:dados.map(d=>d.atual), backgroundColor:'#e74c3c' },{ label:'Anterior', data:dados.map(d=>d.anterior), backgroundColor:'#555' }] }, options:{ responsive:false, plugins:{ legend:{ labels:{ font:{size:10} } } }, scales:{ y:{ beginAtZero:true, ticks:{ font:{size:9} } }, x:{ ticks:{ font:{size:9} } } } } }); }
-        setTimeout(() => { const elemento = document.getElementById('conteudoPDF'); html2pdf().set({ margin:0.3, filename:`relatorio_${new Date().toISOString().slice(0,10)}.pdf`, image:{ type:'jpeg', quality:0.95 }, html2canvas:{ scale:2, backgroundColor:'#ffffff' }, jsPDF:{ unit:'in', format:'letter', orientation:'portrait' }, pagebreak:{ mode:['avoid-all','css','legacy'] } }).from(elemento).save(); }, 400);
-    }, 200);
+        const canvas = document.getElementById('graficoPDF');
+        if (canvas) {
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: dadosVend.map(d => d.nome),
+                    datasets: [
+                        { label: 'Atual', data: dadosVend.map(d => d.atual), backgroundColor: '#e74c3c' },
+                        { label: 'Anterior', data: dadosVend.map(d => d.anterior), backgroundColor: '#aaa' }
+                    ]
+                },
+                options: {
+                    responsive: false,
+                    animation: {
+                        onComplete: function() {
+                            gerarArquivoPDF();  // Só gera depois que o gráfico terminou a animação
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#000', font: { size: 10 } } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#000', font: { size: 9 } } },
+                        x: { ticks: { color: '#000', font: { size: 9 } } }
+                    }
+                }
+            });
+        } else {
+            gerarArquivoPDF();  // Se não há canvas, gera diretamente
+        }
+    }, 300);
+
+    function gerarArquivoPDF() {
+        const elemento = document.getElementById('conteudoPDF');
+        html2pdf()
+            .set({
+                margin: 0.5,
+                filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { 
+                    scale: 2, 
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    allowTaint: true,
+                    useCORS: true
+                },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                pagebreak: { mode: 'avoid-all' }
+            })
+            .from(elemento)
+            .save();
+    }
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
@@ -723,14 +819,33 @@ function tocarAlerta() {
 }
 
 // ===== VENDEDOR SCREEN =====
-function mostrarSecaoVendedor(secao){
-    document.querySelectorAll('#vendedorScreen .section-active,#vendedorScreen .section-hidden').forEach(s=>{s.style.display='none';s.className='section-hidden';});
-    const el=document.getElementById(`secao-${secao}`); if(el){el.style.display='block';el.className='section-active';}
-    document.querySelectorAll('#vendedorScreen .nav-item').forEach(a=>a.classList.remove('active'));
-    event.target.closest('.nav-item').classList.add('active');
-    document.getElementById('tituloSecaoVendedor').innerHTML = {meusClientes:'🏢 Meus Clientes',novoCliente:'➕ Novo Cliente',minhasVendas:'💰 Minhas Vendas'}[secao];
-    if(secao==='meusClientes') carregarMeusClientes();
-    if(secao==='minhasVendas') carregarMinhasVendas();
+// CORRIGIDO: recebe 'event' explicitamente
+function mostrarSecaoVendedor(e, secao) {
+    // Oculta todas as seções
+    document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => {
+        s.style.display = 'none';
+        s.className = 'section-hidden';
+    });
+    const el = document.getElementById(`secao-${secao}`);
+    if (el) {
+        el.style.display = 'block';
+        el.className = 'section-active';
+    }
+    // Remove active de todos e adiciona ao clicado
+    document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
+    if (e && e.currentTarget) {
+        e.currentTarget.classList.add('active');
+    }
+    // Atualiza título
+    const titulos = {
+        meusClientes: '🏢 Meus Clientes',
+        novoCliente: '➕ Novo Cliente',
+        minhasVendas: '💰 Minhas Vendas'
+    };
+    document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
+
+    if (secao === 'meusClientes') carregarMeusClientes();
+    if (secao === 'minhasVendas') carregarMinhasVendas();
 }
 function carregarMeusClientes(){
     const meus=DB.clientes.filter(c=>c.vendedor_id===sessao.id);
@@ -749,7 +864,7 @@ function cadastrarCliente(){
     const valores={Básico:299.9,Empresarial:499.9,Premium:899.9};
     DB.clientes.push({id:DB.clientes.length+1,nome:n,cnpj,telefone:tel,email,vendedor_id:sessao.id,status:'prospecto',plano,valor:valores[plano],data:new Date().toISOString().split('T')[0]});
     salvarDB(); ['nomeCliente','cnpjCliente','telefoneCliente','emailCliente'].forEach(id=>document.getElementById(id).value=''); document.getElementById('planoCliente').value='';
-    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor('meusClientes');
+    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor(null, 'meusClientes'); // Passa null pois não há evento
 }
 
 // ===== INICIAR =====
