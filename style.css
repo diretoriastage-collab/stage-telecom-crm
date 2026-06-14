@@ -384,6 +384,15 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     flex-direction: column;
     align-items: flex-start;
 }
+
+.modal-vibrando {
+    animation: shake 0.5s ease-in-out infinite;
+}
+@keyframes shake {
+    0%,100% { transform: translateX(0); }
+    10%,50%,90% { transform: translateX(-8px); }
+    30%,70% { transform: translateX(8px); }
+}
 .chat-toggle { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; cursor: pointer; box-shadow: 0 4px 20px rgba(231,76,60,0.5); transition: all 0.3s; position: relative; }
 .chat-toggle:hover { transform: scale(1.1); box-shadow: 0 6px 25px rgba(231,76,60,0.8); }
 .chat-badge { position: absolute; top: -5px; right: -5px; background: #ff4757; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; box-shadow: 0 2px 8px rgba(255,71,87,0.6); }
