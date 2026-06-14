@@ -309,7 +309,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     margin-bottom: 15px;
 }
 
-/* ===== NOTIFICAÇÃO DE NOVA VENDA (FIXA INFERIOR DIREITA, COM BOTÃO FECHAR) ===== */
+/* ===== NOTIFICAÇÃO DE NOVA VENDA ===== */
 #balaoNovaVenda {
     position: fixed;
     bottom: 30px;
@@ -371,7 +371,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     }
 }
 
-/* ===== MODAL VIBRANDO (PARA NOVA VENDA) ===== */
+/* ===== MODAL VIBRANDO ===== */
 .modal-vibrando {
     animation: shake 0.5s ease-in-out infinite;
 }
