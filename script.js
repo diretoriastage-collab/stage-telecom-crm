@@ -31,7 +31,7 @@ if (!DB) {
         promocoes: [],
         notificacoes: [],
         chatMessages: [],
-        produtos: ["Básico", "Empresarial", "Premium", "Ultra"] // lista de produtos gerenciável
+        produtos: ["Básico", "Empresarial", "Premium", "Ultra"]
     };
 }
 
@@ -121,7 +121,6 @@ function mostrarAdmin() {
     carregarDashboard();
     verificarPromocoesAdmin();
     iniciarChat();
-    // Polling para novas vendas (tremor e balão)
     iniciarVerificacaoNovasVendas();
 }
 
@@ -135,7 +134,7 @@ function mostrarVendedor() {
     iniciarChat();
 }
 
-// ========== NOVA LÓGICA DE VENDAS (BASEADA EM ATIVAÇÕES APROVADAS) ==========
+// ========== LÓGICA DE VENDAS (APROVADAS E FINALIZADAS) ==========
 function obterVendasAprovadas() {
     return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false);
 }
@@ -410,7 +409,7 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (com coluna "Tratando", modal compacto, confirmação de aprovação) =====
+// ===== ATIVAÇÕES (COLUNA TRATANDO GARANTIDA, STATUS FUNCIONAL) =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
@@ -473,22 +472,22 @@ function abrirModalAtivacao(id) {
             <div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div>
         </div>`;
     document.getElementById('modalAtivacao').style.display = 'flex';
-    carregarAtivacoes();
+    carregarAtivacoes(); // atualiza "Tratando" imediatamente
 }
 function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (a) {
         const novoStatus = document.getElementById('editStatus')?.value;
-        if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
-            if (confirm('Deseja finalizar essa venda? Ao aprovar, ela será contabilizada.')) {
-                a.status = 'Aprovado';
-                a.finalizada = true;
-                if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
+        if (novoStatus) {
+            if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
+                if (confirm('Deseja finalizar essa venda? Ao aprovar, ela será contabilizada.')) {
+                    a.status = 'Aprovado';
+                    a.finalizada = true;
+                    if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
+                }
             } else {
-                // mantém o status anterior
+                a.status = novoStatus;
             }
-        } else if (novoStatus) {
-            a.status = novoStatus;
         }
         a.observacao = document.getElementById('editObservacao')?.value || '';
         a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
@@ -522,7 +521,7 @@ function fecharModalAtivacao() {
     }
 }
 
-// ===== VERIFICAÇÃO DE NOVAS VENDAS PARA ADMIN (tremor + balão) =====
+// ===== VERIFICAÇÃO DE NOVAS VENDAS (TREMER + BALÃO) =====
 let intervaloNovasVendas = null;
 function iniciarVerificacaoNovasVendas() {
     if (intervaloNovasVendas) clearInterval(intervaloNovasVendas);
@@ -532,13 +531,10 @@ function iniciarVerificacaoNovasVendas() {
         const maxId = idsAtuais.length ? Math.max(...idsAtuais) : 0;
         if (maxId > ultimoIdAtivacao) {
             ultimoIdAtivacao = maxId;
-            // Mostrar balão
             const balao = document.getElementById('balaoNovaVenda');
             if (balao) balao.style.display = 'flex';
-            // Tremer tela
             document.body.classList.add('shake-tela');
             setTimeout(() => document.body.classList.remove('shake-tela'), 600);
-            // Atualizar lista se estiver na seção ativações
             if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
                 carregarAtivacoes();
             }
@@ -1075,7 +1071,7 @@ function mostrarSecaoVendedor(e, secao) {
     if (secao === 'instalacoes') carregarInstalacoes();
 }
 
-// ===== CHAT (completo, sincronizado via localStorage) =====
+// ===== CHAT (SINCRONIZADO VIA localStorage) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
@@ -1195,7 +1191,7 @@ function iniciarPollingChat() {
         } else {
             if (document.getElementById('chatSidebar').style.display !== 'none') atualizarListaConversas();
         }
-    }, 2000); // mais rápido para sincronizar
+    }, 2000);
 }
 function toggleChat() {
     const widget = document.getElementById('chatWidget');
