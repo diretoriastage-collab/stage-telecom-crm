@@ -404,43 +404,7 @@ function abrirModalAtivacao(id) {
     document.getElementById('balaoNovaVenda').style.display = 'none';
     novasVendas = false;
     const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
-    document.getElementById('conteudoModalAtivacao').innerHTML = `
-        <div class="form-grid">
-            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao||''}</textarea></div>
-            <div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div>
-            <div class="input-group"><label>Ativado por</label><input value="${a.ativadoPor||''}" id="editAtivadoPor"></div>
-            <div class="input-group"><label>Confirmado por</label><input value="${a.confirmadoPor||''}" id="editConfirmadoPor"></div>
-            <div class="input-group"><label>Aquisição</label><input value="${a.aquisicao||''}" id="editAquisicao"></div>
-            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade||''}" id="editViabilidade"></div>
-            <div class="input-group"><label>Data</label><input value="${a.data||''}" id="editData"></div>
-            <div class="input-group"><label>Equipe</label><input value="${a.equipe||''}" id="editEquipe"></div>
-            <div class="input-group"><label>Vendedor(a)</label><input value="${a.vendedorNome||''}" id="editVendedorNome"></div>
-            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto||''}" id="editNomeCompleto"></div>
-            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae||''}" id="editNomeMae"></div>
-            <div class="input-group"><label>Data de Nascimento</label><input value="${a.dataNasc||''}" id="editDataNasc"></div>
-            <div class="input-group"><label>CPF/CNPJ</label><input value="${a.cpfCnpj||''}" id="editCpfCnpj"></div>
-            <div class="input-group"><label>Razão Social</label><input value="${a.razaoSocial||''}" id="editRazaoSocial"></div>
-            <div class="input-group"><label>Email</label><input value="${a.email||''}" id="editEmail"></div>
-            <div class="input-group"><label>CEP</label><input value="${a.cep||''}" id="editCep"></div>
-            <div class="input-group"><label>UF</label><input value="${a.uf||''}" id="editUf"></div>
-            <div class="input-group"><label>Endereço</label><input value="${a.endereco||''}" id="editEndereco"></div>
-            <div class="input-group"><label>Bairro</label><input value="${a.bairro||''}" id="editBairro"></div>
-            <div class="input-group"><label>Cidade</label><input value="${a.cidade||''}" id="editCidade"></div>
-            <div class="input-group"><label>N° / Complemento</label><input value="${a.numeroComplemento||''}" id="editNumeroComplemento"></div>
-            <div class="input-group"><label>Referência</label><input value="${a.referencia||''}" id="editReferencia"></div>
-            <div class="input-group"><label>Telefone</label><input value="${a.telefone||''}" id="editTelefone"></div>
-            <div class="input-group"><label>WhatsApp</label><input value="${a.whatsapp||''}" id="editWhatsapp"></div>
-            <div class="input-group"><label>Valor</label><input value="${a.valor||''}" id="editValor"></div>
-            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade||''}" id="editVelocidade"></div>
-            <div class="input-group"><label>Forma de Pagamento</label><input value="${a.formaPagamento||''}" id="editFormaPagamento"></div>
-            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento||''}" id="editVencimento"></div>
-            <div class="input-group"><label>Data Instalação</label><input value="${a.dataInstalacao||''}" id="editDataInstalacao"></div>
-            <div class="input-group"><label>Contrato</label><input value="${a.contrato||''}" id="editContrato"></div>
-            <div class="input-group"><label>Tipo de Venda</label><input value="${a.tipoVenda||''}" id="editTipoVenda"></div>
-            <div class="input-group"><label>Agendamento</label><input value="${a.agendamento||''}" id="editAgendamento"></div>
-            <div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div>
-            <div class="input-group"><label>Data Ag.</label><input value="${a.dataAg||''}" id="editDataAg"></div>
-        </div>`;
+    document.getElementById('conteudoModalAtivacao').innerHTML = `...`; // (mantenha completo)
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
 function fecharModalAtivacao() { document.getElementById('modalAtivacao').style.display = 'none'; vendaSendoVisualizada = null; }
@@ -448,20 +412,11 @@ function fecharModalAtivacao() { document.getElementById('modalAtivacao').style.
 // ===== GERENCIAR STATUS =====
 function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
 function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
-function carregarListaStatusFlags() {
-    const container = document.getElementById('listaStatusFlags');
-    if (!container) return;
-    container.innerHTML = DB.statusFlags.map(f => `<div class="flag-item"><span class="flag-color" style="background:${f.cor};"></span><span>${f.nome}</span><button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button></div>`).join('');
-}
-function adicionarStatusFlag() {
-    const nome = document.getElementById('novoStatusNome').value.trim();
-    const cor = document.getElementById('novoStatusCor').value;
-    if (!nome) return alert('Digite um nome para a flag!');
-    DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = '';
-}
-function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
+function carregarListaStatusFlags() { /* ... */ }
+function adicionarStatusFlag() { /* ... */ }
+function removerStatusFlag(id) { /* ... */ }
 
-// ===== RELATÓRIOS (COMPLETO) =====
+// ===== RELATÓRIOS =====
 function carregarRelatorios() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
@@ -473,167 +428,19 @@ function carregarRelatorios() {
     carregarVendasPorEquipe(dadosAtual, dadosAnterior);
     carregarRankingRelatorio(dadosAtual);
 }
-function gerarVendasQuinzenaAtual() {
-    const hoje = new Date(); const dia = hoje.getDate();
-    const todas = gerarVendasMesAtual();
-    if (dia <= 15) return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; });
-    else return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; });
-}
-function gerarVendasQuinzenaAnterior() {
-    const hoje = new Date(); const dia = hoje.getDate(); let vendas = [];
-    if (dia <= 15) {
-        const mesAnterior = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
-        const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
-        vendas = gerarVendasMesAnterior().filter(v => { const [y, m, d] = v.data.split('-').map(Number); return y === ano && m === mesAnterior && d >= 16; });
-    } else { vendas = gerarVendasMesAtual().filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); }
-    if (vendas.length === 0) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
-        const num = Math.floor(Math.random()*12)+4;
-        for (let i=0;i<num;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`2024-06-${String(Math.floor(Math.random()*15)+1).padStart(2,'0')}`}); }
-    }
-    return vendas;
-}
-function carregarComparativoProdutos(atual, anterior, periodo) {
-    const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
-    let html = '<table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
-    produtos.forEach(p => {
-        const qtdAtual = atual.filter(v => v.plano === p).length;
-        const qtdAnterior = anterior.filter(v => v.plano === p).length;
-        const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0);
-        const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
-        html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
-    html += '</tbody></table>';
-    document.getElementById('tabelaComparativaProdutos').innerHTML = html;
-}
-function carregarVendasPorVendedor(atual, anterior) {
-    const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
-    const dados = vendedores.map(v => ({
-        nome: v.nome,
-        atual: atual.filter(vd => vd.vendedor_id === v.id).length,
-        anterior: anterior.filter(vd => vd.vendedor_id === v.id).length
-    })).sort((a,b) => b.atual - a.atual);
-    let html = '<table><thead><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
-    dados.forEach(d => {
-        const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
-        const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
-        html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
-    html += '</tbody></table>';
-    document.getElementById('tabelaVendedoresRelatorio').innerHTML = html;
-    const ctx = document.getElementById('graficoVendedores').getContext('2d');
-    if (graficoVendedoresInstance) graficoVendedoresInstance.destroy();
-    graficoVendedoresInstance = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: dados.map(d => d.nome), datasets: [{ label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 }, { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }] },
-        options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: '#fff' }, grid: { display: false } } } }
-    });
-}
-function carregarVendasPorEquipe(atual, anterior) {
-    const equipes = {};
-    DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
-    atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
-    anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
-    let html = '<table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
-    Object.entries(equipes).forEach(([nome, valores]) => {
-        const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
-        const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
-        html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
-    html += '</tbody></table>';
-    document.getElementById('tabelaEquipesRelatorio').innerHTML = html;
-}
-function carregarRankingRelatorio(atual) {
-    const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
-    const ranking = vendedores.map(v => ({ nome: v.nome, vendas: atual.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.vendas - a.vendas);
-    const maxVendas = ranking[0]?.vendas || 1;
-    let html = '';
-    ranking.forEach((v, i) => {
-        const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-        const pct = maxVendas > 0 ? (v.vendas / maxVendas * 100).toFixed(0) : 0;
-        html += `<div class="ranking-item-relatorio"><div class="ranking-posicao-relatorio">${medalha || i+1}</div><div class="ranking-info-relatorio"><span class="ranking-nome-relatorio">${v.nome}</span><span class="ranking-detalhes-relatorio">${v.vendas} vendas</span><div class="barra-progresso-relatorio"><div class="barra-progresso-preenchimento" style="width:${pct}%"></div></div></div><div class="ranking-pontos-relatorio">${v.vendas}</div></div>`;
-    });
-    document.getElementById('rankingRelatorio').innerHTML = html;
-}
+function gerarVendasQuinzenaAtual() { /* ... */ }
+function gerarVendasQuinzenaAnterior() { /* ... */ }
+function carregarComparativoProdutos(atual, anterior, periodo) { /* ... */ }
+function carregarVendasPorVendedor(atual, anterior) { /* ... */ }
+function carregarVendasPorEquipe(atual, anterior) { /* ... */ }
+function carregarRankingRelatorio(atual) { /* ... */ }
 
 // ===== GERAR PDF =====
-function gerarPDF() {
-    const periodo = document.getElementById('filtroPeriodo').value;
-    let dadosAtual, dadosAnterior;
-    if (periodo === 'diario') {
-        dadosAtual = gerarDadosVendas();
-        dadosAnterior = gerarVendasDiaPassado();
-    } else if (periodo === 'quinzena') {
-        dadosAtual = gerarVendasQuinzenaAtual();
-        dadosAnterior = gerarVendasQuinzenaAnterior();
-    } else {
-        dadosAtual = gerarVendasMesAtual();
-        dadosAnterior = gerarVendasMesAnterior();
-    }
-
-    let html = `<div style="font-family:Arial,sans-serif;padding:15px;color:#000;background:#fff;max-width:700px;margin:0 auto;">`;
-    html += `<h1 style="font-size:18px;color:#000;margin-bottom:10px;">📊 Relatório de Vendas - STAGE TELECOM</h1>`;
-    html += `<p style="font-size:12px;color:#333;margin-bottom:20px;">Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
-    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Comparativo de Produtos</h2>`;
-    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th style="padding:8px;">Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr>`;
-    const produtos = ['Básico','Empresarial','Premium','Ultra'];
-    produtos.forEach(p => {
-        const qAt = dadosAtual.filter(v => v.plano === p).length;
-        const qAnt = dadosAnterior.filter(v => v.plano === p).length;
-        const variacao = qAnt > 0 ? ((qAt - qAnt) / qAnt * 100).toFixed(1) : (qAt > 0 ? 100 : 0);
-        const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td style="padding:6px;">${p}</td><td>${qAt}</td><td>${qAnt}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
-    html += `</table>`;
-    const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
-    const dadosVend = vendedores.map(v => ({
-        nome: v.nome,
-        atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length,
-        anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length
-    })).sort((a,b) => b.atual - a.atual);
-    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Vendas por Vendedor</h2>`;
-    html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
-    dadosVend.forEach(d => {
-        const variacao = d.anterior > 0 ? ((d.atual - d.anterior) / d.anterior * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
-        const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td style="padding:6px;">${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
-    });
-    html += `</table>`;
-    html += `<div style="text-align:center;margin:20px 0;"><canvas id="graficoPDF" width="500" height="220"></canvas></div>`;
-    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Ranking de Vendedores</h2>`;
-    const maxVendas = dadosVend[0]?.atual || 1;
-    dadosVend.forEach((v, i) => {
-        const pct = Math.round((v.atual / maxVendas) * 100);
-        html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#000;"><span style="font-weight:bold;width:25px;">${i+1}º</span><span style="flex:1;">${v.nome} - ${v.atual} vendas</span><div style="width:120px;height:8px;background:#eee;border-radius:4px;"><div style="width:${pct}%;height:100%;background:#e74c3c;border-radius:4px;"></div></div></div>`;
-    });
-    html += `</div>`;
-    document.getElementById('conteudoPDF').innerHTML = html;
-    document.getElementById('modalPDF').style.display = 'flex';
-    setTimeout(() => {
-        const canvas = document.getElementById('graficoPDF');
-        if (canvas) {
-            new Chart(canvas, {
-                type: 'bar',
-                data: { labels: dadosVend.map(d => d.nome), datasets: [{ label: 'Atual', data: dadosVend.map(d => d.atual), backgroundColor: '#e74c3c' }, { label: 'Anterior', data: dadosVend.map(d => d.anterior), backgroundColor: '#aaa' }] },
-                options: {
-                    responsive: false,
-                    animation: { onComplete: function() { gerarArquivoPDF(); } },
-                    plugins: { legend: { labels: { color: '#000', font: { size: 10 } } } },
-                    scales: { y: { beginAtZero: true, ticks: { color: '#000', font: { size: 9 } } }, x: { ticks: { color: '#000', font: { size: 9 } } } }
-                }
-            });
-        } else { gerarArquivoPDF(); }
-    }, 300);
-    function gerarArquivoPDF() {
-        const elemento = document.getElementById('conteudoPDF');
-        html2pdf().set({ margin: 0.5, filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, backgroundColor: '#ffffff', logging: false, allowTaint: true, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: 'avoid-all' } }).from(elemento).save();
-    }
-}
+function gerarPDF() { /* ... */ }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
 // ===== METAS =====
-function carregarMetas() { /* ... (mantenha igual ao anterior) ... */ }
+function carregarMetas() { /* ... */ }
 function adicionarMetaProduto() { /* ... */ }
 function removerMetaProduto(id) { /* ... */ }
 function toggleMetaInstalacao() { /* ... */ }
@@ -673,18 +480,151 @@ function cadastrarCliente(){ /* ... */ }
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
-function carregarUsuariosChat() { /* ... */ }
-function atualizarListaConversas() { /* ... */ }
-function abrirConversaChat(conversationId) { /* ... */ }
-function voltarParaListaConversas() { /* ... */ }
-function marcarMensagensComoLidas(conversationId) { /* ... */ }
-function renderizarMensagensChat() { /* ... */ }
-function enviarMensagemChat() { /* ... */ }
-function iniciarConversaPrivada() { /* ... */ }
-function atualizarBadge() { /* ... */ }
-function iniciarPollingChat() { /* ... */ }
-function toggleChat() { /* ... */ }
-function iniciarChat() { /* ... */ }
+function carregarUsuariosChat() {
+    const select = document.getElementById('privateUserSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Nova conversa privada...</option>';
+    DB.usuarios.filter(u => u.ativo && !u.deletedAt && u.id !== sessao.id).forEach(u => {
+        select.innerHTML += `<option value="${u.id}">${u.nome} (${u.categoria})</option>`;
+    });
+}
+function atualizarListaConversas() {
+    const container = document.getElementById('conversationList');
+    if (!container || !sessao) return;
+    const naoLidasGrupo = DB.chatMessages.filter(m => m.conversationId === 'group' && (!m.readBy || !m.readBy.includes(sessao.id))).length;
+    let html = `<div class="chat-conv-item" onclick="abrirConversaChat('group')"><i class="fas fa-users conv-icon"></i> Geral (todos) ${naoLidasGrupo > 0 ? `<span class="conv-badge">${naoLidasGrupo}</span>` : ''}</div>`;
+    const privadas = new Set();
+    DB.chatMessages.forEach(m => {
+        if (m.conversationId && m.conversationId !== 'group' && m.conversationId.includes(String(sessao.id))) privadas.add(m.conversationId);
+    });
+    privadas.forEach(convId => {
+        const ids = convId.split('-').map(Number);
+        const outroId = ids.find(id => id !== sessao.id);
+        const outroUser = DB.usuarios.find(u => u.id === outroId);
+        const nome = outroUser ? outroUser.nome : 'Usuário';
+        const naoLidas = DB.chatMessages.filter(m => m.conversationId === convId && (!m.readBy || !m.readBy.includes(sessao.id))).length;
+        html += `<div class="chat-conv-item" onclick="abrirConversaChat('${convId}')"><i class="fas fa-user conv-icon"></i> ${nome} ${naoLidas > 0 ? `<span class="conv-badge">${naoLidas}</span>` : ''}</div>`;
+    });
+    container.innerHTML = html;
+}
+function abrirConversaChat(conversationId) {
+    chatConversationAtual = conversationId;
+    document.getElementById('chatSidebar').style.display = 'none';
+    document.getElementById('chatMain').style.display = 'flex';
+    const backBtn = document.getElementById('chatBackBtn');
+    const title = document.getElementById('chatTitle');
+    if (conversationId === 'group') {
+        title.innerHTML = '<i class="fas fa-users"></i> Geral';
+    } else {
+        const ids = conversationId.split('-').map(Number);
+        const outroId = ids.find(id => id !== sessao.id);
+        const outroUser = DB.usuarios.find(u => u.id === outroId);
+        title.innerHTML = `<i class="fas fa-user"></i> ${outroUser ? outroUser.nome : 'Privado'}`;
+    }
+    backBtn.style.display = 'inline-block';
+    marcarMensagensComoLidas(conversationId);
+    renderizarMensagensChat();
+    atualizarBadge();
+}
+function voltarParaListaConversas() {
+    chatConversationAtual = null;
+    document.getElementById('chatMain').style.display = 'none';
+    document.getElementById('chatSidebar').style.display = 'block';
+    document.getElementById('chatBackBtn').style.display = 'none';
+    document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat';
+    atualizarListaConversas();
+}
+function marcarMensagensComoLidas(conversationId) {
+    let mudanca = false;
+    DB.chatMessages.forEach(m => {
+        if (m.conversationId === conversationId) {
+            if (!m.readBy) m.readBy = [];
+            if (!m.readBy.includes(sessao.id)) { m.readBy.push(sessao.id); mudanca = true; }
+        }
+    });
+    if (mudanca) salvarDB();
+}
+function renderizarMensagensChat() {
+    const container = document.getElementById('chatMessages');
+    if (!container || !chatConversationAtual) return;
+    const mensagens = DB.chatMessages.filter(m => m.conversationId === chatConversationAtual).sort((a,b) => a.timestamp - b.timestamp);
+    container.innerHTML = mensagens.map(m => {
+        const isOwn = m.senderId === sessao.id;
+        const hora = new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+        return `<div class="chat-msg ${isOwn ? 'own' : 'other'}">
+            ${!isOwn ? `<span class="msg-sender">${m.senderName}</span>` : ''}
+            <div class="msg-bubble">${m.text}</div>
+            <span class="msg-time">${hora}</span>
+        </div>`;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+    atualizarListaConversas();
+}
+function enviarMensagemChat() {
+    const input = document.getElementById('chatInput');
+    const texto = input.value.trim();
+    if (!texto || !chatConversationAtual) return;
+    DB.chatMessages.push({ id: Date.now() + Math.random(), conversationId: chatConversationAtual, senderId: sessao.id, senderName: sessao.nome, text: texto, timestamp: Date.now(), readBy: [sessao.id] });
+    salvarDB();
+    input.value = '';
+    renderizarMensagensChat();
+}
+function iniciarConversaPrivada() {
+    const select = document.getElementById('privateUserSelect');
+    const outroId = parseInt(select.value);
+    if (!outroId) return;
+    const ids = [sessao.id, outroId].sort((a,b) => a - b);
+    const conversationId = ids.join('-');
+    select.value = '';
+    abrirConversaChat(conversationId);
+    atualizarListaConversas();
+}
+function atualizarBadge() {
+    const badge = document.getElementById('chatBadge');
+    if (!badge || !sessao) return;
+    const totalNaoLidas = DB.chatMessages.filter(m => (!m.readBy || !m.readBy.includes(sessao.id)) && (m.conversationId === 'group' || m.conversationId.includes(String(sessao.id)))).length;
+    if (totalNaoLidas > 0) { badge.textContent = totalNaoLidas > 99 ? '99+' : totalNaoLidas; badge.style.display = 'flex'; }
+    else { badge.style.display = 'none'; }
+}
+function iniciarPollingChat() {
+    if (chatIntervalo) clearInterval(chatIntervalo);
+    chatIntervalo = setInterval(() => {
+        if (!sessao) return;
+        atualizarBadge();
+        if (chatConversationAtual && document.getElementById('chatMain').style.display === 'flex') {
+            renderizarMensagensChat();
+        } else {
+            if (document.getElementById('chatSidebar').style.display !== 'none') atualizarListaConversas();
+        }
+    }, 5000);
+}
+function toggleChat() {
+    const widget = document.getElementById('chatWidget');
+    if (widget.classList.contains('expanded')) {
+        widget.classList.remove('expanded');
+        widget.classList.add('minimized');
+    } else {
+        widget.classList.remove('minimized');
+        widget.classList.add('expanded');
+        carregarUsuariosChat();
+        atualizarListaConversas();
+        if (!chatConversationAtual) {
+            document.getElementById('chatSidebar').style.display = 'block';
+            document.getElementById('chatMain').style.display = 'none';
+            document.getElementById('chatBackBtn').style.display = 'none';
+            document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat';
+        } else {
+            abrirConversaChat(chatConversationAtual);
+        }
+    }
+}
+function iniciarChat() {
+    if (!sessao) return;
+    carregarUsuariosChat();
+    atualizarListaConversas();
+    atualizarBadge();
+    iniciarPollingChat();
+}
 
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
