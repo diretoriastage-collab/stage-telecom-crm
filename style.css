@@ -71,7 +71,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 
 .dashboard-wrapper { position: relative; z-index: 1; display: flex; min-height: 100vh; }
 
-/* ===== SIDEBAR (com scroll e botão logout sempre visível) ===== */
+/* ===== SIDEBAR ===== */
 .sidebar-glass {
     width: 280px;
     background: rgba(10,0,0,0.9);
@@ -85,7 +85,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     display: flex;
     flex-direction: column;
     z-index: 10;
-    overflow-y: auto;           /* scroll se conteúdo exceder a altura */
+    overflow-y: auto;
     overflow-x: hidden;
 }
 .sidebar-brand { text-align: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -122,7 +122,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     transition: 0.3s;
     font-size: 14px;
     margin-top: auto;
-    margin-bottom: 8px;       /* espaço extra para não colar na barra de tarefas */
+    margin-bottom: 8px;
 }
 .btn-glass-logout:hover { background: rgba(255,71,87,0.2); box-shadow: 0 5px 20px rgba(255,71,87,0.2); }
 
@@ -135,16 +135,16 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .section-hidden { display: none; }
 
 .dashboard-top-row { display: flex; gap: 20px; margin-bottom: 25px; align-items: stretch; }
-.metric-glass-progresso { flex: 2; background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 25px 30px; display: flex; flex-direction: column; gap: 15px; transition: all 0.4s; }
-.metric-glass-progresso:hover { box-shadow: 0 15px 30px rgba(231, 76, 60, 0.15); border-color: rgba(231, 76, 60, 0.3); }
+.metric-glass-progresso { flex: 2; background: rgba(255,255,255,0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 25px 30px; display: flex; flex-direction: column; gap: 15px; transition: all 0.4s; }
+.metric-glass-progresso:hover { box-shadow: 0 15px 30px rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.3); }
 .progresso-header { display: flex; align-items: center; gap: 15px; }
 .progresso-icon { width: 50px; height: 50px; background: linear-gradient(135deg, #ff6b6b, #ff4757); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; }
 .progresso-info { flex: 1; }
 .progresso-label { font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 3px; }
 .progresso-meta { font-size: 12px; color: var(--text-secondary); }
 .progresso-percent { font-size: 36px; font-weight: 800; background: linear-gradient(135deg, #fff, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.progresso-bar-container { width: 100%; height: 18px; background: rgba(255, 255, 255, 0.05); border-radius: 20px; overflow: hidden; position: relative; }
-.progresso-bar-liquido { height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff4757); border-radius: 20px; transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; box-shadow: 0 0 15px rgba(231, 76, 60, 0.4); }
+.progresso-bar-container { width: 100%; height: 18px; background: rgba(255,255,255,0.05); border-radius: 20px; overflow: hidden; position: relative; }
+.progresso-bar-liquido { height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff4757); border-radius: 20px; transition: width 1.5s cubic-bezier(0.4,0,0.2,1); position: relative; overflow: hidden; box-shadow: 0 0 15px rgba(231,76,60,0.4); }
 .onda { position: absolute; top: 0; left: -50%; width: 200%; height: 100%; background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 30%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.2) 70%, rgba(255,255,255,0) 100%); animation: ondaLiquida 2s linear infinite; }
 @keyframes ondaLiquida { 0% { transform: translateX(0); } 100% { transform: translateX(25%); } }
 .progresso-detalhes { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
@@ -227,7 +227,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .table-glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; overflow: hidden; }
 .table-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .table-header h3 { font-size: 14px; }
-.table-responsive { overflow-x: auto; }
 .table-glass table { width: 100%; border-collapse: collapse; }
 .table-glass thead { background: rgba(231,76,60,0.1); }
 .table-glass th { padding: 14px 18px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-light); }
@@ -289,15 +288,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .relatorios-filtros select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; padding: 10px 15px; font-size: 14px; }
 .bloco-relatorio { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 20px; }
 .bloco-relatorio h3 { margin-bottom: 15px; color: var(--primary-light); font-size: 16px; }
-.tabela-comparativa table,
-.tabela-vendedores table,
-.tabela-equipes table { width: 100%; border-collapse: collapse; }
-.tabela-comparativa th,
-.tabela-vendedores th,
-.tabela-equipes th { background: rgba(231,76,60,0.15); color: var(--primary-light); font-size: 12px; padding: 10px; text-align: left; }
-.tabela-comparativa td,
-.tabela-vendedores td,
-.tabela-equipes td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+.tabela-comparativa table, .tabela-vendedores table, .tabela-equipes table { width: 100%; border-collapse: collapse; }
+.tabela-comparativa th, .tabela-vendedores th, .tabela-equipes th { background: rgba(231,76,60,0.15); color: var(--primary-light); font-size: 12px; padding: 10px; text-align: left; }
+.tabela-comparativa td, .tabela-vendedores td, .tabela-equipes td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
 .grid-relatorio { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .grafico-container { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px; }
 .ranking-item-relatorio { display: flex; align-items: center; gap: 15px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 8px; }
@@ -338,26 +331,219 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .modal-parabens h2 { color: #ffd700; font-size: 28px; margin: 15px 0; }
 .modal-parabens p { color: #fff; font-size: 16px; }
 
-/* ========== CORREÇÕES PARA O MODAL PDF ========== */
-#modalPDF .modal-glass {
-    color: #000 !important;
-    background: #fff !important;
+/* =============================================
+   CHAT WIDGET
+   ============================================= */
+.chat-widget {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
-#conteudoPDF, #conteudoPDF * {
-    color: #000 !important;
+.chat-toggle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(231,76,60,0.5);
+    transition: all 0.3s;
+    position: relative;
 }
-#conteudoPDF table {
-    border-collapse: collapse;
+.chat-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(231,76,60,0.8);
 }
-#conteudoPDF th, #conteudoPDF td {
-    border: 1px solid #ccc;
-    padding: 6px;
-    text-align: left;
+.chat-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4757;
+    color: #fff;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(255,71,87,0.6);
+}
+.chat-panel {
+    display: none;
+    width: 340px;
+    max-height: 480px;
+    background: rgba(20,5,5,0.95);
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    margin-bottom: 10px;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    transition: all 0.3s;
+}
+.chat-widget.expanded .chat-panel {
+    display: flex;
+    animation: slideUp 0.3s ease;
+}
+.chat-widget.expanded .chat-toggle {
+    display: none;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(231,76,60,0.3), rgba(255,71,87,0.2));
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.chat-header h3 {
+    color: #fff;
+    font-size: 15px;
+    margin: 0;
+}
+.chat-minimize {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+}
+.chat-sidebar {
+    flex: 1;
+    overflow-y: auto;
+}
+.chat-conversation-list {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.chat-conv-item {
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 13px;
+}
+.chat-conv-item:hover {
+    background: rgba(231,76,60,0.15);
+}
+.chat-conv-item .conv-icon {
+    font-size: 18px;
+}
+.chat-conv-item .conv-badge {
+    margin-left: auto;
+    background: #ff4757;
+    color: #fff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+}
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+}
+.chat-msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 80%;
+}
+.chat-msg.own {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+.chat-msg.other {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+.chat-msg .msg-bubble {
+    padding: 8px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+}
+.chat-msg.own .msg-bubble {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+.chat-msg.other .msg-bubble {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border-bottom-left-radius: 4px;
+}
+.chat-msg .msg-sender {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+.chat-msg.own .msg-sender {
+    display: none;
+}
+.chat-msg .msg-time {
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 2px;
+}
+.chat-input-area {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    gap: 8px;
+    background: rgba(0,0,0,0.2);
+}
+.chat-input-area input {
+    flex: 1;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    color: #fff;
+    font-size: 13px;
+}
+.chat-input-area input:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
-/* =============================================
-   RESPONSIVIDADE (AJUSTES PARA TELAS MENORES)
-   ============================================= */
+/* ===== RESPONSIVIDADE ===== */
 @media (max-width: 1400px) {
     .dashboard-middle-row { grid-template-columns: 1fr; }
 }
@@ -365,7 +551,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .dashboard-top-row { flex-direction: column; }
     .clock-panel { flex: 0 0 auto; }
 }
-/* Tablet e dispositivos menores: sidebar encolhe */
 @media (max-width: 1024px) {
     .sidebar-glass {
         width: 80px;
@@ -378,7 +563,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .sidebar-glass .user-profile-glass,
     .sidebar-glass .nav-item span,
     .sidebar-glass .btn-glass-logout span,
-    .sidebar-glass .brand-icon {  /* esconde textos e ícone grande */
+    .sidebar-glass .brand-icon {
         display: none;
     }
     .sidebar-glass .brand-icon {
@@ -391,7 +576,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .nav-item {
         justify-content: center;
         padding: 12px;
-        font-size: 20px; /* ícones maiores */
+        font-size: 20px;
     }
     .nav-item i { margin: 0; }
     .btn-glass-logout {
@@ -402,7 +587,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .main-glass { margin-left: 80px; }
     .user-profile-glass { font-size: 0; }
 }
-/* Smartphones */
 @media (max-width: 768px) {
     .floating-card { display: none; }
     .form-grid { grid-template-columns: 1fr; }
@@ -413,23 +597,19 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .clock-panel { flex: 0 0 auto; }
     .clock-time { font-size: 36px; }
     .vendas-numero { font-size: 40px; }
-    .sidebar-glass {
-        width: 70px;
-        padding: 15px 5px;
-    }
+    .sidebar-glass { width: 70px; padding: 15px 5px; }
     .main-glass { margin-left: 70px; padding: 15px; }
     .page-title { font-size: 18px; }
     .table-glass th, .table-glass td { padding: 10px; font-size: 11px; }
     .btn-glass-flutuante { padding: 10px 20px; font-size: 13px; }
+    .chat-panel { width: 290px; }
 }
 @media (max-width: 480px) {
-    .sidebar-glass {
-        width: 60px;
-        padding: 10px 3px;
-    }
+    .sidebar-glass { width: 60px; padding: 10px 3px; }
     .main-glass { margin-left: 60px; padding: 10px; }
     .clock-time { font-size: 28px; }
     .vendas-numero { font-size: 32px; }
     .btn-glass-primary, .btn-glass-danger { padding: 8px 14px; font-size: 12px; }
     .form-grid input, .form-grid select, .form-grid textarea { padding: 10px; font-size: 12px; }
+    .chat-panel { width: 260px; left: 10px; }
 }
