@@ -35,7 +35,6 @@ if (!DB) {
     };
 }
 
-// Garantir estruturas
 DB.promocoes = DB.promocoes || [];
 DB.notificacoes = DB.notificacoes || [];
 DB.ativacoes = DB.ativacoes || [];
@@ -51,7 +50,7 @@ DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor';
 
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
-let sessao = JSON.parse(localStorage.getItem('stage_session'));
+let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
 let vendaSendoVisualizada = null;
@@ -90,7 +89,7 @@ function fazerLogin() {
     const user = DB.usuarios.find(u => u.usuario === usuario && u.senha === senha && u.ativo && !u.deletedAt);
     if (user) {
         sessao = { id: user.id, nome: user.nome, email: user.email, tipo: user.tipo };
-        localStorage.setItem('stage_session', JSON.stringify(sessao));
+        sessionStorage.setItem('stage_session', JSON.stringify(sessao));
         erro.innerHTML = '<i class="fas fa-check-circle"></i> Login realizado! Redirecionando...';
         erro.style.color = '#2ed573';
         if (document.getElementById('lembrar')?.checked) localStorage.setItem('stage_remember', usuario);
@@ -104,7 +103,7 @@ function fazerLogin() {
 }
 
 function logout() {
-    localStorage.removeItem('stage_session');
+    sessionStorage.removeItem('stage_session');
     sessao = null;
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('adminScreen').style.display = 'none';
@@ -306,15 +305,20 @@ function mostrarSecao(secao) {
     if(secao==='promocoes') carregarPromocoes();
 }
 
-// ===== CADASTRO DE USUÁRIOS =====
+// ===== CADASTRO DE USUÁRIOS (com campo Equipe) =====
 function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
 function cadastrarUsuario(){
-    const n=document.getElementById('nomeUsuario').value.trim(), u=document.getElementById('usuarioUsuario').value.trim(), s=document.getElementById('senhaUsuario').value.trim(), e=document.getElementById('emailUsuario').value.trim(), cat=document.getElementById('categoriaUsuario').value;
-    if(!n||!u||!s||!e) return alert('Preencha todos os campos!');
+    const n=document.getElementById('nomeUsuario').value.trim();
+    const u=document.getElementById('usuarioUsuario').value.trim();
+    const s=document.getElementById('senhaUsuario').value.trim();
+    const e=document.getElementById('emailUsuario').value.trim();
+    const cat=document.getElementById('categoriaUsuario').value;
+    const eq=document.getElementById('equipeUsuario').value.trim();
+    if(!n||!u||!s||!e) return alert('Preencha todos os campos obrigatórios!');
     if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
-    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':'Geral'});
+    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':(eq||'Geral')});
     salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display='none';
-    ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario'].forEach(id=>document.getElementById(id).value='');
+    ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>document.getElementById(id).value='');
 }
 function carregarUsuarios() {
     const agora = new Date();
@@ -328,6 +332,7 @@ function carregarUsuarios() {
             <td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
             <td>@${u.usuario}</td><td>${u.email}</td>
             <td><span class="badge-cat">${u.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td>
+            <td>${u.equipe||'Geral'}</td>
             <td class="${u.ativo?'status-ativo':''}">${u.ativo?'● Ativo':'○ Inativo'}</td>
             <td>
                 <button onclick="toggleUsuario(${u.id})" style="background:${u.ativo?'rgba(255,71,87,0.2)':'rgba(46,213,115,0.2)'};border:1px solid ${u.ativo?'rgba(255,71,87,0.3)':'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${u.ativo?'🔒 Desativar':'🔓 Ativar'}</button>
@@ -350,6 +355,7 @@ function abrirModalEditar(id){
     document.getElementById('editEmailUsuario').value = u.email;
     document.getElementById('editCategoriaUsuario').value = u.categoria || u.tipo;
     document.getElementById('editSenhaUsuario').value = '';
+    document.getElementById('editEquipeUsuario').value = u.equipe||'';
     document.getElementById('modalEditarUsuario').style.display = 'flex';
 }
 function fecharModalEditar(){ document.getElementById('modalEditarUsuario').style.display = 'none'; }
@@ -360,32 +366,34 @@ function salvarEdicaoUsuario(){
     const email = document.getElementById('editEmailUsuario').value.trim();
     const categoria = document.getElementById('editCategoriaUsuario').value;
     const novaSenha = document.getElementById('editSenhaUsuario').value.trim();
+    const equipe = document.getElementById('editEquipeUsuario').value.trim();
     if(!nome||!usuario||!email) return alert('Nome, usuário e email são obrigatórios.');
     const u=DB.usuarios.find(u=>u.id===id); if(!u) return;
     const conflito = DB.usuarios.find(u=>u.usuario===usuario && u.id!==id && !u.deletedAt);
     if(conflito) return alert('Usuário já existe.');
     u.nome=nome; u.usuario=usuario; u.email=email; u.categoria=categoria; u.tipo=categoria;
     if(novaSenha) u.senha=novaSenha;
+    u.equipe = categoria==='admin'?'Gestão':(equipe||'Geral');
     salvarDB(); carregarUsuarios(); fecharModalEditar();
 }
 
-// ===== LIXEIRA =====
+// ===== LIXEIRA (com coluna Equipe) =====
 function toggleLixeira(){ const l=document.getElementById('lixeiraUsuarios'); if(l.style.display==='none'||l.style.display===''){ carregarLixeira(); l.style.display='block'; } else l.style.display='none'; }
 function carregarLixeira(){
     const agora = new Date();
     const lixeira = DB.usuarios.filter(u=>u.deletedAt);
     document.getElementById('contadorLixeira').textContent = lixeira.length;
     const tabela=document.getElementById('tabelaLixeira');
-    if(!lixeira.length){ tabela.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
+    if(!lixeira.length){ tabela.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
     tabela.innerHTML = lixeira.map(v=>{
         const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt))/(1000*60*60*24)));
-        return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td><td><span style="color:#ffa502;">${dias} dia(s)</span></td><td><button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button><button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button></td></tr>`;
+        return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td><td>${v.equipe||'Geral'}</td><td><span style="color:#ffa502;">${dias} dia(s)</span></td><td><button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button><button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button></td></tr>`;
     }).join('');
 }
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (COLUNA TRATANDO GARANTIDA, STATUS FUNCIONAL, FILTRO CORRIGIDO) =====
+// ===== ATIVAÇÕES (com filtro funcional) =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
@@ -494,7 +502,7 @@ function fecharModalAtivacao() {
     carregarDashboard();
 }
 
-// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL QUE VIBRA) =====
+// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL VIBRATÓRIO) =====
 let intervaloNovasVendas = null;
 function iniciarVerificacaoNovasVendas() {
     if (intervaloNovasVendas) clearInterval(intervaloNovasVendas);
@@ -505,18 +513,16 @@ function iniciarVerificacaoNovasVendas() {
         if (maxId > ultimoIdAtivacao) {
             ultimoIdAtivacao = maxId;
             mostrarModalNovaVenda();
-            carregarDashboard(); // atualiza dashboard automaticamente
+            carregarDashboard();
             if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
                 carregarAtivacoes();
             }
         }
     }, 3000);
 }
-
 function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
-
     const modal = document.createElement('div');
     modal.id = 'modalNovaVenda';
     modal.className = 'modal-overlay';
@@ -533,7 +539,6 @@ function mostrarModalNovaVenda() {
     document.body.appendChild(modal);
     tocarAlerta();
 }
-
 function fecharModalNovaVenda() {
     const modal = document.getElementById('modalNovaVenda');
     if (modal) modal.remove();
@@ -744,7 +749,6 @@ function carregarSelectProdutos() {
     const select = document.getElementById('produtoMetaSelect');
     if (!select) return;
     select.innerHTML = DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
-    // Atualiza também o select de envio de venda do vendedor
     const selectVenda = document.getElementById('vPlano');
     if (selectVenda) {
         selectVenda.innerHTML = '<option value="">Selecione o plano</option>' + DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
