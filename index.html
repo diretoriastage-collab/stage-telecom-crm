@@ -230,6 +230,7 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Removida a tabela Clientes Recentes -->
                 </div>
 
                 <!-- SEÇÃO CADASTRO -->
@@ -411,7 +412,7 @@
                         <div class="form-actions" style="margin-top:20px;"><button onclick="salvarMetas()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Metas</button></div>
                     </div>
 
-                    <!-- Aba Promoções (CORRIGIDA) -->
+                    <!-- Aba Promoções -->
                     <div id="aba-promocoes" class="aba-meta" style="display:none;">
                         <button onclick="mostrarFormPromocao()" class="btn-glass-flutuante"><i class="fas fa-plus"></i><span>Nova Promoção</span></button>
                         <div id="formPromocao" class="form-glass" style="display:none;">
@@ -421,22 +422,19 @@
                                 <div class="input-group"><label>Quantidade</label><input type="number" id="quantidadePromocao" min="1" value="10"></div>
                                 <div class="input-group"><label>Início</label><input type="datetime-local" id="inicioPromocao"></div>
                                 <div class="input-group"><label>Fim</label><input type="datetime-local" id="fimPromocao"></div>
-                                <div class="input-group" style="grid-column: span 2;"><label>Prêmio</label><input type="text" id="premioPromocao" placeholder="Ex: R$ 500,00 + Folga"></div>
+                                <div class="input-group" style="grid-column: span 2;"><label>Prêmio</label><input type="text" id="premioPromocao" placeholder="Ex: R$ 200,00 + Folga"></div>
                             </div>
                             <div class="form-actions">
                                 <button onclick="cadastrarPromocao()" class="btn-glass-primary"><i class="fas fa-save"></i> Salvar Promoção</button>
-                                <button onclick="fecharFormPromocao()" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
+                                <button onclick="document.getElementById('formPromocao').style.display='none'" class="btn-glass-danger"><i class="fas fa-times"></i> Cancelar</button>
                             </div>
                         </div>
-                        <div class="table-glass">
-                            <div class="table-header"><h3>Promoções Cadastradas</h3></div>
-                            <div class="table-responsive">
-                                <table id="tabelaPromocoes">
-                                    <thead><tr><th>Tipo</th><th>Quantidade</th><th>Período</th><th>Prêmio</th><th>Status</th><th>Ações</th></tr></thead>
-                                    <tbody id="tbodyPromocoes"></tbody>
-                                </table>
-                                <div id="promocoesVazia" style="text-align:center; padding:20px; display:none;">Nenhuma promoção cadastrada</div>
-                            </div>
+                        <div class="table-glass" style="margin-top:20px;">
+                            <table>
+                                <thead><tr><th>Tipo</th><th>Quantidade</th><th>Período</th><th>Prêmio</th><th>Status</th><th>Ações</th></tr></thead>
+                                <tbody id="tabelaPromocoes"></tbody>
+                            </table>
+                            <div id="promocoesVazia" style="text-align:center; padding:20px; display:none;">Nenhuma promoção cadastrada</div>
                         </div>
                     </div>
                 </div>
@@ -447,17 +445,9 @@
         <div id="modalParabens" class="modal-overlay" style="display:none;">
             <div class="modal-glass modal-parabens">
                 <div class="parabens-icon">🎉</div>
-                <h2>ATENÇÃO ADMIN</h2>
+                <h2 id="parabensTitulo">PARABÉNS!</h2>
                 <p id="parabensMensagem"></p>
-                <button onclick="document.getElementById('modalParabens').style.display='none'" class="btn-glass-primary">OK</button>
-            </div>
-        </div>
-        <div id="modalParabensVendedor" class="modal-overlay" style="display:none;">
-            <div class="modal-glass modal-parabens">
-                <div class="parabens-icon">🏆</div>
-                <h2>PARABÉNS!</h2>
-                <p id="parabensVendedorMensagem"></p>
-                <button onclick="document.getElementById('modalParabensVendedor').style.display='none'" class="btn-glass-primary">OK</button>
+                <button onclick="document.getElementById('modalParabens').style.display='none'" class="btn-glass-primary" style="margin-top:20px;">OK</button>
             </div>
         </div>
         <div id="modalEditarUsuario" class="modal-overlay" style="display:none;">
@@ -485,9 +475,9 @@
             <div class="sidebar-brand"><div class="brand-icon"><i class="fas fa-broadcast-tower"></i></div><h2>STAGE</h2><span>TELECOM</span></div>
             <div class="user-profile-glass" id="userInfoVendedor"></div>
             <nav class="nav-glass">
-                <a href="#" onclick="mostrarSecaoVendedor('meusClientes', event)" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
-                <a href="#" onclick="mostrarSecaoVendedor('novoCliente', event)" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
-                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas', event)" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('meusClientes')" class="nav-item active"><i class="fas fa-building"></i><span>Meus Clientes</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('novoCliente')" class="nav-item"><i class="fas fa-user-plus"></i><span>Novo Cliente</span><div class="nav-indicator"></div></a>
+                <a href="#" onclick="mostrarSecaoVendedor('minhasVendas')" class="nav-item"><i class="fas fa-chart-bar"></i><span>Minhas Vendas</span><div class="nav-indicator"></div></a>
             </nav>
             <button onclick="logout()" class="btn-glass-logout"><i class="fas fa-power-off"></i><span>Encerrar Sessão</span></button>
         </aside>
@@ -504,7 +494,7 @@
                         <div class="mini-stat"><span class="mini-label">Ativos</span><span class="mini-value" id="meusAtivos">0</span></div>
                         <div class="mini-stat"><span class="mini-label">Prospectos</span><span class="mini-value" id="meusProspectos">0</span></div>
                     </div>
-                    <div class="table-glass"><table><thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tabelaMeusClientes"></tbody></table></div>
+                    <div class="table-glass"><table><thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tabelaMeusClientes"></tbody></table></div>
                 </div>
                 <div id="secao-novoCliente" class="section-hidden">
                     <div class="form-glass">
@@ -524,6 +514,14 @@
                 </div>
             </div>
         </main>
+    </div>
+    <div id="modalParabensVendedor" class="modal-overlay" style="display:none;">
+        <div class="modal-glass modal-parabens">
+            <div class="parabens-icon">🎉</div>
+            <h2>PARABÉNS!</h2>
+            <p id="parabensVendedorMensagem"></p>
+            <button onclick="document.getElementById('modalParabensVendedor').style.display='none'" class="btn-glass-primary" style="margin-top:20px;">OK</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
