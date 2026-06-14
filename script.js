@@ -55,7 +55,6 @@ let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
 let vendaSendoVisualizada = null;
 let novasVendas = true;
-let ultimoIdAtivacao = DB.ativacoes.length ? Math.max(...DB.ativacoes.map(a => a.id)) : 0;
 
 // ===== RELÓGIO GLOBAL =====
 setInterval(() => {
@@ -502,24 +501,39 @@ function fecharModalAtivacao() {
     carregarDashboard();
 }
 
-// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL VIBRATÓRIO) =====
-let intervaloNovasVendas = null;
-function iniciarVerificacaoNovasVendas() {
-    if (intervaloNovasVendas) clearInterval(intervaloNovasVendas);
-    intervaloNovasVendas = setInterval(() => {
-        if (!sessao || sessao.tipo !== 'admin') return;
-        const idsAtuais = DB.ativacoes.map(a => a.id);
-        const maxId = idsAtuais.length ? Math.max(...idsAtuais) : 0;
-        if (maxId > ultimoIdAtivacao) {
-            ultimoIdAtivacao = maxId;
-            mostrarModalNovaVenda();
+// ========== SINCRONIZAÇÃO EM TEMPO REAL (STORAGE EVENT) ==========
+window.addEventListener('storage', function(e) {
+    if (e.key === 'stage_db') {
+        // Atualiza o DB local com o novo valor
+        DB = JSON.parse(e.newValue);
+        // Se estiver na tela de admin, atualiza dashboard e ativações
+        if (sessao && sessao.tipo === 'admin') {
             carregarDashboard();
             if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
                 carregarAtivacoes();
             }
+            // Se houver novas vendas, mostra modal
+            const idsAtuais = DB.ativacoes.map(a => a.id);
+            const maxId = idsAtuais.length ? Math.max(...idsAtuais) : 0;
+            if (maxId > ultimoIdAtivacao) {
+                ultimoIdAtivacao = maxId;
+                mostrarModalNovaVenda();
+            }
         }
-    }, 3000);
-}
+        // Atualiza chat
+        if (sessao) {
+            atualizarBadge();
+            if (document.getElementById('chatSidebar')?.style.display !== 'none') {
+                atualizarListaConversas();
+            }
+            if (chatConversationAtual && document.getElementById('chatMain')?.style.display === 'flex') {
+                renderizarMensagensChat();
+            }
+        }
+    }
+});
+
+// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL VIBRATÓRIO) =====
 function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
@@ -1192,7 +1206,7 @@ function iniciarPollingChat() {
         if (chatConversationAtual && document.getElementById('chatMain').style.display === 'flex') {
             renderizarMensagensChat();
         }
-    }, 2000);
+    }, 1000);
 }
 function toggleChat() {
     const widget = document.getElementById('chatWidget');
