@@ -391,14 +391,14 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES =====
+// ===== ATIVAÇÕES (com coluna "Tratando" dinâmica e modal compacto) =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
     tabela.innerHTML = DB.ativacoes.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-        const tratando = a.tratandoPor || (vendaSendoVisualizada === a.id ? sessao.nome : '—');
+        const tratando = a.tratandoPor || '—';
         return `<tr>
             <td><strong>${a.nomeCliente}</strong></td>
             <td>${a.produto}</td>
@@ -457,6 +457,7 @@ function abrirModalAtivacao(id) {
             <div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div>
         </div>`;
     document.getElementById('modalAtivacao').style.display = 'flex';
+    carregarAtivacoes(); // atualiza "Tratando" imediatamente
 }
 function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
@@ -483,6 +484,12 @@ function fecharModalAtivacao() {
         a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
         a.vencimento = document.getElementById('editVencimento')?.value || '';
         a.plano = document.getElementById('editPlano')?.value || '';
+        // limpa o "tratandoPor" para que suma da coluna
+        a.tratandoPor = null;
+        // se foi aprovado, garante que tenha instalacaoStatus padrão se não existir
+        if (a.status === 'Aprovado' && !a.instalacaoStatus) {
+            a.instalacaoStatus = 'Aguardando';
+        }
         salvarDB();
     }
     document.getElementById('modalAtivacao').style.display = 'none';
@@ -891,9 +898,68 @@ function carregarControleVendas() {
             <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
             <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
             <td>${new Date(a.data+'T00:00:00').toLocaleDateString('pt-BR')}</td>
-            <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
+            <td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
         </tr>`;
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
+}
+
+function carregarInstalacoes() {
+    const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a,b) => b.id - a.id);
+    const tabela = document.getElementById('tabelaInstalacoes');
+    if (!tabela) return;
+    tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
+        const statusInstalacao = a.instalacaoStatus || 'Aguardando';
+        return `<tr>
+            <td><strong>${a.nomeCliente}</strong></td>
+            <td>${a.plano}</td>
+            <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
+            <td>
+                <select onchange="alterarStatusInstalacao(${a.id}, this.value)" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:4px 8px;border-radius:6px;">
+                    <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
+                    <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''}>Instalado</option>
+                    <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+                </select>
+            </td>
+            <td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;">Nenhuma venda aprovada para instalação</td></tr>';
+}
+function alterarStatusInstalacao(id, novoStatus) {
+    const a = DB.ativacoes.find(x => x.id === id);
+    if (a) {
+        a.instalacaoStatus = novoStatus;
+        salvarDB();
+    }
+}
+
+// modal somente leitura para vendedor
+function abrirModalVisualizacao(id) {
+    const a = DB.ativacoes.find(x => x.id === id);
+    if (!a) return;
+    const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
+    let html = `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;">`;
+    html += `<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Status:</strong> <span style="color:${flag.cor}">${a.status}</span></span>`;
+    html += `<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Plano:</strong> ${a.plano}</span>`;
+    html += `<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ${parseFloat(a.valor).toFixed(2)}</span>`;
+    html += `</div>`;
+    html += `<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:8px;">`;
+    const campos = [
+        ['Nome Completo', a.nomeCompleto], ['Nome da Mãe', a.nomeMae], ['Data Nasc.', a.dataNasc],
+        ['CPF/CNPJ', a.cpfCnpj], ['Razão Social', a.razaoSocial], ['Email', a.email],
+        ['CEP', a.cep], ['UF', a.uf], ['Endereço', a.endereco], ['Bairro', a.bairro],
+        ['Cidade', a.cidade], ['N°/Compl.', a.numeroComplemento], ['Referência', a.referencia],
+        ['Telefone', a.telefone], ['WhatsApp', a.whatsapp], ['Velocidade', a.velocidade],
+        ['Forma Pag.', a.formaPagamento], ['Vencimento', a.vencimento]
+    ];
+    campos.forEach(([label, valor]) => {
+        html += `<div class="input-group"><label>${label}</label><input value="${valor||''}" readonly style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);"></div>`;
+    });
+    html += `</div>`;
+    document.getElementById('conteudoModalVisualizacao').innerHTML = html;
+    document.getElementById('modalVisualizacao').style.display = 'flex';
+}
+function fecharModalVisualizacao() {
+    document.getElementById('modalVisualizacao').style.display = 'none';
 }
 
 function mostrarSecaoVendedor(e, secao) {
@@ -901,10 +967,11 @@ function mostrarSecaoVendedor(e, secao) {
     const el = document.getElementById(`secao-${secao}`); if(el){ el.style.display = 'block'; el.className = 'section-active'; }
     document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
     if (e && e.currentTarget) { e.currentTarget.classList.add('active'); }
-    const titulos = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas' };
+    const titulos = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
     if (secao === 'inicio') carregarInicioVendedor();
     if (secao === 'controleVendas') carregarControleVendas();
+    if (secao === 'instalacoes') carregarInstalacoes();
 }
 
 // ===== CHAT (completo) =====
