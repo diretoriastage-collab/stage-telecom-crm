@@ -942,7 +942,20 @@ function iniciarChat() {
     atualizarBadge();
     iniciarPollingChat();
 }
+// ===== LIMPEZA DE MENSAGENS ANTIGAS =====
+function limparMensagensAntigas(dias = 30) {
+    const agora = Date.now();
+    const limite = agora - (dias * 24 * 60 * 60 * 1000);
+    const antes = DB.chatMessages.length;
+    DB.chatMessages = DB.chatMessages.filter(m => m.timestamp > limite);
+    if (DB.chatMessages.length < antes) {
+        salvarDB();
+        console.log(`🧹 Chat limpo: ${antes - DB.chatMessages.length} mensagens removidas (mais de ${dias} dias).`);
+    }
+}
 
+// Executar automaticamente ao iniciar (limpa mensagens com mais de 90 dias)
+limparMensagensAntigas(90);
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
     const lembrar = localStorage.getItem('stage_remember');
