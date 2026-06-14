@@ -180,7 +180,39 @@
                         <div class="modal-glass modal-ativacao-compacto">
                             <h3><i class="fas fa-search"></i> Detalhes da Ativação</h3>
                             <div id="conteudoModalAtivacao"></div>
-                            <div class="form-actions" style="margin-top:15px;"><button onclick="fecharModalAtivacao()" class="btn-glass-danger">Fechar</button></div>
+                            <div class="form-actions" style="margin-top:15px; justify-content: space-between;">
+                                <button onclick="abrirModalInfoAdicional()" class="btn-glass-lixeira"><i class="fas fa-info-circle"></i> Informações Adicionais</button>
+                                <button onclick="fecharModalAtivacao()" class="btn-glass-danger">Fechar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- MODAL INFORMAÇÕES ADICIONAIS -->
+                    <div id="modalInfoAdicional" class="modal-overlay" style="display:none;">
+                        <div class="modal-glass" style="max-width:500px;">
+                            <h3><i class="fas fa-info-circle"></i> Informações Adicionais</h3>
+                            <div class="form-grid">
+                                <div class="input-group">
+                                    <label>Contrato</label>
+                                    <input type="text" id="infoContrato" placeholder="Número do contrato">
+                                </div>
+                                <div class="input-group">
+                                    <label>Data</label>
+                                    <input type="date" id="infoData">
+                                </div>
+                                <div class="input-group" style="grid-column: span 2;">
+                                    <label>Período de Instalação</label>
+                                    <select id="infoPeriodo">
+                                        <option value="">Selecione</option>
+                                        <option value="08:00 às 12:00">08:00 às 12:00</option>
+                                        <option value="12:00 às 15:00">12:00 às 15:00</option>
+                                        <option value="15:00 às 18:00">15:00 às 18:00</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-actions" style="margin-top:20px;">
+                                <button onclick="salvarInfoAdicional()" class="btn-glass-primary"><i class="fas fa-check"></i> OK</button>
+                                <button onclick="fecharModalInfoAdicional()" class="btn-glass-danger">Cancelar</button>
+                            </div>
                         </div>
                     </div>
                     <div id="modalStatus" class="modal-overlay" style="display:none;"><div class="modal-glass" style="max-width:600px;"><h3><i class="fas fa-tags"></i> Gerenciar Flags de Status</h3><div id="listaStatusFlags" style="margin-bottom:20px;"></div><div style="display:flex;gap:10px;margin-bottom:15px;"><input type="text" id="novoStatusNome" placeholder="Nome do status" style="flex:2;"><input type="color" id="novoStatusCor" value="#ff4757" style="flex:1;height:40px;"><button onclick="adicionarStatusFlag()" class="btn-glass-primary"><i class="fas fa-plus"></i></button></div><div class="form-actions"><button onclick="fecharModalStatus()" class="btn-glass-danger">Fechar</button></div></div></div>
@@ -314,7 +346,7 @@
                     </div>
                 </div>
 
-                <!-- ENVIAR VENDA (completo com novos campos) -->
+                <!-- ENVIAR VENDA -->
                 <div id="secao-enviarVenda" class="section-hidden">
                     <div class="form-glass">
                         <h3><i class="fas fa-paper-plane"></i> Nova Venda</h3>
