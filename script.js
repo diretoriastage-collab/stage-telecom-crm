@@ -31,7 +31,12 @@ if (!DB) {
         promocoes: [],
         notificacoes: [],
         chatMessages: [],
-        produtos: ["Básico", "Empresarial", "Premium", "Ultra"]
+        produtos: ["Básico", "Empresarial", "Premium", "Ultra"],
+        opcoesVenda: {
+            velocidades: ["10MB", "50MB", "100MB", "300MB"],
+            formasPagamento: ["Boleto", "Cartão", "PIX"],
+            valores: ["79.90", "99.90", "149.90", "199.90"]
+        }
     };
 }
 
@@ -43,6 +48,7 @@ DB.metas.produtos = DB.metas.produtos || [];
 DB.metas.instalacoes = DB.metas.instalacoes || [];
 DB.chatMessages = DB.chatMessages || [];
 DB.produtos = DB.produtos || ["Básico", "Empresarial", "Premium", "Ultra"];
+DB.opcoesVenda = DB.opcoesVenda || { velocidades: [], formasPagamento: [], valores: [] };
 if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
     DB.statusFlags.push({ id: Date.now(), nome: 'Aprovado', cor: '#2ed573' });
 }
@@ -137,23 +143,15 @@ function mostrarVendedor() {
 function obterVendasAprovadas() {
     return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false);
 }
-function obterVendasAprovadasPorData(data) {
-    return obterVendasAprovadas().filter(a => a.data === data);
-}
+function obterVendasAprovadasPorData(data) { return obterVendasAprovadas().filter(a => a.data === data); }
 function obterVendasAprovadasPorMes(ano, mes) {
     return obterVendasAprovadas().filter(a => {
         const [aAno, aMes] = a.data.split('-').map(Number);
         return aAno === ano && aMes === mes;
     });
 }
-function obterVendasAprovadasHoje() {
-    const hoje = new Date().toISOString().split('T')[0];
-    return obterVendasAprovadasPorData(hoje);
-}
-function obterVendasAprovadasMesAtual() {
-    const hoje = new Date();
-    return obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1);
-}
+function obterVendasAprovadasHoje() { const hoje = new Date().toISOString().split('T')[0]; return obterVendasAprovadasPorData(hoje); }
+function obterVendasAprovadasMesAtual() { const hoje = new Date(); return obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1); }
 function obterVendasAprovadasMesAnterior() {
     const hoje = new Date();
     const mes = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
@@ -377,7 +375,7 @@ function salvarEdicaoUsuario(){
     salvarDB(); carregarUsuarios(); fecharModalEditar();
 }
 
-// ===== LIXEIRA (com coluna Equipe) =====
+// ===== LIXEIRA =====
 function toggleLixeira(){ const l=document.getElementById('lixeiraUsuarios'); if(l.style.display==='none'||l.style.display===''){ carregarLixeira(); l.style.display='block'; } else l.style.display='none'; }
 function carregarLixeira(){
     const agora = new Date();
@@ -393,7 +391,7 @@ function carregarLixeira(){
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
 function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== ATIVAÇÕES (com filtro funcional) =====
+// ===== ATIVAÇÕES =====
 function carregarAtivacoes() {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
@@ -502,7 +500,7 @@ function fecharModalAtivacao() {
     carregarDashboard();
 }
 
-// ========== SINCRONIZAÇÃO EM TEMPO REAL (STORAGE EVENT) ==========
+// ========== SINCRONIZAÇÃO EM TEMPO REAL ==========
 window.addEventListener('storage', function(e) {
     if (e.key === 'stage_db') {
         DB = JSON.parse(e.newValue);
@@ -526,11 +524,16 @@ window.addEventListener('storage', function(e) {
             if (chatConversationAtual && document.getElementById('chatMain')?.style.display === 'flex') {
                 renderizarMensagensChat();
             }
+            // Atualiza dropdowns de venda se a seção estiver ativa
+            if (document.getElementById('secao-enviarVenda')?.classList.contains('section-active')) {
+                carregarOpcoesVenda();
+                carregarSelectProdutos();
+            }
         }
     }
 });
 
-// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL VIBRATÓRIO) =====
+// ===== NOTIFICAÇÃO DE NOVA VENDA =====
 function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
@@ -743,7 +746,7 @@ function gerarPDF() {
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
-// ===== METAS (com gerenciamento de produtos) =====
+// ===== METAS (com gerenciamento de produtos e opções de venda) =====
 function carregarMetas() {
     document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
     document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
@@ -755,16 +758,21 @@ function carregarMetas() {
     const selectVendedor = document.getElementById('vendedorMetaInstalacao');
     selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
     carregarTabelaProdutos();
+    // Carregar opções de venda
+    carregarOpcoesVendaAdmin();
 }
+
 function carregarSelectProdutos() {
     const select = document.getElementById('produtoMetaSelect');
-    if (!select) return;
-    select.innerHTML = DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
+    if (select) {
+        select.innerHTML = DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
     const selectVenda = document.getElementById('vPlano');
     if (selectVenda) {
         selectVenda.innerHTML = '<option value="">Selecione o plano</option>' + DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
     }
 }
+
 function adicionarMetaProduto() {
     const produto = document.getElementById('produtoMetaSelect').value;
     const diaria = parseInt(document.getElementById('produtoDiaria').value) || 0;
@@ -833,6 +841,45 @@ function excluirProduto(index) {
         salvarDB();
         carregarTabelaProdutos();
         carregarSelectProdutos();
+    }
+}
+
+// Opções de Venda (Admin)
+function carregarOpcoesVendaAdmin() {
+    const vel = document.getElementById('opcoesVelocidade');
+    const formPag = document.getElementById('opcoesFormaPagamento');
+    const val = document.getElementById('opcoesValor');
+    if (vel) vel.value = (DB.opcoesVenda.velocidades || []).join(', ');
+    if (formPag) formPag.value = (DB.opcoesVenda.formasPagamento || []).join(', ');
+    if (val) val.value = (DB.opcoesVenda.valores || []).join(', ');
+}
+
+function salvarOpcoesVenda() {
+    const velRaw = document.getElementById('opcoesVelocidade').value;
+    const formPagRaw = document.getElementById('opcoesFormaPagamento').value;
+    const valRaw = document.getElementById('opcoesValor').value;
+    DB.opcoesVenda.velocidades = velRaw.split(',').map(v => v.trim()).filter(v => v);
+    DB.opcoesVenda.formasPagamento = formPagRaw.split(',').map(v => v.trim()).filter(v => v);
+    DB.opcoesVenda.valores = valRaw.split(',').map(v => v.trim()).filter(v => v);
+    salvarDB();
+    alert('✅ Opções de venda salvas!');
+    // Atualizar imediatamente os dropdowns do vendedor se a página estiver aberta
+    carregarOpcoesVenda();
+}
+
+// Popula dropdowns do vendedor
+function carregarOpcoesVenda() {
+    const selVel = document.getElementById('vVelocidade');
+    const selForm = document.getElementById('vFormaPagamento');
+    const selVal = document.getElementById('vValor');
+    if (selVel) {
+        selVel.innerHTML = '<option value="">Selecione a velocidade</option>' + (DB.opcoesVenda.velocidades || []).map(v => `<option value="${v}">${v}</option>`).join('');
+    }
+    if (selForm) {
+        selForm.innerHTML = '<option value="">Forma de Pagamento</option>' + (DB.opcoesVenda.formasPagamento || []).map(v => `<option value="${v}">${v}</option>`).join('');
+    }
+    if (selVal) {
+        selVal.innerHTML = '<option value="">Selecione o valor</option>' + (DB.opcoesVenda.valores || []).map(v => `<option value="${v}">${v}</option>`).join('');
     }
 }
 
@@ -947,6 +994,22 @@ function carregarInicioVendedor() {
     document.getElementById('barraProgressoVendedor').style.width = `${percentual}%`;
 }
 
+function buscarCep() {
+    const cep = document.getElementById('vCep').value.replace(/\D/g, '');
+    if (cep.length !== 8) return alert('Digite um CEP válido com 8 dígitos.');
+    fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.erro) { alert('CEP não encontrado.'); return; }
+            document.getElementById('vEndereco').value = data.logradouro || '';
+            document.getElementById('vBairro').value = data.bairro || '';
+            document.getElementById('vCidade').value = data.localidade || '';
+            document.getElementById('vUf').value = data.uf || '';
+            document.getElementById('vNumeroComplemento').focus();
+        })
+        .catch(() => alert('Erro ao buscar CEP.'));
+}
+
 function enviarVenda() {
     if (!sessao) { alert('Sessão expirada. Faça login novamente.'); return; }
     const campos = {
@@ -966,8 +1029,8 @@ function enviarVenda() {
         telefone: document.getElementById('vTelefone').value.trim(),
         whatsapp: document.getElementById('vWhatsapp').value.trim(),
         valor: document.getElementById('vValor').value,
-        velocidade: document.getElementById('vVelocidade').value.trim(),
-        formaPagamento: document.getElementById('vFormaPagamento').value.trim(),
+        velocidade: document.getElementById('vVelocidade').value,
+        formaPagamento: document.getElementById('vFormaPagamento').value,
         vencimento: document.getElementById('vVencimento').value,
         plano: document.getElementById('vPlano').value
     };
@@ -1079,11 +1142,12 @@ function mostrarSecaoVendedor(e, secao) {
     const titulos = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
     if (secao === 'inicio') carregarInicioVendedor();
+    if (secao === 'enviarVenda') { carregarOpcoesVenda(); carregarSelectProdutos(); }
     if (secao === 'controleVendas') carregarControleVendas();
     if (secao === 'instalacoes') carregarInstalacoes();
 }
 
-// ===== CHAT (SINCRONIZADO, COM BOTÃO DE ENCERRAR CONVERSA) =====
+// ===== CHAT =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
