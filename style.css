@@ -343,6 +343,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .chat-input-area input { flex: 1; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; color: #fff; font-size: 13px; }
 .chat-input-area input:focus { outline: none; border-color: var(--primary); }
 
+/* Corrigir visibilidade do select de chat privado */
+#privateUserSelect,
+#privateUserSelect option {
+    color: #ffffff !important;
+    background-color: #1a0a0a !important;
+}
+
 /* ===== RESPONSIVIDADE ===== */
 @media (max-width: 1400px) { .dashboard-middle-row { grid-template-columns: 1fr; } }
 @media (max-width: 1200px) { .dashboard-top-row { flex-direction: column; } .clock-panel { flex: 0 0 auto; } }
@@ -384,10 +391,4 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .form-grid input, .form-grid select, .form-grid textarea { padding: 10px; font-size: 12px; }
     .chat-widget { left: 10px; bottom: 10px; }
     .chat-panel { width: 260px; }
-}
-/* Corrigir visibilidade do select de chat privado */
-#privateUserSelect,
-#privateUserSelect option {
-    color: #ffffff !important;
-    background-color: #1a0a0a !important;
 }
