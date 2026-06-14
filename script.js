@@ -545,7 +545,7 @@ function fecharModalAtivacao() {
 // ===== ENVIAR PARA GOOGLE SHEETS =====
 function enviarParaGoogleSheets(venda) {
     const payload = {
-        status: venda.status,
+        status: venda.status || 'Aprovado',
         nomeCliente: venda.nomeCompleto || venda.nomeCliente || '',
         cpf: venda.cpf || '',
         dataNasc: venda.dataNasc ? new Date(venda.dataNasc+'T00:00:00').toLocaleDateString('pt-BR') : '',
@@ -580,14 +580,29 @@ function enviarParaGoogleSheets(venda) {
         dataAprovacao: venda.data ? new Date(venda.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
 
-    fetch(GOOGLE_SHEET_WEBAPP_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).catch(err => console.warn('Falha ao enviar para Google Sheets:', err));
-}
+    // Constrói query string
+    const params = new URLSearchParams(payload);
+    params.append('acao', 'enviarVenda');
+    params.append('callback', 'jsonpCallback');
 
+    // Cria script dinâmico para JSONP
+    const script = document.createElement('script');
+    const callbackName = 'jsonpCallback_' + Date.now();
+    script.src = GOOGLE_SHEET_WEBAPP_URL + '?' + params.toString().replace('jsonpCallback', callbackName);
+
+    // Define callback global temporário
+    window[callbackName] = function(res) {
+        if (res && res.ok) {
+            console.log('✅ Venda enviada para Google Sheets');
+        } else {
+            console.warn('⚠️ Falha ao enviar para Google Sheets:', res);
+        }
+        document.body.removeChild(script);
+        delete window[callbackName];
+    };
+
+    document.body.appendChild(script);
+}
 // ===== VENDAS APROVADAS =====
 function carregarVendasAprovadas() {
     const tabela = document.getElementById('tabelaVendasAprovadas');
