@@ -129,73 +129,88 @@ function mostrarVendedor() {
     iniciarChat();
 }
 
-// ===== DADOS DE VENDAS (SIMULADOS) =====
+// ========== NOVA LÓGICA DE VENDAS (BASEADA EM ATIVAÇÕES APROVADAS) ==========
+function obterVendasAprovadas() {
+    return DB.ativacoes.filter(a => a.status === 'Aprovado');
+}
+
+function obterVendasAprovadasPorData(data) {
+    return obterVendasAprovadas().filter(a => a.data === data);
+}
+
+function obterVendasAprovadasPorMes(ano, mes) {
+    return obterVendasAprovadas().filter(a => {
+        const [aAno, aMes] = a.data.split('-').map(Number);
+        return aAno === ano && aMes === mes;
+    });
+}
+
+function obterVendasAprovadasHoje() {
+    const hoje = new Date().toISOString().split('T')[0];
+    return obterVendasAprovadasPorData(hoje);
+}
+
+function obterVendasAprovadasMesAtual() {
+    const hoje = new Date();
+    return obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1);
+}
+
+function obterVendasAprovadasMesAnterior() {
+    const hoje = new Date();
+    const mes = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
+    const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
+    return obterVendasAprovadasPorMes(ano, mes);
+}
+
+// Para comparativo diário: mesmo dia do mês passado
+function obterVendasAprovadasDiaPassado() {
+    const hoje = new Date();
+    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, hoje.getDate());
+    const data = mesPassado.toISOString().split('T')[0];
+    return obterVendasAprovadasPorData(data);
+}
+
+// Substitui as funções de dados simulados
 function gerarDadosVendas() {
-    const hoje = new Date(); const dataHoje = hoje.toISOString().split('T')[0];
-    let vendas = JSON.parse(localStorage.getItem('vendas_diarias')) || [];
-    if (!vendas.length || vendas[0]?.data !== dataHoje) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9},{nome:'Ultra',valor:1499.9}];
-        vendas = []; const num = Math.floor(Math.random()*8)+3;
-        for (let i=0;i<num;i++) {
-            const v = vendedores[Math.floor(Math.random()*vendedores.length)];
-            const p = planos[Math.floor(Math.random()*planos.length)];
-            vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:dataHoje, hora:`${String(Math.floor(Math.random()*24)).padStart(2,'0')}:${String(Math.floor(Math.random()*60)).padStart(2,'0')}`});
-        }
-        localStorage.setItem('vendas_diarias', JSON.stringify(vendas));
-    }
-    return vendas;
+    return obterVendasAprovadasHoje().map(v => ({
+        id: v.id,
+        vendedor_id: v.vendedor_id,
+        vendedor_nome: v.vendedorNome,
+        plano: v.produto,
+        valor: parseFloat(v.valor) || 0,
+        data: v.data,
+        hora: '00:00'
+    }));
 }
 function gerarVendasDiaPassado() {
-    const hoje = new Date(); const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate()); const data = mesPassado.toISOString().split('T')[0];
-    let vendas = JSON.parse(localStorage.getItem('vendas_mes_passado_dia')) || [];
-    if (!vendas.length || vendas[0]?.data !== data) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
-        vendas = []; const num = Math.floor(Math.random()*6)+2;
-        for (let i=0;i<num;i++) {
-            const v = vendedores[Math.floor(Math.random()*vendedores.length)];
-            const p = planos[Math.floor(Math.random()*planos.length)];
-            vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data});
-        }
-        localStorage.setItem('vendas_mes_passado_dia', JSON.stringify(vendas));
-    }
-    return vendas;
+    return obterVendasAprovadasDiaPassado().map(v => ({
+        id: v.id,
+        vendedor_id: v.vendedor_id,
+        vendedor_nome: v.vendedorNome,
+        plano: v.produto,
+        valor: parseFloat(v.valor) || 0,
+        data: v.data
+    }));
 }
 function gerarVendasMesAtual() {
-    const hoje = new Date(); const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
-    let vendas = JSON.parse(localStorage.getItem('vendas_mes_atual')) || [];
-    if (!vendas.length || !vendas[0]?.data.startsWith(mesAtual)) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
-        vendas = []; const num = Math.floor(Math.random()*30)+15;
-        for (let i=0;i<num;i++) {
-            const v = vendedores[Math.floor(Math.random()*vendedores.length)];
-            const p = planos[Math.floor(Math.random()*planos.length)];
-            const dia = String(Math.floor(Math.random()*hoje.getDate())+1).padStart(2,'0');
-            vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`${mesAtual}-${dia}`});
-        }
-        localStorage.setItem('vendas_mes_atual', JSON.stringify(vendas));
-    }
-    return vendas;
+    return obterVendasAprovadasMesAtual().map(v => ({
+        id: v.id,
+        vendedor_id: v.vendedor_id,
+        vendedor_nome: v.vendedorNome,
+        plano: v.produto,
+        valor: parseFloat(v.valor) || 0,
+        data: v.data
+    }));
 }
 function gerarVendasMesAnterior() {
-    const hoje = new Date(); const mesAnt = hoje.getMonth()===0?12:hoje.getMonth(); const anoAnt = hoje.getMonth()===0?hoje.getFullYear()-1:hoje.getFullYear();
-    const mesKey = `${anoAnt}-${String(mesAnt).padStart(2,'0')}`;
-    let vendas = JSON.parse(localStorage.getItem('vendas_mes_anterior')) || [];
-    if (!vendas.length || !vendas[0]?.data.startsWith(mesKey)) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
-        vendas = []; const num = Math.floor(Math.random()*25)+10;
-        for (let i=0;i<num;i++) {
-            const v = vendedores[Math.floor(Math.random()*vendedores.length)];
-            const p = planos[Math.floor(Math.random()*planos.length)];
-            const dia = String(Math.floor(Math.random()*28)+1).padStart(2,'0');
-            vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`${mesKey}-${dia}`});
-        }
-        localStorage.setItem('vendas_mes_anterior', JSON.stringify(vendas));
-    }
-    return vendas;
+    return obterVendasAprovadasMesAnterior().map(v => ({
+        id: v.id,
+        vendedor_id: v.vendedor_id,
+        vendedor_nome: v.vendedorNome,
+        plano: v.produto,
+        valor: parseFloat(v.valor) || 0,
+        data: v.data
+    }));
 }
 
 // ===== DASHBOARD ADMIN =====
@@ -484,9 +499,7 @@ function fecharModalAtivacao() {
         a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
         a.vencimento = document.getElementById('editVencimento')?.value || '';
         a.plano = document.getElementById('editPlano')?.value || '';
-        // limpa o "tratandoPor" para que suma da coluna
         a.tratandoPor = null;
-        // se foi aprovado, garante que tenha instalacaoStatus padrão se não existir
         if (a.status === 'Aprovado' && !a.instalacaoStatus) {
             a.instalacaoStatus = 'Aguardando';
         }
@@ -495,6 +508,10 @@ function fecharModalAtivacao() {
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
+    // Atualiza o dashboard para refletir a nova contagem
+    if (document.getElementById('secao-dashboard')?.classList.contains('section-active')) {
+        carregarDashboard();
+    }
 }
 
 // ===== GERENCIAR STATUS =====
@@ -539,6 +556,7 @@ function gerarVendasQuinzenaAnterior() {
         vendas = gerarVendasMesAnterior().filter(v => { const [y, m, d] = v.data.split('-').map(Number); return y === ano && m === mesAnterior && d >= 16; });
     } else { vendas = gerarVendasMesAtual().filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); }
     if (vendas.length === 0) {
+        // fallback com dados simulados somente se não houver vendas reais
         const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
         const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}];
         const num = Math.floor(Math.random()*12)+4;
@@ -764,15 +782,15 @@ function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
     return vendas;
 }
 function gerarVendasParaData(data) {
-    let vendas = JSON.parse(localStorage.getItem(`vendas_${data}`)) || [];
-    if (!vendas.length) {
-        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
-        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9},{nome:'Ultra',valor:1499.9}];
-        const num = Math.floor(Math.random()*5)+1;
-        for (let i=0;i<num;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data}); }
-        localStorage.setItem(`vendas_${data}`, JSON.stringify(vendas));
-    }
-    return vendas;
+    // agora usa as vendas reais aprovadas para aquela data
+    return obterVendasAprovadasPorData(data).map(v => ({
+        id: v.id,
+        vendedor_id: v.vendedor_id,
+        vendedor_nome: v.vendedorNome,
+        plano: v.produto,
+        valor: parseFloat(v.valor) || 0,
+        data: v.data
+    }));
 }
 function verificarVencedoresPromocao(promocao) {
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt);
