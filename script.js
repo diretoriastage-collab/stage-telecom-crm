@@ -1,6 +1,5 @@
 // ============================================
 // STAGE TELECOM CRM - SCRIPT COMPLETO FINAL
-// COM PROMOÇÕES COMO MENU INDEPENDENTE
 // ============================================
 let DB = JSON.parse(localStorage.getItem('stage_db'));
 
@@ -44,13 +43,13 @@ DB.metas = DB.metas || { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 15
 DB.metas.produtos = DB.metas.produtos || [];
 DB.metas.instalacoes = DB.metas.instalacoes || [];
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
+
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
 let sessao = JSON.parse(localStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
 
-// ===== RELÓGIO =====
 setInterval(() => {
     const agora = new Date();
     const diasSemana = ['DOMINGO','SEGUNDA','TERÇA','QUARTA','QUINTA','SEXTA','SÁBADO'];
@@ -65,7 +64,6 @@ setInterval(() => {
     ['periodoDia','periodoDiaAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = periodo; });
 }, 1000);
 
-// ===== LOGIN =====
 function fazerLogin() {
     const usuario = document.getElementById('usuario').value.trim();
     const senha = document.getElementById('senha').value.trim();
@@ -86,6 +84,7 @@ function fazerLogin() {
         document.getElementById('senha').focus();
     }
 }
+
 function logout() {
     localStorage.removeItem('stage_session');
     sessao = null;
@@ -93,6 +92,7 @@ function logout() {
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'none';
 }
+
 function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
@@ -204,9 +204,7 @@ function carregarVendasDiarias() {
     document.getElementById('realizadoMetaDiaria').textContent = vendasHoje.length;
     document.getElementById('faltamMetaDiaria').textContent = Math.max(meta - vendasHoje.length, 0);
     document.getElementById('metaDiaria').textContent = meta;
-
-    const ranking = {};
-    vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
+    const ranking = {}; vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
     const rankingArr = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas);
     const rankingEl = document.getElementById('rankingVendedores');
     rankingEl.innerHTML = rankingArr.length ? rankingArr.map((r,i)=>{
@@ -214,9 +212,7 @@ function carregarVendasDiarias() {
         const medal=pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos;
         return `<div class="ranking-item"><div class="ranking-posicao ${cls}">${medal}</div><div class="ranking-info"><span class="ranking-nome">${r.nome}</span><span class="ranking-vendas">${r.vendas} vendas</span></div><span class="ranking-pontos">${r.vendas}</span></div>`;
     }).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Nenhuma venda hoje</p>';
-
-    const produtos = {};
-    vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
+    const produtos = {}; vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
     const prodArr = Object.values(produtos).sort((a,b)=>b.qtd-a.qtd);
     const maxQtd = prodArr[0]?.qtd||1;
     const prodEl = document.getElementById('produtosVendidos');
@@ -287,20 +283,13 @@ function mostrarSecao(secao) {
     const el = document.getElementById(`secao-${secao}`); if(el){el.style.display='block';el.className='section-active';}
     document.querySelectorAll('.nav-item').forEach(a=>a.classList.remove('active'));
     const nav = document.querySelector(`[data-section="${secao}"]`); if(nav) nav.classList.add('active');
-    const titles = {
-        dashboard:'📊 Dashboard', 
-        cadastro:'👥 Cadastro', 
-        ativacoes:'⚡ Ativações', 
-        relatorios:'📈 Relatórios', 
-        metas:'🎯 Metas',
-        promocoes:'🎁 Promoções'
-    };
-    document.getElementById('tituloSecao').innerHTML = titles[secao] || secao;
+    document.getElementById('tituloSecao').innerHTML = {
+        dashboard:'📊 Dashboard', cadastro:'👥 Cadastro', ativacoes:'⚡ Ativações', relatorios:'📈 Relatórios', metas:'🎯 Metas'
+    }[secao]||secao;
     if(secao==='cadastro') carregarUsuarios();
     if(secao==='ativacoes') carregarAtivacoes();
     if(secao==='relatorios') carregarRelatorios();
-    if(secao==='metas') { carregarMetas(); }
-    if(secao==='promocoes') { carregarPromocoes(); }
+    if(secao==='metas') { carregarMetas(); carregarPromocoes(); }
 }
 
 // ===== CADASTRO DE USUÁRIOS =====
@@ -375,15 +364,7 @@ function carregarLixeira(){
     if(!lixeira.length){ tabela.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
     tabela.innerHTML = lixeira.map(v=>{
         const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt))/(1000*60*60*24)));
-        return `<tr>
-            <td><strong>${v.nome}</strong></td>
-            <td>@${v.usuario}</td>
-            <td>${v.email}</td>
-            <td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td>
-            <td><span style="color:#ffa502;">${dias} dia(s)</span></td>
-            <td><button onclick="recuperarUsuario(${v.id})" class="btn-glass-sm">Recuperar</button>
-                <button onclick="excluirPermanentemente(${v.id})" class="btn-glass-sm">Excluir definitivo</button></td>
-        </tr>`;
+        return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td><td><span style="color:#ffa502;">${dias} dia(s)</span></td><td><button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button><button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button></td></tr>`;
     }).join('');
 }
 function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
@@ -395,33 +376,55 @@ function carregarAtivacoes() {
     tabela.innerHTML = DB.ativacoes.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-        return `<tr>
-            <td><strong>${a.nomeCliente}</strong></td>
-            <td>${a.produto}</td>
-            <td>${vendedor?vendedor.nome:'N/A'}</td>
-            <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
-            <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
-        </tr>`;
+        return `<tr><td><strong>${a.nomeCliente}</strong></td><td>${a.produto}</td><td>${vendedor?vendedor.nome:'N/A'}</td><td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td><td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td></tr>`;
     }).join('');
 }
 function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) return;
     const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
-    document.getElementById('conteudoModalAtivacao').innerHTML = `<div class="form-grid"><div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao||''}</textarea></div><div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div><div class="input-group"><label>Ativado por</label><input value="${a.ativadoPor||''}" id="editAtivadoPor"></div><div class="input-group"><label>Confirmado por</label><input value="${a.confirmadoPor||''}" id="editConfirmadoPor"></div><div class="input-group"><label>Aquisição</label><input value="${a.aquisicao||''}" id="editAquisicao"></div><div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade||''}" id="editViabilidade"></div><div class="input-group"><label>Data</label><input value="${a.data||''}" id="editData"></div><div class="input-group"><label>Equipe</label><input value="${a.equipe||''}" id="editEquipe"></div><div class="input-group"><label>Vendedor(a)</label><input value="${a.vendedorNome||''}" id="editVendedorNome"></div><div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto||''}" id="editNomeCompleto"></div><div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae||''}" id="editNomeMae"></div><div class="input-group"><label>Data de Nascimento</label><input value="${a.dataNasc||''}" id="editDataNasc"></div><div class="input-group"><label>CPF/CNPJ</label><input value="${a.cpfCnpj||''}" id="editCpfCnpj"></div><div class="input-group"><label>Razão Social</label><input value="${a.razaoSocial||''}" id="editRazaoSocial"></div><div class="input-group"><label>Email</label><input value="${a.email||''}" id="editEmail"></div><div class="input-group"><label>CEP</label><input value="${a.cep||''}" id="editCep"></div><div class="input-group"><label>UF</label><input value="${a.uf||''}" id="editUf"></div><div class="input-group"><label>Endereço</label><input value="${a.endereco||''}" id="editEndereco"></div><div class="input-group"><label>Bairro</label><input value="${a.bairro||''}" id="editBairro"></div><div class="input-group"><label>Cidade</label><input value="${a.cidade||''}" id="editCidade"></div><div class="input-group"><label>N° / Complemento</label><input value="${a.numeroComplemento||''}" id="editNumeroComplemento"></div><div class="input-group"><label>Referência</label><input value="${a.referencia||''}" id="editReferencia"></div><div class="input-group"><label>Telefone</label><input value="${a.telefone||''}" id="editTelefone"></div><div class="input-group"><label>WhatsApp</label><input value="${a.whatsapp||''}" id="editWhatsapp"></div><div class="input-group"><label>Valor</label><input value="${a.valor||''}" id="editValor"></div><div class="input-group"><label>Velocidade</label><input value="${a.velocidade||''}" id="editVelocidade"></div><div class="input-group"><label>Forma de Pagamento</label><input value="${a.formaPagamento||''}" id="editFormaPagamento"></div><div class="input-group"><label>Vencimento</label><input value="${a.vencimento||''}" id="editVencimento"></div><div class="input-group"><label>Data Instalação</label><input value="${a.dataInstalacao||''}" id="editDataInstalacao"></div><div class="input-group"><label>Contrato</label><input value="${a.contrato||''}" id="editContrato"></div><div class="input-group"><label>Tipo de Venda</label><input value="${a.tipoVenda||''}" id="editTipoVenda"></div><div class="input-group"><label>Agendamento</label><input value="${a.agendamento||''}" id="editAgendamento"></div><div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div><div class="input-group"><label>Data Ag.</label><input value="${a.dataAg||''}" id="editDataAg"></div></div><div class="form-actions"><button onclick="salvarEdicaoAtivacao(${a.id})" class="btn-glass-primary">Salvar</button></div>`;
+    document.getElementById('conteudoModalAtivacao').innerHTML = `
+        <div class="form-grid">
+            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao||''}</textarea></div>
+            <div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div>
+            <div class="input-group"><label>Ativado por</label><input value="${a.ativadoPor||''}" id="editAtivadoPor"></div>
+            <div class="input-group"><label>Confirmado por</label><input value="${a.confirmadoPor||''}" id="editConfirmadoPor"></div>
+            <div class="input-group"><label>Aquisição</label><input value="${a.aquisicao||''}" id="editAquisicao"></div>
+            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade||''}" id="editViabilidade"></div>
+            <div class="input-group"><label>Data</label><input value="${a.data||''}" id="editData"></div>
+            <div class="input-group"><label>Equipe</label><input value="${a.equipe||''}" id="editEquipe"></div>
+            <div class="input-group"><label>Vendedor(a)</label><input value="${a.vendedorNome||''}" id="editVendedorNome"></div>
+            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto||''}" id="editNomeCompleto"></div>
+            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae||''}" id="editNomeMae"></div>
+            <div class="input-group"><label>Data de Nascimento</label><input value="${a.dataNasc||''}" id="editDataNasc"></div>
+            <div class="input-group"><label>CPF/CNPJ</label><input value="${a.cpfCnpj||''}" id="editCpfCnpj"></div>
+            <div class="input-group"><label>Razão Social</label><input value="${a.razaoSocial||''}" id="editRazaoSocial"></div>
+            <div class="input-group"><label>Email</label><input value="${a.email||''}" id="editEmail"></div>
+            <div class="input-group"><label>CEP</label><input value="${a.cep||''}" id="editCep"></div>
+            <div class="input-group"><label>UF</label><input value="${a.uf||''}" id="editUf"></div>
+            <div class="input-group"><label>Endereço</label><input value="${a.endereco||''}" id="editEndereco"></div>
+            <div class="input-group"><label>Bairro</label><input value="${a.bairro||''}" id="editBairro"></div>
+            <div class="input-group"><label>Cidade</label><input value="${a.cidade||''}" id="editCidade"></div>
+            <div class="input-group"><label>N° / Complemento</label><input value="${a.numeroComplemento||''}" id="editNumeroComplemento"></div>
+            <div class="input-group"><label>Referência</label><input value="${a.referencia||''}" id="editReferencia"></div>
+            <div class="input-group"><label>Telefone</label><input value="${a.telefone||''}" id="editTelefone"></div>
+            <div class="input-group"><label>WhatsApp</label><input value="${a.whatsapp||''}" id="editWhatsapp"></div>
+            <div class="input-group"><label>Valor</label><input value="${a.valor||''}" id="editValor"></div>
+            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade||''}" id="editVelocidade"></div>
+            <div class="input-group"><label>Forma de Pagamento</label><input value="${a.formaPagamento||''}" id="editFormaPagamento"></div>
+            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento||''}" id="editVencimento"></div>
+            <div class="input-group"><label>Data Instalação</label><input value="${a.dataInstalacao||''}" id="editDataInstalacao"></div>
+            <div class="input-group"><label>Contrato</label><input value="${a.contrato||''}" id="editContrato"></div>
+            <div class="input-group"><label>Tipo de Venda</label><input value="${a.tipoVenda||''}" id="editTipoVenda"></div>
+            <div class="input-group"><label>Agendamento</label><input value="${a.agendamento||''}" id="editAgendamento"></div>
+            <div class="input-group"><label>Plano</label><input value="${a.plano||''}" id="editPlano"></div>
+            <div class="input-group"><label>Data Ag.</label><input value="${a.dataAg||''}" id="editDataAg"></div>
+        </div>`;
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
 function fecharModalAtivacao() { document.getElementById('modalAtivacao').style.display = 'none'; }
-function salvarEdicaoAtivacao(id) {
-    const a = DB.ativacoes.find(x => x.id === id);
-    if (!a) return;
-    a.observacao = document.getElementById('editObservacao')?.value;
-    a.status = document.getElementById('editStatus')?.value;
-    a.ativadoPor = document.getElementById('editAtivadoPor')?.value;
-    salvarDB();
-    fecharModalAtivacao();
-    carregarAtivacoes();
-}
+
+// ===== GERENCIAR STATUS =====
 function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
 function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
 function carregarListaStatusFlags() {
@@ -444,9 +447,9 @@ function carregarRelatorios() {
     if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
     else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
     else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
-    carregarComparativoProdutosRelatorio(dadosAtual, dadosAnterior);
-    carregarVendasPorVendedorRelatorio(dadosAtual, dadosAnterior);
-    carregarVendasPorEquipeRelatorio(dadosAtual, dadosAnterior);
+    carregarComparativoProdutos(dadosAtual, dadosAnterior, periodo);
+    carregarVendasPorVendedor(dadosAtual, dadosAnterior);
+    carregarVendasPorEquipe(dadosAtual, dadosAnterior);
     carregarRankingRelatorio(dadosAtual);
 }
 function gerarVendasQuinzenaAtual() { const hoje = new Date(); const dia = hoje.getDate(); const todas = gerarVendasMesAtual(); return dia <= 15 ? todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }) : todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; }); }
@@ -460,9 +463,9 @@ function gerarVendasQuinzenaAnterior() {
     if (vendas.length === 0) { const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt); const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}]; for (let i=0;i<Math.floor(Math.random()*12)+4;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`2024-06-${String(Math.floor(Math.random()*15)+1).padStart(2,'0')}`}); } }
     return vendas;
 }
-function carregarComparativoProdutosRelatorio(atual, anterior) {
+function carregarComparativoProdutos(atual, anterior, periodo) {
     const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
-    let html = '<table><thead><tr><th>Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
     produtos.forEach(p => {
         const qtdAtual = atual.filter(v => v.plano === p).length;
         const qtdAnterior = anterior.filter(v => v.plano === p).length;
@@ -473,9 +476,13 @@ function carregarComparativoProdutosRelatorio(atual, anterior) {
     html += '</tbody></table>';
     document.getElementById('tabelaComparativaProdutos').innerHTML = html;
 }
-function carregarVendasPorVendedorRelatorio(atual, anterior) {
+function carregarVendasPorVendedor(atual, anterior) {
     const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
-    const dados = vendedores.map(v => ({ nome: v.nome, atual: atual.filter(vd => vd.vendedor_id === v.id).length, anterior: anterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual);
+    const dados = vendedores.map(v => ({
+        nome: v.nome,
+        atual: atual.filter(vd => vd.vendedor_id === v.id).length,
+        anterior: anterior.filter(vd => vd.vendedor_id === v.id).length
+    })).sort((a,b) => b.atual - a.atual);
     let html = '<table><thead><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
     dados.forEach(d => {
         const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
@@ -492,12 +499,12 @@ function carregarVendasPorVendedorRelatorio(atual, anterior) {
         options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: '#fff' }, grid: { display: false } } } }
     });
 }
-function carregarVendasPorEquipeRelatorio(atual, anterior) {
+function carregarVendasPorEquipe(atual, anterior) {
     const equipes = {};
     DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
     atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
     anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
-    let html = '</table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
     Object.entries(equipes).forEach(([nome, valores]) => {
         const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -518,21 +525,60 @@ function carregarRankingRelatorio(atual) {
     });
     document.getElementById('rankingRelatorio').innerHTML = html;
 }
-function gerarPDF() { /* mantido igual ao seu original */ }
+
+// ===== GERAR PDF =====
+function gerarPDF() {
+    const periodo = document.getElementById('filtroPeriodo').value;
+    let dadosAtual, dadosAnterior;
+    if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
+    else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
+    else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
+    let html = `<div class="relatorio-pdf"><h1>Relatório de Vendas - STAGE TELECOM</h1><p>Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>`;
+    const produtos = ['Básico','Empresarial','Premium','Ultra'];
+    html += `<h2>🏷️ Comparativo de Produtos</h2><table><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr>`;
+    produtos.forEach(p => { const qtdAtual = dadosAtual.filter(v => v.plano === p).length; const qtdAnterior = dadosAnterior.filter(v => v.plano === p).length; const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0); html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; });
+    html += `</table>`;
+    const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt);
+    const dados = vendedores.map(v => ({ nome: v.nome, atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length, anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual);
+    html += `<h2>👥 Vendas por Vendedor</h2><table><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr>`;
+    dados.forEach(d => { const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0); html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; });
+    html += `</table><div class="grafico-container"><canvas id="graficoPDF" width="500" height="250"></canvas></div>`;
+    const equipes = {}; DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
+    dadosAtual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
+    dadosAnterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
+    html += `<h2>🏢 Vendas por Equipe</h2><table><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr>`;
+    Object.entries(equipes).forEach(([nome, valores]) => { const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0); html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td>${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; });
+    html += `</table>`;
+    const ranking = dados.sort((a,b) => b.atual - a.atual);
+    const maxVendas = ranking[0]?.atual || 1;
+    html += `<h2>🏆 Ranking de Vendedores</h2>`;
+    ranking.forEach((v, i) => { const pct = maxVendas > 0 ? (v.atual / maxVendas * 100).toFixed(0) : 0; html += `<div class="ranking-item-relatorio" style="display:flex; align-items:center; gap:10px; margin-bottom:5px;"><span style="font-size:20px;">${i+1}º</span><span style="flex:1;">${v.nome} - ${v.atual} vendas</span><div style="width:100px; height:8px; background:#eee; border-radius:4px; overflow:hidden;"><div style="width:${pct}%; height:100%; background:#e74c3c;"></div></div></div>`; });
+    html += `</div>`;
+    document.getElementById('conteudoPDF').innerHTML = html;
+    document.getElementById('modalPDF').style.display = 'flex';
+    setTimeout(() => {
+        const ctx = document.getElementById('graficoPDF');
+        if (ctx) { new Chart(ctx, { type: 'bar', data: { labels: dados.map(d => d.nome), datasets: [{ label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 }, { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }] }, options: { responsive: false, plugins: { legend: { labels: { color: '#000' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#000' }, grid: { color: '#ccc' } }, x: { ticks: { color: '#000' }, grid: { display: false } } } } }); }
+        setTimeout(() => { const elemento = document.getElementById('conteudoPDF'); html2pdf().set({ margin: 0.5, filename: `relatorio_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, backgroundColor: '#ffffff' }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(elemento).save(); }, 500);
+    }, 100);
+}
+function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
 // ===== METAS =====
+function mostrarAbaMeta(aba, btn) {
+    document.querySelectorAll('.aba-meta').forEach(a => a.classList.remove('active'));
+    document.getElementById(`aba-${aba}`).classList.add('active');
+    document.querySelectorAll('.meta-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (aba === 'definir') carregarMetas();
+    if (aba === 'promocoes') carregarPromocoes();
+}
 function carregarMetas() {
     document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
     document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
     document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas || 150;
     const tabelaProd = document.getElementById('tabelaMetasProdutos');
-    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr>
-        <td>${p.produto}</td>
-        <td>${p.diaria}</td>
-        <td>${p.quinzenal}</td>
-        <td>${p.mensal}</td>
-        <td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger">Excluir</button></td>
-    </tr>`).join('');
+    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr><td>${p.produto}</td><td>${p.diaria}</td><td>${p.quinzenal}</td><td>${p.mensal}</td><td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
     carregarMetasInstalacoes();
     const selectVendedor = document.getElementById('vendedorMetaInstalacao');
     selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
@@ -560,237 +606,117 @@ function adicionarMetaInstalacao() {
 }
 function carregarMetasInstalacoes() {
     const tabelaInst = document.getElementById('tabelaMetasInstalacoes');
-    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr>
-        <td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td>
-        <td>${i.entidade}</td>
-        <td>${i.diaria}</td>
-        <td>${i.quinzenal}</td>
-        <td>${i.mensal}</td>
-        <td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger">Excluir</button></td>
-    </tr>`).join('');
+    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr><td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td><td>${i.entidade}</td><td>${i.diaria}</td><td>${i.quinzenal}</td><td>${i.mensal}</td><td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
 }
 function removerMetaInstalacao(id) { DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id); salvarDB(); carregarMetas(); }
 function salvarMetas() { DB.metas.diariaVendas = parseInt(document.getElementById('metaDiariaVendas').value) || 10; DB.metas.quinzenalVendas = parseInt(document.getElementById('metaQuinzenalVendas').value) || 75; DB.metas.mensalVendas = parseInt(document.getElementById('metaMensalVendas').value) || 150; salvarDB(); alert('✅ Metas de vendas atualizadas!'); }
 
-// ===== PROMOÇÕES (INDEPENDENTE) =====
+// ===== PROMOÇÕES =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
-function fecharFormPromocao() {
-    document.getElementById('formPromocao').style.display = 'none';
-    document.getElementById('premioPromocao').value = '';
-    document.getElementById('quantidadePromocao').value = 10;
-    document.getElementById('inicioPromocao').value = '';
-    document.getElementById('fimPromocao').value = '';
-}
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
-    const quantidade = parseInt(document.getElementById('quantidadePromocao').value);
+    const quantidade = parseInt(document.getElementById('quantidadePromocao').value) || 0;
     const inicio = document.getElementById('inicioPromocao').value;
     const fim = document.getElementById('fimPromocao').value;
     const premio = document.getElementById('premioPromocao').value.trim();
-    if (!inicio || !fim || !premio || isNaN(quantidade) || quantidade <= 0) { alert('Preencha todos os campos corretamente!'); return; }
-    if (new Date(inicio) >= new Date(fim)) { alert('A data de fim deve ser posterior à data de início.'); return; }
+    if (!inicio || !fim || !premio || quantidade <= 0) return alert('Preencha todos os campos corretamente!');
     DB.promocoes.push({ id: Date.now(), tipo, quantidade, inicio, fim, premio, ativa: true, concluida: false, vencedores: [] });
     salvarDB();
     carregarPromocoes();
-    fecharFormPromocao();
-    alert('✅ Promoção cadastrada com sucesso!');
+    document.getElementById('formPromocao').style.display = 'none';
+    document.getElementById('premioPromocao').value = '';
+    alert('✅ Promoção cadastrada!');
 }
 function carregarPromocoes() {
     const agora = new Date();
-    const tbody = document.getElementById('tbodyPromocoes');
+    const tabela = document.getElementById('tabelaPromocoes');
     const divVazia = document.getElementById('promocoesVazia');
-    if (!tbody) return;
+    if (!tabela || !divVazia) return;
     DB.promocoes.forEach(p => {
         const inicio = new Date(p.inicio);
         const fim = new Date(p.fim);
         if (agora < inicio) p.status = '⏳ Aguardando';
-        else if (agora >= inicio && agora <= fim) p.status = '▶️ Ativa';
-        else if (agora > fim && !p.concluida) p.status = '⏹️ Encerrada';
-        else p.status = p.concluida ? '✅ Concluída' : '⏹️ Encerrada';
+        else if (agora >= inicio && agora <= fim) { p.status = '▶️ Ativa'; p.ativa = true; }
+        else if (agora > fim && !p.concluida) { p.status = '⏹️ Encerrada'; p.ativa = false; verificarVencedoresPromocao(p); }
     });
     salvarDB();
-    if (DB.promocoes.length === 0) { tbody.innerHTML = ''; divVazia.style.display = 'block'; return; }
-    divVazia.style.display = 'none';
-    tbody.innerHTML = DB.promocoes.map(p => `
-        <tr>
-            <td>${p.tipo === 'vendas' ? 'Vendas' : p.tipo === 'produtos' ? 'Produtos' : 'Instalações'}</td>
-            <td>${p.quantidade}</td>
-            <td>${new Date(p.inicio).toLocaleString()} → ${new Date(p.fim).toLocaleString()}</td>
-            <td>${p.premio}</td>
-            <td>${p.status}</td>
-            <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger">Excluir</button></td>
-        </tr>
-    `).join('');
+    if (DB.promocoes.length === 0) { tabela.innerHTML = ''; divVazia.style.display = 'block'; }
+    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr><td>${p.tipo}</td><td>${p.quantidade}</td><td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td><td>${p.premio}</td><td>${p.status || 'Ativa'}</td><td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px; font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); }
 }
 function excluirPromocao(id) { if (confirm('Excluir esta promoção?')) { DB.promocoes = DB.promocoes.filter(p => p.id !== id); salvarDB(); carregarPromocoes(); } }
-function contarAcoesVendedor(vendedorId, tipo, inicio, fim) {
-    const inicioDate = new Date(inicio);
-    const fimDate = new Date(fim);
-    if (tipo === 'vendas') return DB.clientes.filter(c => c.vendedor_id === vendedorId && new Date(c.data) >= inicioDate && new Date(c.data) <= fimDate).length;
-    if (tipo === 'produtos') return DB.clientes.filter(c => c.vendedor_id === vendedorId && new Date(c.data) >= inicioDate && new Date(c.data) <= fimDate).length;
-    if (tipo === 'instalacoes') return DB.clientes.filter(c => c.vendedor_id === vendedorId && (c.status === 'ativo' || c.status === 'instalado') && new Date(c.data) >= inicioDate && new Date(c.data) <= fimDate).length;
-    return 0;
+function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) { return gerarVendasParaPeriodo(vendedorId, inicio, fim).length; }
+function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
+    const inicioDate = new Date(inicio); const fimDate = new Date(fim); const vendas = [];
+    for (let d = new Date(inicioDate); d <= fimDate; d.setDate(d.getDate() + 1)) {
+        const dataStr = d.toISOString().split('T')[0];
+        const vendasDia = gerarVendasParaData(dataStr);
+        vendas.push(...vendasDia.filter(v => v.vendedor_id === vendedorId));
+    }
+    return vendas;
+}
+function gerarVendasParaData(data) {
+    let vendas = JSON.parse(localStorage.getItem(`vendas_${data}`)) || [];
+    if (!vendas.length) {
+        const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt);
+        const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9},{nome:'Ultra',valor:1499.9}];
+        const num = Math.floor(Math.random()*5)+1;
+        for (let i=0;i<num;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data}); }
+        localStorage.setItem(`vendas_${data}`, JSON.stringify(vendas));
+    }
+    return vendas;
 }
 function verificarVencedoresPromocao(promocao) {
-    if (promocao.concluida) return;
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt);
     const vencedores = [];
-    for (let v of vendedores) {
-        const quantidade = contarAcoesVendedor(v.id, promocao.tipo, promocao.inicio, promocao.fim);
-        if (quantidade >= promocao.quantidade) vencedores.push({ id: v.id, nome: v.nome, quantidade });
-    }
-    promocao.concluida = true;
+    vendedores.forEach(v => { const qtd = obterQuantidadePeriodo(v.id, promocao.tipo, promocao.inicio, promocao.fim); if (qtd >= promocao.quantidade) vencedores.push({ id: v.id, nome: v.nome, quantidade: qtd }); });
     promocao.vencedores = vencedores.map(v => v.id);
-    salvarDB();
+    promocao.concluida = true; salvarDB();
     if (vencedores.length > 0) {
         const nomes = vencedores.map(v => v.nome).join(', ');
-        const mensagemAdmin = `🏆 Meta bônus de ${promocao.tipo} batida! Vencedor(es): ${nomes}. Prêmio: ${promocao.premio}`;
-        if (sessao && sessao.tipo === 'admin') mostrarModalAdmin(mensagemAdmin);
-        else guardarNotificacaoAdmin(mensagemAdmin);
-        vencedores.forEach(v => {
-            const msgVendedor = `🎉 PARABÉNS! Você bateu a meta bônus de ${promocao.tipo} (${promocao.quantidade}) e ganhou: ${promocao.premio}!`;
-            guardarNotificacaoVendedor(v.id, msgVendedor);
-        });
-    } else {
-        const mensagemAdmin = `😞 Nenhum vendedor bateu a meta bônus de ${promocao.tipo} (${promocao.quantidade}) com prêmio ${promocao.premio}.`;
-        if (sessao && sessao.tipo === 'admin') mostrarModalAdmin(mensagemAdmin);
-        else guardarNotificacaoAdmin(mensagemAdmin);
-    }
+        mostrarModalParabens(`🏆 Meta bônus de ${promocao.tipo} batida! Vencedor(es): ${nomes}. Prêmio: ${promocao.premio}`);
+        vencedores.forEach(v => { DB.notificacoes.push({ id: Date.now() + Math.random(), userId: v.id, mensagem: `🎉 Você bateu a meta bônus de ${promocao.tipo} e ganhou: ${promocao.premio}!`, lida: false }); });
+        salvarDB();
+    } else { mostrarModalParabens(`😞 Nenhum vendedor bateu a meta bônus de ${promocao.tipo}.`); }
 }
-function guardarNotificacaoVendedor(vendedorId, mensagem) { DB.notificacoes.push({ id: Date.now(), userId: vendedorId, mensagem, lida: false }); salvarDB(); }
-function guardarNotificacaoAdmin(mensagem) { let notifAdmin = JSON.parse(localStorage.getItem('notificacoes_admin')) || []; notifAdmin.push({ msg: mensagem, timestamp: new Date().toISOString() }); localStorage.setItem('notificacoes_admin', JSON.stringify(notifAdmin)); }
-function mostrarModalAdmin(mensagem) { document.getElementById('parabensMensagem').innerHTML = mensagem; document.getElementById('modalParabens').style.display = 'flex'; }
-function verificarNotificacoesVendedor() {
-    if (!sessao || sessao.tipo !== 'vendedor') return;
-    const pendentes = DB.notificacoes.filter(n => n.userId === sessao.id && !n.lida);
-    if (pendentes.length > 0) { const notif = pendentes[0]; document.getElementById('parabensVendedorMensagem').innerHTML = notif.mensagem; document.getElementById('modalParabensVendedor').style.display = 'flex'; notif.lida = true; salvarDB(); }
-}
-function verificarPromocoesAdmin() {
-    const agora = new Date();
-    for (let p of DB.promocoes) { if (!p.concluida && new Date(p.fim) <= agora) verificarVencedoresPromocao(p); }
-    const notifAdmin = JSON.parse(localStorage.getItem('notificacoes_admin')) || [];
-    if (notifAdmin.length > 0 && sessao && sessao.tipo === 'admin') { notifAdmin.forEach(n => mostrarModalAdmin(n.msg)); localStorage.setItem('notificacoes_admin', JSON.stringify([])); }
-}
-setInterval(() => { if (sessao && sessao.tipo === 'admin') verificarPromocoesAdmin(); }, 30000);
+function verificarPromocoesAdmin() { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); }
+function mostrarModalParabens(mensagem) { document.getElementById('parabensMensagem').textContent = mensagem; document.getElementById('modalParabens').style.display = 'flex'; }
+function verificarNotificacoesVendedor() { if (!sessao || sessao.tipo !== 'vendedor') return; const notificacoesPendentes = DB.notificacoes.filter(n => n.userId === sessao.id && !n.lida); if (notificacoesPendentes.length > 0) { const notif = notificacoesPendentes[0]; document.getElementById('parabensVendedorMensagem').textContent = notif.mensagem; document.getElementById('modalParabensVendedor').style.display = 'flex'; notif.lida = true; salvarDB(); } }
+setInterval(() => { if (sessao && sessao.tipo === 'admin') { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); } }, 30000);
 
 // ===== VENDEDOR SCREEN =====
-function mostrarSecaoVendedor(secao, event) {
-    document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
-    const el = document.getElementById(`secao-${secao}`); if (el) { el.style.display = 'block'; el.className = 'section-active'; }
-    document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
-    if (event && event.target) event.target.closest('.nav-item').classList.add('active');
-    const titles = { meusClientes: '🏢 Meus Clientes', novoCliente: '➕ Novo Cliente', minhasVendas: '💰 Minhas Vendas' };
-    document.getElementById('tituloSecaoVendedor').innerHTML = titles[secao] || secao;
-    if (secao === 'meusClientes') carregarMeusClientes();
-    if (secao === 'minhasVendas') carregarMinhasVendas();
+function mostrarSecaoVendedor(secao){
+    document.querySelectorAll('#vendedorScreen .section-active,#vendedorScreen .section-hidden').forEach(s=>{s.style.display='none';s.className='section-hidden';});
+    const el=document.getElementById(`secao-${secao}`); if(el){el.style.display='block';el.className='section-active';}
+    document.querySelectorAll('#vendedorScreen .nav-item').forEach(a=>a.classList.remove('active'));
+    event.target.closest('.nav-item').classList.add('active');
+    document.getElementById('tituloSecaoVendedor').innerHTML = {meusClientes:'🏢 Meus Clientes',novoCliente:'➕ Novo Cliente',minhasVendas:'💰 Minhas Vendas'}[secao];
+    if(secao==='meusClientes') carregarMeusClientes();
+    if(secao==='minhasVendas') carregarMinhasVendas();
 }
-function carregarMeusClientes() {
-    const meus = DB.clientes.filter(c => c.vendedor_id === sessao.id);
-    document.getElementById('totalMeusClientes').textContent = meus.length;
-    document.getElementById('meusAtivos').textContent = meus.filter(c => c.status === 'ativo' || c.status === 'instalado').length;
-    document.getElementById('meusProspectos').textContent = meus.filter(c => c.status === 'prospecto').length;
-    const tabela = document.getElementById('tabelaMeusClientes');
-    if (!meus.length) { tabela.innerHTML = '<tr><td colspan="7">Nenhum cliente</td></tr>'; return; }
-    tabela.innerHTML = meus.map(c => `<tr>
-        <td><strong>${c.nome}</strong></td>
-        <td>${c.telefone}</td>
-        <td>${c.email}</td>
-        <td>${c.plano}</td>
-        <td>R$ ${c.valor.toFixed(2)}</td>
-        <td class="status-${c.status}">● ${c.status}</td>
-        <td>${c.status !== 'instalado' ? `<button onclick="marcarInstalacao(${c.id})" class="btn-glass-sm">Instalar</button>` : 'Instalado'}</td>
-    </tr>`).join('');
+function carregarMeusClientes(){
+    const meus=DB.clientes.filter(c=>c.vendedor_id===sessao.id);
+    document.getElementById('totalMeusClientes').textContent=meus.length;
+    document.getElementById('meusAtivos').textContent=meus.filter(c=>c.status==='ativo').length;
+    document.getElementById('meusProspectos').textContent=meus.filter(c=>c.status==='prospecto').length;
+    document.getElementById('tabelaMeusClientes').innerHTML = meus.length?meus.map(c=>`<tr><td><strong>${c.nome}</strong></td><td>${c.telefone}</td><td>${c.email}</td><td>${c.plano}</td><td>R$ ${c.valor.toFixed(2)}</td><td class="status-${c.status}">● ${c.status}</td></tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhum cliente</td></tr>';
 }
-function carregarMinhasVendas() {
-    const minhas = DB.clientes.filter(c => c.vendedor_id === sessao.id && (c.status === 'ativo' || c.status === 'instalado'));
-    const tabela = document.getElementById('tabelaMinhasVendas');
-    if (!minhas.length) { tabela.innerHTML = '<tr><td colspan="4">Nenhuma venda</td></tr>'; return; }
-    tabela.innerHTML = minhas.map(c => `<tr>
-        <td><strong>${c.nome}</strong></td>
-        <td>${c.plano}</td>
-        <td>R$ ${c.valor.toFixed(2)}</td>
-        <td>${new Date(c.data).toLocaleDateString('pt-BR')}</td>
-    </tr>`).join('');
+function carregarMinhasVendas(){
+    const minhas=DB.clientes.filter(c=>c.vendedor_id===sessao.id && c.status==='ativo');
+    document.getElementById('tabelaMinhasVendas').innerHTML = minhas.length?minhas.map(c=>`<tr><td><strong>${c.nome}</strong></td><td>${c.plano}</td><td>R$ ${c.valor.toFixed(2)}</td><td>${new Date(c.data+'T00:00:00').toLocaleDateString('pt-BR')}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:30px;">Nenhuma venda</td></tr>';
 }
-function marcarInstalacao(cliente_id) {
-    const cliente = DB.clientes.find(c => c.id === cliente_id);
-    if (!cliente) return;
-    if (cliente.status === 'instalado') return alert('Instalação já concluída.');
-    cliente.status = 'instalado';
-    salvarDB();
-    alert('Instalação concluída!');
-    carregarMeusClientes();
-    // Verificar promoções de instalação
-    const agora = new Date();
-    const promosAtivas = DB.promocoes.filter(p => !p.concluida && p.tipo === 'instalacoes' && new Date(p.inicio) <= agora && new Date(p.fim) >= agora);
-    for (let p of promosAtivas) {
-        const qtd = contarAcoesVendedor(cliente.vendedor_id, 'instalacoes', p.inicio, p.fim);
-        if (qtd >= p.quantidade && !p.vencedores.includes(cliente.vendedor_id)) {
-            p.vencedores.push(cliente.vendedor_id);
-            salvarDB();
-            const vendedor = DB.usuarios.find(u => u.id === cliente.vendedor_id);
-            const msgVendedor = `🎉 PARABÉNS! Você bateu a meta bônus de INSTALAÇÕES (${p.quantidade}) e ganhou: ${p.premio}!`;
-            guardarNotificacaoVendedor(cliente.vendedor_id, msgVendedor);
-            const msgAdmin = `🏆 ${vendedor.nome} bateu a meta bônus de INSTALAÇÕES (${p.quantidade}) e ganhou ${p.premio}!`;
-            if (sessao && sessao.tipo === 'admin') mostrarModalAdmin(msgAdmin);
-            else guardarNotificacaoAdmin(msgAdmin);
-        }
-    }
-}
-function cadastrarCliente() {
-    const n = document.getElementById('nomeCliente').value.trim();
-    const cnpj = document.getElementById('cnpjCliente').value.trim();
-    const tel = document.getElementById('telefoneCliente').value.trim();
-    const email = document.getElementById('emailCliente').value.trim();
-    const plano = document.getElementById('planoCliente').value;
-    if (!n || !cnpj || !tel || !email || !plano) return alert('Preencha todos os campos!');
-    const valores = { Básico: 299.9, Empresarial: 499.9, Premium: 899.9 };
-    const novoCliente = {
-        id: DB.clientes.length + 1,
-        nome: n, cnpj, telefone: tel, email,
-        vendedor_id: sessao.id, status: 'prospecto',
-        plano, valor: valores[plano],
-        data: new Date().toISOString().split('T')[0]
-    };
-    DB.clientes.push(novoCliente);
-    salvarDB();
-    // Registrar venda e produto
-    const hoje = new Date().toISOString().split('T')[0];
-    let vendasHoje = JSON.parse(localStorage.getItem('vendas_diarias')) || [];
-    vendasHoje.push({ id: Date.now(), vendedor_id: sessao.id, vendedor_nome: sessao.nome, plano: plano, valor: valores[plano], data: hoje, hora: new Date().toLocaleTimeString() });
-    localStorage.setItem('vendas_diarias', JSON.stringify(vendasHoje));
-    let vendasMes = JSON.parse(localStorage.getItem('vendas_mes_atual')) || [];
-    vendasMes.push({ id: Date.now(), vendedor_id: sessao.id, vendedor_nome: sessao.nome, plano: plano, valor: valores[plano], data: hoje });
-    localStorage.setItem('vendas_mes_atual', JSON.stringify(vendasMes));
-    // Verificar promoções de vendas/produtos
-    const agora = new Date();
-    const promosVendas = DB.promocoes.filter(p => !p.concluida && (p.tipo === 'vendas' || p.tipo === 'produtos') && new Date(p.inicio) <= agora && new Date(p.fim) >= agora);
-    for (let p of promosVendas) {
-        const qtd = contarAcoesVendedor(sessao.id, p.tipo, p.inicio, p.fim);
-        if (qtd >= p.quantidade && !p.vencedores.includes(sessao.id)) {
-            p.vencedores.push(sessao.id);
-            salvarDB();
-            const msgVendedor = `🎉 PARABÉNS! Você bateu a meta bônus de ${p.tipo.toUpperCase()} (${p.quantidade}) e ganhou: ${p.premio}!`;
-            guardarNotificacaoVendedor(sessao.id, msgVendedor);
-            const msgAdmin = `🏆 ${sessao.nome} bateu a meta bônus de ${p.tipo.toUpperCase()} (${p.quantidade}) e ganhou ${p.premio}!`;
-            if (sessao && sessao.tipo === 'admin') mostrarModalAdmin(msgAdmin);
-            else guardarNotificacaoAdmin(msgAdmin);
-        }
-    }
-    document.getElementById('nomeCliente').value = '';
-    document.getElementById('cnpjCliente').value = '';
-    document.getElementById('telefoneCliente').value = '';
-    document.getElementById('emailCliente').value = '';
-    document.getElementById('planoCliente').value = '';
-    alert('✅ Cliente cadastrado!');
-    mostrarSecaoVendedor('meusClientes', event);
+function cadastrarCliente(){
+    const n=document.getElementById('nomeCliente').value.trim(), cnpj=document.getElementById('cnpjCliente').value.trim(), tel=document.getElementById('telefoneCliente').value.trim(), email=document.getElementById('emailCliente').value.trim(), plano=document.getElementById('planoCliente').value;
+    if(!n||!cnpj||!tel||!email||!plano) return alert('Preencha todos os campos!');
+    const valores={Básico:299.9,Empresarial:499.9,Premium:899.9};
+    DB.clientes.push({id:DB.clientes.length+1,nome:n,cnpj,telefone:tel,email,vendedor_id:sessao.id,status:'prospecto',plano,valor:valores[plano],data:new Date().toISOString().split('T')[0]});
+    salvarDB(); ['nomeCliente','cnpjCliente','telefoneCliente','emailCliente'].forEach(id=>document.getElementById(id).value=''); document.getElementById('planoCliente').value='';
+    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor('meusClientes');
 }
 
 // ===== INICIAR =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded',()=>{
     const lembrar = localStorage.getItem('stage_remember');
-    if (lembrar) { document.getElementById('usuario').value = lembrar; document.getElementById('lembrar').checked = true; }
-    if (sessao) { sessao.tipo === 'admin' ? mostrarAdmin() : mostrarVendedor(); }
-    document.addEventListener('keypress', e => { if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') fazerLogin(); });
-    if (document.getElementById('tabelaPromocoes')) carregarPromocoes();
+    if(lembrar){ document.getElementById('usuario').value=lembrar; document.getElementById('lembrar').checked=true; }
+    if(sessao){ sessao.tipo==='admin'?mostrarAdmin():mostrarVendedor(); }
+    document.addEventListener('keypress',e=>{ if(e.key==='Enter' && document.getElementById('loginScreen').style.display!=='none') fazerLogin(); });
 });
