@@ -338,18 +338,33 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .modal-parabens h2 { color: #ffd700; font-size: 28px; margin: 15px 0; }
 .modal-parabens p { color: #fff; font-size: 16px; }
 
+/* ========== CORREÇÕES PARA O MODAL PDF ========== */
+#modalPDF .modal-glass {
+    color: #000 !important;
+    background: #fff !important;
+}
+#conteudoPDF, #conteudoPDF * {
+    color: #000 !important;
+}
+#conteudoPDF table {
+    border-collapse: collapse;
+}
+#conteudoPDF th, #conteudoPDF td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    text-align: left;
+}
+
 /* =============================================
    RESPONSIVIDADE (AJUSTES PARA TELAS MENORES)
    ============================================= */
 @media (max-width: 1400px) {
     .dashboard-middle-row { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 1200px) {
     .dashboard-top-row { flex-direction: column; }
     .clock-panel { flex: 0 0 auto; }
 }
-
 /* Tablet e dispositivos menores: sidebar encolhe */
 @media (max-width: 1024px) {
     .sidebar-glass {
@@ -387,7 +402,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .main-glass { margin-left: 80px; }
     .user-profile-glass { font-size: 0; }
 }
-
 /* Smartphones */
 @media (max-width: 768px) {
     .floating-card { display: none; }
@@ -408,7 +422,6 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .table-glass th, .table-glass td { padding: 10px; font-size: 11px; }
     .btn-glass-flutuante { padding: 10px 20px; font-size: 13px; }
 }
-
 @media (max-width: 480px) {
     .sidebar-glass {
         width: 60px;
