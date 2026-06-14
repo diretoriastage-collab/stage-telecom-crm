@@ -1207,7 +1207,7 @@ function abrirModalVisualizacao(id) {
     html += `<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ${parseFloat(a.valor).toFixed(2)}</span>`;
     html += `</div>`;
 
-    // Informações Adicionais (Contrato, Data, Período) no topo
+    // Informações Adicionais no topo
     if (a.contrato || a.infoData || a.infoPeriodo) {
         html += `<div style="background:rgba(46,213,115,0.1); border:1px solid rgba(46,213,115,0.3); border-radius:12px; padding:12px 15px; margin-bottom:20px;">`;
         html += `<h4 style="color:#2ed573; margin:0 0 10px 0; font-size:14px;">📋 Informações de Instalação</h4>`;
@@ -1418,6 +1418,126 @@ function limparMensagensAntigas(dias = 90) {
     }
 }
 limparMensagensAntigas(90);
+
+// ===== BAIXAR PLANILHA EXCEL UNIFICADA =====
+function baixarPlanilha(tipo) {
+    let vendas = [];
+    const hoje = new Date();
+    const dataHoje = hoje.toISOString().split('T')[0];
+    
+    if (tipo === 'hoje') {
+        vendas = obterVendasAprovadasPorData(dataHoje);
+    } else if (tipo === 'mes') {
+        vendas = obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1);
+    }
+    
+    if (vendas.length === 0) {
+        alert('⚠️ Nenhuma venda encontrada para este período.');
+        return;
+    }
+    
+    const meses = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+    const dataFormatada = `${hoje.getDate()} DE ${meses[hoje.getMonth()]} DE ${hoje.getFullYear()}`;
+    const tituloPeriodo = tipo === 'hoje' ? `VENDAS DO DIA - ${dataFormatada}` : `VENDAS DO MÊS ATÉ ${dataFormatada}`;
+    const totalVendas = vendas.length;
+    const totalValor = vendas.reduce((acc, v) => acc + (parseFloat(v.valor) || 0), 0);
+    
+    // Montar HTML da planilha
+    let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+        <meta charset="UTF-8">
+        <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+        <x:Name>Vendas</x:Name>
+        <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+        </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+        <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; }
+            .header { background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%); padding: 20px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
+            .logo { font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: 2px; }
+            .logo span { color: #ff6b6b; }
+            .slogan { font-size: 11px; color: #999; letter-spacing: 3px; text-transform: uppercase; margin-top: 5px; }
+            .info-bar { background: #f5f5f5; padding: 12px 18px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; font-size: 13px; }
+            .info-bar strong { color: #e74c3c; }
+            table { width: 100%; border-collapse: collapse; }
+            th { background: #e74c3c; color: #ffffff; padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #c0392b; }
+            td { padding: 10px 15px; border: 1px solid #ddd; font-size: 12px; }
+            tr:nth-child(even) { background: #f9f9f9; }
+            tr:hover { background: #fff0f0; }
+            .valor { font-weight: 700; color: #2ed573; }
+            .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #999; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo">🔴 STAGE <span>TELECOM</span></div>
+            <div class="slogan">Sistema de Gestão Empresarial</div>
+        </div>
+        <div class="info-bar">
+            <span>📅 <strong>${tituloPeriodo}</strong></span>
+            <span>📊 Total de Vendas: <strong>${totalVendas}</strong></span>
+            <span>💰 Valor Total: <strong>R$ ${totalValor.toFixed(2)}</strong></span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cliente</th>
+                    <th>CPF</th>
+                    <th>Plano</th>
+                    <th>Velocidade</th>
+                    <th>Valor (R$)</th>
+                    <th>Vendedor</th>
+                    <th>Data Aprovação</th>
+                </tr>
+            </thead>
+            <tbody>`;
+    
+    vendas.forEach((v, i) => {
+        const vendedor = DB.usuarios.find(u => u.id === v.vendedor_id);
+        const nomeCliente = v.nomeCompleto || v.nomeCliente || 'N/A';
+        const cpf = v.cpf || 'N/A';
+        const plano = v.produto || v.plano || 'N/A';
+        const velocidade = v.velocidade || 'N/A';
+        const valor = parseFloat(v.valor) || 0;
+        const dataAprov = v.data ? new Date(v.data + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A';
+        
+        html += `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${nomeCliente}</td>
+                    <td>${cpf}</td>
+                    <td>${plano}</td>
+                    <td>${velocidade}</td>
+                    <td class="valor">R$ ${valor.toFixed(2)}</td>
+                    <td>${vendedor ? vendedor.nome : 'N/A'}</td>
+                    <td>${dataAprov}</td>
+                </tr>`;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+        <div class="footer">
+            © ${hoje.getFullYear()} STAGE TELECOM | Relatório gerado em ${dataFormatada} às ${String(hoje.getHours()).padStart(2,'0')}:${String(hoje.getMinutes()).padStart(2,'0')}
+        </div>
+    </body>
+    </html>`;
+    
+    // Criar blob e baixar
+    const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const nomeArquivo = tipo === 'hoje' 
+        ? `Stage_Telecom_Vendas_Hoje_${dataHoje}.xls` 
+        : `Stage_Telecom_Vendas_Mes_${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}.xls`;
+    link.download = nomeArquivo;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
 
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
