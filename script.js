@@ -50,7 +50,7 @@ let graficoVendedoresInstance = null;
 let vendaSendoVisualizada = null;
 let novasVendas = true;
 
-// ===== RELÓGIO GLOBAL =====
+// ===== RELÓGIO GLOBAL (ATUALIZA TODOS OS PAINÉIS) =====
 setInterval(() => {
     const agora = new Date();
     const diasSemana = ['DOMINGO','SEGUNDA','TERÇA','QUARTA','QUINTA','SEXTA','SÁBADO'];
@@ -60,9 +60,19 @@ setInterval(() => {
     const minutos = String(agora.getMinutes()).padStart(2,'0');
     const segundos = String(agora.getSeconds()).padStart(2,'0');
     const periodo = agora.getHours() < 12 ? '☀️ MANHÃ' : agora.getHours() < 18 ? '🌤️ TARDE' : '🌙 NOITE';
+
+    // Admin clocks
     ['dataAtual','dataAtualAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = dataFormatada; });
     ['horaAtual','horaAtualAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = `${horas}:${minutos}:${segundos}`; });
     ['periodoDia','periodoDiaAtivacoes'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = periodo; });
+
+    // Vendedor clocks
+    const dataElV = document.getElementById('dataAtualVendedor');
+    const horaElV = document.getElementById('horaAtualVendedor');
+    const periodoElV = document.getElementById('periodoDiaVendedor');
+    if(dataElV) dataElV.textContent = dataFormatada;
+    if(horaElV) horaElV.textContent = `${horas}:${minutos}:${segundos}`;
+    if(periodoElV) periodoElV.textContent = periodo;
 }, 1000);
 
 // ===== LOGIN =====
@@ -95,6 +105,7 @@ function logout() {
     document.getElementById('vendedorScreen').style.display = 'none';
 }
 
+// ===== EXIBIÇÃO DE TELAS =====
 function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
@@ -104,17 +115,19 @@ function mostrarAdmin() {
     verificarPromocoesAdmin();
     iniciarChat();
 }
+
 function mostrarVendedor() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'flex';
     document.getElementById('userInfoVendedor').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
-    carregarMeusClientes();
+    // Carrega a tela inicial do vendedor por padrão
+    mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
     iniciarChat();
 }
 
-// ===== DADOS DE VENDAS =====
+// ===== DADOS DE VENDAS (SIMULADOS) =====
 function gerarDadosVendas() {
     const hoje = new Date(); const dataHoje = hoje.toISOString().split('T')[0];
     let vendas = JSON.parse(localStorage.getItem('vendas_diarias')) || [];
@@ -183,7 +196,7 @@ function gerarVendasMesAnterior() {
     return vendas;
 }
 
-// ===== DASHBOARD =====
+// ===== DASHBOARD ADMIN =====
 function carregarDashboard() {
     const vendasMes = gerarVendasMesAtual();
     const realizado = vendasMes.length;
@@ -561,16 +574,9 @@ function carregarRankingRelatorio(atual) {
 function gerarPDF() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
-    if (periodo === 'diario') {
-        dadosAtual = gerarDadosVendas();
-        dadosAnterior = gerarVendasDiaPassado();
-    } else if (periodo === 'quinzena') {
-        dadosAtual = gerarVendasQuinzenaAtual();
-        dadosAnterior = gerarVendasQuinzenaAnterior();
-    } else {
-        dadosAtual = gerarVendasMesAtual();
-        dadosAnterior = gerarVendasMesAnterior();
-    }
+    if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
+    else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
+    else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
 
     let html = `<div style="font-family:Arial,sans-serif;padding:15px;color:#000;background:#fff;max-width:700px;margin:0 auto;">`;
     html += `<h1 style="font-size:18px;color:#000;margin-bottom:10px;">📊 Relatório de Vendas - STAGE TELECOM</h1>`;
@@ -587,11 +593,7 @@ function gerarPDF() {
     });
     html += `</table>`;
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
-    const dadosVend = vendedores.map(v => ({
-        nome: v.nome,
-        atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length,
-        anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length
-    })).sort((a,b) => b.atual - a.atual);
+    const dadosVend = vendedores.map(v => ({ nome: v.nome, atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length, anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual);
     html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Vendas por Vendedor</h2>`;
     html += `<table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
     dadosVend.forEach(d => {
@@ -762,38 +764,116 @@ function tocarAlerta() {
     } catch(e){}
 }
 
-// ===== VENDEDOR SCREEN =====
+// ========== NOVAS FUNÇÕES DO VENDEDOR ==========
+function carregarInicioVendedor() {
+    if (!sessao) return;
+    const metaMensal = DB.metas.mensalVendas || 150;
+    const metaDiaria = DB.metas.diariaVendas || 10;
+    document.getElementById('metaMensalVendedor').textContent = metaMensal;
+    document.getElementById('metaDiariaVendedor').textContent = metaDiaria;
+
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth() + 1;
+    const anoAtual = hoje.getFullYear();
+    const vendasVendedor = DB.ativacoes.filter(a => {
+        if (a.vendedor_id !== sessao.id) return false;
+        const dataVenda = new Date(a.data + 'T00:00:00');
+        return dataVenda.getMonth() + 1 === mesAtual && dataVenda.getFullYear() === anoAtual;
+    });
+    const totalVendas = vendasVendedor.length;
+    const percentual = Math.min((totalVendas / metaMensal) * 100, 100).toFixed(1);
+    document.getElementById('realizadoVendedorMes').textContent = totalVendas;
+    document.getElementById('faltamVendedorMes').textContent = Math.max(metaMensal - totalVendas, 0);
+    document.getElementById('totalVendasMesVendedor').textContent = totalVendas;
+    document.getElementById('barraProgressoVendedor').style.width = `${percentual}%`;
+}
+
+function enviarVenda() {
+    const campos = {
+        nomeCompleto: document.getElementById('vNomeCompleto').value.trim(),
+        nomeMae: document.getElementById('vNomeMae').value.trim(),
+        dataNasc: document.getElementById('vDataNasc').value,
+        cpfCnpj: document.getElementById('vCpfCnpj').value.trim(),
+        razaoSocial: document.getElementById('vRazaoSocial').value.trim(),
+        email: document.getElementById('vEmail').value.trim(),
+        cep: document.getElementById('vCep').value.trim(),
+        uf: document.getElementById('vUf').value.trim(),
+        endereco: document.getElementById('vEndereco').value.trim(),
+        bairro: document.getElementById('vBairro').value.trim(),
+        cidade: document.getElementById('vCidade').value.trim(),
+        numeroComplemento: document.getElementById('vNumeroComplemento').value.trim(),
+        referencia: document.getElementById('vReferencia').value.trim(),
+        telefone: document.getElementById('vTelefone').value.trim(),
+        whatsapp: document.getElementById('vWhatsapp').value.trim(),
+        valor: document.getElementById('vValor').value,
+        velocidade: document.getElementById('vVelocidade').value.trim(),
+        formaPagamento: document.getElementById('vFormaPagamento').value.trim(),
+        vencimento: document.getElementById('vVencimento').value,
+        plano: document.getElementById('vPlano').value
+    };
+
+    for (let key in campos) {
+        if (!campos[key]) {
+            alert(`Preencha o campo "${key.replace(/([A-Z])/g, ' $1').toLowerCase()}"`);
+            return;
+        }
+    }
+
+    const novaAtivacao = {
+        id: Date.now(),
+        nomeCliente: campos.nomeCompleto,
+        produto: campos.plano,
+        vendedor_id: sessao.id,
+        vendedorNome: sessao.nome,
+        status: "Pendente",
+        data: new Date().toISOString().split('T')[0],
+        ...campos
+    };
+
+    DB.ativacoes.push(novaAtivacao);
+    salvarDB();
+
+    ['vNomeCompleto','vNomeMae','vDataNasc','vCpfCnpj','vRazaoSocial','vEmail','vCep','vUf','vEndereco','vBairro','vCidade','vNumeroComplemento','vReferencia','vTelefone','vWhatsapp','vValor','vVelocidade','vFormaPagamento','vVencimento','vPlano'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+
+    alert('✅ Venda enviada com sucesso!');
+}
+
+function carregarControleVendas() {
+    const minhasAtivacoes = DB.ativacoes.filter(a => a.vendedor_id === sessao.id).sort((a,b) => b.id - a.id);
+    const tabela = document.getElementById('tabelaControleVendas');
+    if (!tabela) return;
+    tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
+        const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
+        return `<tr>
+            <td><strong>${a.nomeCliente}</strong></td>
+            <td>${a.plano}</td>
+            <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
+            <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
+            <td>${new Date(a.data+'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            <td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm"><i class="fas fa-search"></i></button></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
+}
+
 function mostrarSecaoVendedor(e, secao) {
     document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
     const el = document.getElementById(`secao-${secao}`); if(el){ el.style.display = 'block'; el.className = 'section-active'; }
     document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
     if (e && e.currentTarget) { e.currentTarget.classList.add('active'); }
-    const titulos = { meusClientes: '🏢 Meus Clientes', novoCliente: '➕ Novo Cliente', minhasVendas: '💰 Minhas Vendas' };
+    const titulos = {
+        inicio: '🏠 Início',
+        enviarVenda: '📨 Enviar Venda',
+        controleVendas: '📋 Controle de Vendas'
+    };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
-    if(secao === 'meusClientes') carregarMeusClientes();
-    if(secao === 'minhasVendas') carregarMinhasVendas();
-}
-function carregarMeusClientes(){
-    const meus=DB.clientes.filter(c=>c.vendedor_id===sessao.id);
-    document.getElementById('totalMeusClientes').textContent=meus.length;
-    document.getElementById('meusAtivos').textContent=meus.filter(c=>c.status==='ativo').length;
-    document.getElementById('meusProspectos').textContent=meus.filter(c=>c.status==='prospecto').length;
-    document.getElementById('tabelaMeusClientes').innerHTML = meus.length?meus.map(c=>`<tr><td><strong>${c.nome}</strong></td><td>${c.telefone}</td><td>${c.email}</td><td>${c.plano}</td><td>R$ ${c.valor.toFixed(2)}</td><td class="status-${c.status}">● ${c.status}</td></tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhum cliente</td></tr>';
-}
-function carregarMinhasVendas(){
-    const minhas=DB.clientes.filter(c=>c.vendedor_id===sessao.id && c.status==='ativo');
-    document.getElementById('tabelaMinhasVendas').innerHTML = minhas.length?minhas.map(c=>`<tr><td><strong>${c.nome}</strong></td><td>${c.plano}</td><td>R$ ${c.valor.toFixed(2)}</td><td>${new Date(c.data+'T00:00:00').toLocaleDateString('pt-BR')}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:30px;">Nenhuma venda</td></tr>';
-}
-function cadastrarCliente(){
-    const n=document.getElementById('nomeCliente').value.trim(), cnpj=document.getElementById('cnpjCliente').value.trim(), tel=document.getElementById('telefoneCliente').value.trim(), email=document.getElementById('emailCliente').value.trim(), plano=document.getElementById('planoCliente').value;
-    if(!n||!cnpj||!tel||!email||!plano) return alert('Preencha todos os campos!');
-    const valores={Básico:299.9,Empresarial:499.9,Premium:899.9};
-    DB.clientes.push({id:DB.clientes.length+1,nome:n,cnpj,telefone:tel,email,vendedor_id:sessao.id,status:'prospecto',plano,valor:valores[plano],data:new Date().toISOString().split('T')[0]});
-    salvarDB(); ['nomeCliente','cnpjCliente','telefoneCliente','emailCliente'].forEach(id=>document.getElementById(id).value=''); document.getElementById('planoCliente').value='';
-    alert('✅ Cliente cadastrado!'); mostrarSecaoVendedor(null, 'meusClientes');
+
+    if (secao === 'inicio') carregarInicioVendedor();
+    if (secao === 'controleVendas') carregarControleVendas();
 }
 
-// ===== CHAT =====
+// ===== CHAT (mantido completo) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
@@ -942,8 +1022,9 @@ function iniciarChat() {
     atualizarBadge();
     iniciarPollingChat();
 }
+
 // ===== LIMPEZA DE MENSAGENS ANTIGAS =====
-function limparMensagensAntigas(dias = 30) {
+function limparMensagensAntigas(dias = 90) {
     const agora = Date.now();
     const limite = agora - (dias * 24 * 60 * 60 * 1000);
     const antes = DB.chatMessages.length;
@@ -953,9 +1034,8 @@ function limparMensagensAntigas(dias = 30) {
         console.log(`🧹 Chat limpo: ${antes - DB.chatMessages.length} mensagens removidas (mais de ${dias} dias).`);
     }
 }
-
-// Executar automaticamente ao iniciar (limpa mensagens com mais de 90 dias)
 limparMensagensAntigas(90);
+
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
     const lembrar = localStorage.getItem('stage_remember');
