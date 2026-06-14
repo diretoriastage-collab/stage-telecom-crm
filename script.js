@@ -55,6 +55,7 @@ let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
 let vendaSendoVisualizada = null;
 let novasVendas = true;
+let ultimoIdAtivacao = DB.ativacoes.length ? Math.max(...DB.ativacoes.map(a => a.id)) : 0;
 
 // ===== RELÓGIO GLOBAL =====
 setInterval(() => {
@@ -504,15 +505,12 @@ function fecharModalAtivacao() {
 // ========== SINCRONIZAÇÃO EM TEMPO REAL (STORAGE EVENT) ==========
 window.addEventListener('storage', function(e) {
     if (e.key === 'stage_db') {
-        // Atualiza o DB local com o novo valor
         DB = JSON.parse(e.newValue);
-        // Se estiver na tela de admin, atualiza dashboard e ativações
         if (sessao && sessao.tipo === 'admin') {
             carregarDashboard();
             if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
                 carregarAtivacoes();
             }
-            // Se houver novas vendas, mostra modal
             const idsAtuais = DB.ativacoes.map(a => a.id);
             const maxId = idsAtuais.length ? Math.max(...idsAtuais) : 0;
             if (maxId > ultimoIdAtivacao) {
@@ -520,7 +518,6 @@ window.addEventListener('storage', function(e) {
                 mostrarModalNovaVenda();
             }
         }
-        // Atualiza chat
         if (sessao) {
             atualizarBadge();
             if (document.getElementById('chatSidebar')?.style.display !== 'none') {
@@ -951,6 +948,7 @@ function carregarInicioVendedor() {
 }
 
 function enviarVenda() {
+    if (!sessao) { alert('Sessão expirada. Faça login novamente.'); return; }
     const campos = {
         nomeCompleto: document.getElementById('vNomeCompleto').value.trim(),
         nomeMae: document.getElementById('vNomeMae').value.trim(),
@@ -1085,7 +1083,7 @@ function mostrarSecaoVendedor(e, secao) {
     if (secao === 'instalacoes') carregarInstalacoes();
 }
 
-// ===== CHAT (SINCRONIZADO VIA localStorage, POLLING CORRIGIDO) =====
+// ===== CHAT (SINCRONIZADO, COM BOTÃO DE ENCERRAR CONVERSA) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
