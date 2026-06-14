@@ -309,7 +309,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     margin-bottom: 15px;
 }
 
-/* ===== NOTIFICAÇÃO DE NOVA VENDA (FIXA INFERIOR DIREITA) ===== */
+/* ===== NOTIFICAÇÃO DE NOVA VENDA (FIXA INFERIOR DIREITA, COM BOTÃO FECHAR) ===== */
 #balaoNovaVenda {
     position: fixed;
     bottom: 30px;
@@ -335,6 +335,16 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     background: #fff;
     border-radius: 50%;
     animation: pulseDot 1s infinite;
+}
+.balao-fechar {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    margin-left: 10px;
+    line-height: 1;
+    padding: 0 5px;
 }
 @keyframes pulseBalao {
     0%,100% { transform: scale(1); box-shadow: 0 0 30px rgba(255,71,87,0.8); }
