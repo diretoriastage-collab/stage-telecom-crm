@@ -385,3 +385,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
     .chat-widget { left: 10px; bottom: 10px; }
     .chat-panel { width: 260px; }
 }
+/* Corrigir visibilidade do select de chat privado */
+#privateUserSelect,
+#privateUserSelect option {
+    color: #ffffff !important;
+    background-color: #1a0a0a !important;
+}
