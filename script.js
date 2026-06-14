@@ -289,7 +289,7 @@ function carregarComparacaoProdutos(vAtual, vPassado, containerId) {
     }).join('');
 }
 
-// ===== NAVEGAÇÃO ADMIN (inclui vendasAprovadas) =====
+// ===== NAVEGAÇÃO ADMIN =====
 function mostrarSecao(secao) {
     document.querySelectorAll('.section-active,.section-hidden').forEach(s=>{s.style.display='none';s.className='section-hidden';});
     const el = document.getElementById(`secao-${secao}`); if(el){el.style.display='block';el.className='section-active';}
@@ -502,7 +502,7 @@ function fecharModalAtivacao() {
         a.pontoReferencia = document.getElementById('editPontoReferencia')?.value || '';
         a.velocidade = document.getElementById('editVelocidade')?.value || '';
         a.produto = document.getElementById('editProduto')?.value || '';
-        a.plano = a.produto; // compatibilidade
+        a.plano = a.produto;
         a.valor = document.getElementById('editValor')?.value || '';
         a.vencimento = document.getElementById('editVencimento')?.value || '';
         a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
@@ -520,6 +520,40 @@ function fecharModalAtivacao() {
         carregarVendasAprovadas();
     }
     carregarDashboard();
+}
+
+// ===== INFORMAÇÕES ADICIONAIS =====
+function abrirModalInfoAdicional() {
+    if (!vendaSendoVisualizada) return;
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (!a) return;
+    document.getElementById('infoContrato').value = a.contrato || '';
+    document.getElementById('infoData').value = a.infoData || '';
+    document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
+    document.getElementById('modalInfoAdicional').style.display = 'flex';
+}
+function fecharModalInfoAdicional() {
+    document.getElementById('modalInfoAdicional').style.display = 'none';
+}
+function salvarInfoAdicional() {
+    if (!vendaSendoVisualizada) return;
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (!a) return;
+    const contrato = document.getElementById('infoContrato').value.trim();
+    const data = document.getElementById('infoData').value;
+    const periodo = document.getElementById('infoPeriodo').value;
+    if (!contrato || !data || !periodo) {
+        alert('Preencha todos os campos!');
+        return;
+    }
+    a.contrato = contrato;
+    a.infoData = data;
+    a.infoPeriodo = periodo;
+    salvarDB();
+    const nomeCliente = a.nomeCompleto || a.nomeCliente;
+    const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+    alert(`CLIENTE: ${nomeCliente}\nVENDA AGENDADA NO DIA ${dataFormatada}\nPERÍODO ${periodo}`);
+    fecharModalInfoAdicional();
 }
 
 // ===== VENDAS APROVADAS =====
@@ -579,7 +613,7 @@ window.addEventListener('storage', function(e) {
     }
 });
 
-// ===== NOTIFICAÇÃO DE NOVA VENDA =====
+// ===== NOTIFICAÇÃO DE NOVA VENDA (MODAL CENTRAL VIBRATÓRIO) =====
 function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
@@ -1080,7 +1114,7 @@ function enviarVenda() {
         pontoReferencia: document.getElementById('vPontoReferencia').value.trim(),
         velocidade: document.getElementById('vVelocidade').value,
         produto: document.getElementById('vPlano').value,
-        plano: document.getElementById('vPlano').value, // compatibilidade
+        plano: document.getElementById('vPlano').value,
         valor: document.getElementById('vValor').value,
         vencimento: document.getElementById('vVencimento').value,
         formaPagamento: document.getElementById('vFormaPagamento').value,
@@ -1104,7 +1138,6 @@ function enviarVenda() {
     };
     DB.ativacoes.push(novaAtivacao);
     salvarDB();
-    // Limpar campos
     ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
