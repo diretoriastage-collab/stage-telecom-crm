@@ -16,7 +16,7 @@ if (!DB) {
             { 
                 id: 1, 
                 usuario: "admin", 
-                senha: "admin123", // hash de "admin123"
+                senha: "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9", // hash de "admin123"
                 nome: "Master Admin", 
                 email: "admin@stagetelecom.com.br", 
                 tipo: "admin", 
