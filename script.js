@@ -12,7 +12,20 @@ try {
 
 if (!DB) {
     DB = {
-        usuarios: [],
+        usuarios: [
+    { 
+        id: 1, 
+        usuario: "admin", 
+        senha: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", // hash de "admin123"
+        nome: "Master Admin", 
+        email: "admin@stagetelecom.com.br", 
+        tipo: "admin", 
+        ativo: true, 
+        deletedAt: null, 
+        equipe: "Gestão", 
+        categoria: "admin" 
+    }
+],
         clientes: [],
         config: { metaDiaria: 10, metaMensal: 50 },
         statusFlags: [
