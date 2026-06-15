@@ -74,7 +74,7 @@ async function hashSenha(senha) {
 }
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/SEU_ID_VENDAS/exec'; // Substitua pela URL real do seu Web App de vendas
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwlD0lCiWUMJx4gdZI-WnOqjzXFA8aWUoWQ7u9iDKcezikGv8H7BoqxuegBRnb2Q2q6SA/exec'; // Substitua pela URL real do seu Web App de vendas
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
