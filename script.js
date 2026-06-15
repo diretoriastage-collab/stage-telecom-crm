@@ -1021,4 +1021,5 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(sessao){ sessao.tipo==='admin'?mostrarAdmin():mostrarVendedor(); }
     document.addEventListener('keypress',e=>{ if(e.key==='Enter' && document.getElementById('loginScreen').style.display!=='none') fazerLogin(); });
     setTimeout(() => { if (!sessao) carregarDadosDaNuvem(); }, 2000);
+    verificarNotificacaoPendente(); // 👈 ADICIONE ESTA LINHA
 });
