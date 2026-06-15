@@ -13,19 +13,19 @@ try {
 if (!DB) {
     DB = {
         usuarios: [
-    { 
-        id: 1, 
-        usuario: "admin", 
-        senha: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", // hash de "admin123"
-        nome: "Master Admin", 
-        email: "admin@stagetelecom.com.br", 
-        tipo: "admin", 
-        ativo: true, 
-        deletedAt: null, 
-        equipe: "Gestão", 
-        categoria: "admin" 
-    }
-],
+            { 
+                id: 1, 
+                usuario: "admin", 
+                senha: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", // hash de "admin123"
+                nome: "Master Admin", 
+                email: "admin@stagetelecom.com.br", 
+                tipo: "admin", 
+                ativo: true, 
+                deletedAt: null, 
+                equipe: "Gestão", 
+                categoria: "admin" 
+            }
+        ],
         clientes: [],
         config: { metaDiaria: 10, metaMensal: 50 },
         statusFlags: [
@@ -74,8 +74,7 @@ async function hashSenha(senha) {
 }
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwlD0lCiWUMJx4gdZI-WnOqjzXFA8aWUoWQ7u9iDKcezikGv8H7BoqxuegBRnb2Q2q6SA/exec'; // Substitua
-const GOOGLE_SHEET_USERS_URL = 'https://script.google.com/macros/s/AKfycbwPopumgwagC8k9JYzYW27LuYC1wVNaKDJ9YlzHR6wubmGYOnhpW-Ho4TYLzKcnM41yUQ/exec';   // Substitua
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/SEU_ID_VENDAS/exec'; // Substitua pela URL real do seu Web App de vendas
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -112,23 +111,9 @@ setInterval(() => {
     if(periodoElV) periodoElV.textContent = periodo;
 }, 1000);
 
-// ===== AUTENTICAÇÃO VIA GOOGLE SHEETS =====
+// ===== AUTENTICAÇÃO LOCAL =====
 async function autenticarUsuario(usuario, senha) {
     const hash = await hashSenha(senha);
-    try {
-        const resp = await consultarSheetUsuarios(usuario, hash);
-        if (resp && resp.autorizado) {
-            return {
-                id: resp.id,
-                nome: resp.nome,
-                email: resp.email || '',
-                tipo: resp.categoria,
-                equipe: resp.equipe || 'Geral'
-            };
-        }
-    } catch (e) {
-        console.warn('Falha ao consultar planilha de usuários, usando cache local.', e);
-    }
     const userLocal = DB.usuarios.find(u => u.usuario === usuario && u.ativo && !u.deletedAt && u.senha === hash);
     if (userLocal) {
         return {
@@ -140,31 +125,6 @@ async function autenticarUsuario(usuario, senha) {
         };
     }
     return null;
-}
-
-function consultarSheetUsuarios(usuario, hash) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'cbUsers' + Date.now();
-        const script = document.createElement('script');
-        const params = new URLSearchParams({
-            acao: 'autenticar',
-            usuario: usuario,
-            senha: hash,
-            callback: callbackName
-        });
-        script.src = GOOGLE_SHEET_USERS_URL + '?' + params.toString();
-        window[callbackName] = function(res) {
-            document.body.removeChild(script);
-            delete window[callbackName];
-            resolve(res);
-        };
-        script.onerror = () => {
-            document.body.removeChild(script);
-            delete window[callbackName];
-            reject(new Error('Erro de rede'));
-        };
-        document.body.appendChild(script);
-    });
 }
 
 // ===== LOGIN =====
@@ -1399,7 +1359,7 @@ function limparMensagensAntigas(dias = 90) {
 }
 limparMensagensAntigas(90);
 
-// ===== PROMOÇÕES (mantidas completas) =====
+// ===== PROMOÇÕES =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
@@ -1485,7 +1445,7 @@ function tocarAlerta() {
     } catch(e){}
 }
 
-// ===== RELATÓRIOS (mantidos completos) =====
+// ===== RELATÓRIOS =====
 function carregarRelatorios() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
@@ -1656,7 +1616,7 @@ function gerarPDF() {
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
-// ===== METAS (mantidas completas) =====
+// ===== METAS =====
 function carregarMetas() {
     document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
     document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
