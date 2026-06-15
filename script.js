@@ -206,7 +206,7 @@ function mostrarVendedor() {
     iniciarChat();
 }
 
-// ========== LÓGICA DE VENDAS (APROVADAS E FINALIZADAS) ==========
+// ========== LÓGICA DE VENDAS ==========
 function obterVendasAprovadas() {
     return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false);
 }
@@ -993,7 +993,6 @@ function carregarInicioVendedor() {
     document.getElementById('totalVendasMesVendedor').textContent = totalVendas;
     document.getElementById('barraProgressoVendedor').style.width = `${percentual}%`;
 
-    // Painel de instalações do mês anterior
     atualizarPainelInstalacoes();
 }
 
@@ -1006,7 +1005,7 @@ function atualizarPainelInstalacoes() {
 
     if (dia <= 10) {
         let ano = hoje.getFullYear();
-        let mes = hoje.getMonth(); // 0=jan, 1=fev...
+        let mes = hoje.getMonth();
         if (mes === 0) {
             mes = 12;
             ano--;
@@ -1203,7 +1202,7 @@ function mostrarSecaoVendedor(e, secao) {
     if (secao === 'instalacoes') carregarInstalacoes();
 }
 
-// ===== CHAT =====
+// ===== CHAT (COM EXCLUSÃO DE CONVERSA PRIVADA) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 
@@ -1220,6 +1219,7 @@ function atualizarListaConversas() {
     if (!container || !sessao) return;
     const naoLidasGrupo = DB.chatMessages.filter(m => m.conversationId === 'group' && (!m.readBy || !m.readBy.includes(sessao.id))).length;
     let html = `<div class="chat-conv-item" onclick="abrirConversaChat('group')"><i class="fas fa-users conv-icon"></i> Geral (todos) ${naoLidasGrupo > 0 ? `<span class="conv-badge">${naoLidasGrupo}</span>` : ''}</div>`;
+
     const privadas = new Set();
     DB.chatMessages.forEach(m => {
         if (m.conversationId && m.conversationId !== 'group' && m.conversationId.includes(String(sessao.id))) privadas.add(m.conversationId);
@@ -1230,9 +1230,26 @@ function atualizarListaConversas() {
         const outroUser = DB.usuarios.find(u => u.id === outroId);
         const nome = outroUser ? outroUser.nome : 'Usuário';
         const naoLidas = DB.chatMessages.filter(m => m.conversationId === convId && (!m.readBy || !m.readBy.includes(sessao.id))).length;
-        html += `<div class="chat-conv-item" onclick="abrirConversaChat('${convId}')"><i class="fas fa-user conv-icon"></i> ${nome} ${naoLidas > 0 ? `<span class="conv-badge">${naoLidas}</span>` : ''}</div>`;
+        html += `<div class="chat-conv-item" style="display:flex; align-items:center; gap:8px;">
+            <span onclick="abrirConversaChat('${convId}')" style="flex:1; cursor:pointer;"><i class="fas fa-user conv-icon"></i> ${nome} ${naoLidas > 0 ? `<span class="conv-badge">${naoLidas}</span>` : ''}</span>
+            <button onclick="event.stopPropagation(); excluirConversa('${convId}')" class="chat-delete-btn" title="Excluir conversa"><i class="fas fa-trash"></i></button>
+        </div>`;
     });
     container.innerHTML = html;
+}
+function excluirConversa(conversationId) {
+    if (!confirm('Tem certeza que deseja excluir permanentemente esta conversa privada?')) return;
+    DB.chatMessages = DB.chatMessages.filter(m => m.conversationId !== conversationId);
+    salvarDB();
+    if (chatConversationAtual === conversationId) {
+        chatConversationAtual = null;
+        document.getElementById('chatMain').style.display = 'none';
+        document.getElementById('chatSidebar').style.display = 'block';
+        document.getElementById('chatBackBtn').style.display = 'none';
+        document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat';
+    }
+    atualizarListaConversas();
+    atualizarBadge();
 }
 function abrirConversaChat(conversationId) {
     chatConversationAtual = conversationId;
@@ -1369,7 +1386,7 @@ function limparMensagensAntigas(dias = 90) {
 }
 limparMensagensAntigas(90);
 
-// ===== PROMOÇÕES =====
+// ===== PROMOÇÕES (mantidas completas) =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
 function cadastrarPromocao() {
     const tipo = document.getElementById('tipoPromocao').value;
@@ -1455,7 +1472,7 @@ function tocarAlerta() {
     } catch(e){}
 }
 
-// ===== RELATÓRIOS =====
+// ===== RELATÓRIOS (mantidos completos) =====
 function carregarRelatorios() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
@@ -1626,7 +1643,7 @@ function gerarPDF() {
 }
 function fecharModalPDF() { document.getElementById('modalPDF').style.display = 'none'; }
 
-// ===== METAS =====
+// ===== METAS (mantidas completas) =====
 function carregarMetas() {
     document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
     document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
@@ -1676,18 +1693,13 @@ function salvarMetas() { DB.metas.diariaVendas = parseInt(document.getElementByI
 function carregarTabelaProdutos() {
     const tbody = document.getElementById('tabelaProdutos');
     if (!tbody) return;
-    tbody.innerHTML = DB.produtos.map((p, index) => `
-        <tr><td>${p}</td><td>
-            <button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button>
-            <button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
-        </td></tr>`).join('');
+    tbody.innerHTML = DB.produtos.map((p, index) => `<tr><td>${p}</td><td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
 }
 function adicionarProduto() {
     const nome = document.getElementById('novoProdutoNome').value.trim();
     if (!nome) return alert('Digite um nome para o produto.');
     if (DB.produtos.includes(nome)) return alert('Produto já existe.');
-    DB.produtos.push(nome); salvarDB();
-    document.getElementById('novoProdutoNome').value = '';
+    DB.produtos.push(nome); salvarDB(); document.getElementById('novoProdutoNome').value = '';
     carregarTabelaProdutos(); carregarSelectProdutos();
 }
 function editarProduto(index) {
@@ -1757,13 +1769,12 @@ function mostrarModalNovaVenda() {
     modal.className = 'modal-overlay';
     modal.style.display = 'flex';
     modal.style.zIndex = '99999';
-    modal.innerHTML = `
-        <div class="modal-glass modal-parabens modal-vibrando" style="text-align:center;max-width:450px;">
-            <div class="parabens-icon" style="font-size:64px;">🔔</div>
-            <h2 style="color:#ffd700;font-size:28px;margin:15px 0;">NOVA VENDA!</h2>
-            <p style="color:#fff;font-size:16px;">Uma nova venda foi recebida no sistema.</p>
-            <button onclick="fecharModalNovaVenda()" class="btn-glass-primary" style="margin-top:20px;background:#ff4757;">Fechar (X)</button>
-        </div>`;
+    modal.innerHTML = `<div class="modal-glass modal-parabens modal-vibrando" style="text-align:center;max-width:450px;">
+        <div class="parabens-icon" style="font-size:64px;">🔔</div>
+        <h2 style="color:#ffd700;font-size:28px;margin:15px 0;">NOVA VENDA!</h2>
+        <p style="color:#fff;font-size:16px;">Uma nova venda foi recebida no sistema.</p>
+        <button onclick="fecharModalNovaVenda()" class="btn-glass-primary" style="margin-top:20px;background:#ff4757;">Fechar (X)</button>
+    </div>`;
     document.body.appendChild(modal);
     tocarAlerta();
 }
