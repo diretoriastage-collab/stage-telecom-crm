@@ -775,6 +775,16 @@ function limparFormularioVenda() {
     const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 }
+
+async function enviarVendaPendenteParaPlanilha(venda) {
+    try {
+        const resp = await fetchFromGS('adicionarPendente', { venda: JSON.stringify(venda) });
+        return resp && resp.ok === true;
+    } catch (e) {
+        console.warn('Erro ao enviar pendente:', e);
+        return false;
+    }
+}
 function enviarVenda() {
     if (!sessao) { alert('Sessão expirada. Faça login novamente.'); return; }
     const campos = {
