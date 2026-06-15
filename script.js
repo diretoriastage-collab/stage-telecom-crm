@@ -276,7 +276,6 @@ function carregarDadosDaNuvem() {
     document.body.appendChild(script);
 }
 // ⬇️ Estes dois intervalos devem ficar aqui ⬇️
-setInterval(() => { if (sessao) sincronizarComNuvem(); }, 3000);  // Envia dados para nuvem
 setInterval(() => { if (sessao) carregarDadosDaNuvem(); }, 5000); // 👈 COLE AQUI - Verifica dados novos
 // ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
