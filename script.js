@@ -63,7 +63,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz9cpXYUTdisFB5LIOQskMx1K8RHZCsHbTxjN_paK4d0swGEx3l-iISkBjrhd3zYHmMrA/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwdwWubkUdYH-Nekw274DIGPKIK8dL5LSSFSqQQwanxWYmItvzlSeuo5G2f8QOGmSpcmg/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
