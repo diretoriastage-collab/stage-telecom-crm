@@ -240,16 +240,18 @@ function carregarDadosDaNuvem() {
         if (res && res.dados && res.dados !== 'undefined') {
             try {
                 const dadosNuvem = JSON.parse(res.dados);
-                const totalLocal = (DB.ativacoes || []).length;
-                const totalNuvem = (dadosNuvem.ativacoes || []).length;
+                const localLength = (DB.ativacoes || []).length + (DB.usuarios || []).length;
+                const nuvemLength = (dadosNuvem.ativacoes || []).length + (dadosNuvem.usuarios || []).length;
                 
-                console.log('📊 Local:', totalLocal, 'Nuvem:', totalNuvem);
-                
-                if (totalNuvem > totalLocal) {
-                    console.log('🆕 Vendas novas encontradas!');
+                // Se a nuvem tem mais dados, atualiza automaticamente
+                if (nuvemLength > localLength) {
+                    // Verifica se há vendas NOVAS para notificar
+                    const novasVendasNuvem = (dadosNuvem.ativacoes || []).filter(a => a.status !== 'Aprovado');
+                    const novasVendasLocal = (DB.ativacoes || []).filter(a => a.status !== 'Aprovado');
                     
-                    // Sempre notifica quando há dados novos
-                    sessionStorage.setItem('stage_notificacao_pendente', 'true');
+                    if (novasVendasNuvem.length > novasVendasLocal.length && sessao && sessao.tipo === 'admin') {
+                        sessionStorage.setItem('stage_notificacao_pendente', 'true');
+                    }
                     
                     DB = dadosNuvem;
                     localStorage.setItem('stage_db', JSON.stringify(DB));
@@ -257,6 +259,8 @@ function carregarDadosDaNuvem() {
                     if (sessao) {
                         location.reload();
                     }
+                } else if (localLength > nuvemLength && sessao) {
+                    sincronizarComNuvem();
                 }
             } catch (e) {
                 console.warn('Erro:', e);
