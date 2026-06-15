@@ -63,7 +63,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycby-Dr7StRY2TP9fvIEFl3QwFtJfUSbEr0wYYbjRg9OQILYfv4-F273P6ocjUh8Y8QoaLA/exec'; // SUBSTITUA PELA SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwUuI5eq1W1dvuojHwiqpb0nqVP_rgAKMjhLxMJKZTht11V4huiGgXJAvdsfPhG8fjgGQ/exec'; // SUBSTITUA PELA SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -164,13 +164,31 @@ function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
 function fetchFromGS(acao, params = {}) {
     return new Promise((resolve, reject) => {
-        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 5);
+        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
         const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
         const script = document.createElement('script');
         script.src = GOOGLE_SHEET_VENDAS_URL + '?' + urlParams.toString();
-        const timeout = setTimeout(() => { document.body.removeChild(script); delete window[callbackName]; reject(new Error('Timeout')); }, 10000);
-        window[callbackName] = (res) => { clearTimeout(timeout); document.body.removeChild(script); delete window[callbackName]; resolve(res); };
-        script.onerror = () => { clearTimeout(timeout); document.body.removeChild(script); delete window[callbackName]; reject(new Error('Erro de rede')); };
+        
+        const timeout = setTimeout(() => {
+            if (document.body.contains(script)) document.body.removeChild(script);
+            delete window[callbackName];
+            reject(new Error('Timeout na requisição JSONP'));
+        }, 15000);
+        
+        window[callbackName] = (res) => {
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            delete window[callbackName];
+            resolve(res);
+        };
+        
+        script.onerror = () => {
+            clearTimeout(timeout);
+            if (document.body.contains(script)) document.body.removeChild(script);
+            delete window[callbackName];
+            reject(new Error('Erro de rede na requisição JSONP'));
+        };
+        
         document.body.appendChild(script);
     });
 }
@@ -189,92 +207,231 @@ async function buscarPendentesDaNuvem() {
     try {
         const resp = await fetchFromGS('listarPendentes');
         if (resp && resp.pendentes && Array.isArray(resp.pendentes)) {
+            // Converte os dados da planilha para o formato interno do front-end
             const pendentesNuvem = resp.pendentes.map(p => ({
-                id: gerarIdEstavel(p), // ID estável baseado nos dados
-                nomeCompleto: p.Cliente,
-                produto: p.Plano,
-                valor: p.Valor,
-                status: p.Status || 'Pendente',
-                vendedorNome: p.Vendedor,
-                vendedor_id: p.VendedorId ? parseInt(p.VendedorId) : null,
-                data: p.DataVenda || new Date().toISOString().split('T')[0],
-                observacao: p.Observacao || '',
-                finalizada: false
+                id: p.UUID,                         // UUID único da venda (string)
+                nomeCompleto: p.Cliente || '',
+                cpf: p['CPF'] || '',
+                dataNasc: p['Data Nasc.'] || '',
+                nomeMae: p['Nome da Mãe'] || '',
+                rg: p['RG'] || '',
+                orgaoExpeditor: p['Órgão Exp.'] || '',
+                dataExpedicao: p['Data Exp.'] || '',
+                email: p['Email'] || '',
+                telefone1: p['Tel 1'] || '',
+                telefone2: p['Tel 2'] || '',
+                cep: p['CEP'] || '',
+                logradouro: p['Logradouro'] || '',
+                numero: p['N°'] || '',
+                complemento: p['Complemento'] || '',
+                bairro: p['Bairro'] || '',
+                uf: p['Estado'] || '',
+                cidade: p['Cidade'] || '',
+                pontoReferencia: p['Ponto Ref.'] || '',
+                produto: p['Plano'] || '',
+                plano: p['Plano'] || '',
+                velocidade: p['Velocidade'] || '',
+                valor: p['Valor'] || '',
+                vencimento: p['Vencimento'] || '',
+                formaPagamento: p['Pagamento'] || '',
+                hp: p['HP'] || '',
+                viabilidade: p['Viabilidade'] || '',
+                planoTipo: p['Plano Tipo'] || '',
+                tipoAprovacao: p['Tipo Aprov.'] || '',
+                status: p['Status'] || 'Pendente',
+                vendedorNome: p['Vendedor'] || '',
+                vendedor_id: p['VendedorId'] ? parseInt(p['VendedorId']) : null,
+                data: p['DataVenda'] || new Date().toISOString().split('T')[0],
+                observacao: p['Observacao'] || '',
+                finalizada: false,
+                tratandoPor: null
             }));
+
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             const aprovadasLocais = DB.ativacoes.filter(a => a.status === 'Aprovado');
-            
-            // Verifica se realmente há novas pendentes (comparando tamanho e IDs)
-            const novosIds = pendentesNuvem.map(p => p.id);
-            const idsAntigos = pendentesAntigas.map(p => p.id);
-            const temNovas = novosIds.length !== idsAntigos.length || !novosIds.every(id => idsAntigos.includes(id));
-            
             DB.ativacoes = [...pendentesNuvem, ...aprovadasLocais];
             salvarDB();
-            
-            if (sessao.tipo === 'admin' && temNovas && pendentesNuvem.length > 0) {
-                tocarAlerta();
-                mostrarModalNovaVenda();
+
+            // Notificação única por UUID (apenas para admin)
+            if (sessao.tipo === 'admin') {
+                let notificados = sessionStorage.getItem('stage_notificados_pendentes');
+                let idsNotificados = notificados ? JSON.parse(notificados) : [];
+                
+                const uuidsAtuais = pendentesNuvem.map(p => p.id).filter(id => id); // UUIDs válidos
+                const uuidsNovos = uuidsAtuais.filter(uuid => !idsNotificados.includes(uuid));
+                
+                if (uuidsNovos.length > 0) {
+                    tocarAlerta();
+                    mostrarModalNovaVenda();
+                    idsNotificados.push(...uuidsNovos);
+                    sessionStorage.setItem('stage_notificados_pendentes', JSON.stringify(idsNotificados));
+                }
             }
+
+            // Atualiza a tela se a seção de ativações estiver aberta
             if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
                 carregarAtivacoes();
             }
         }
-    } catch (err) { console.warn('Erro ao buscar pendentes:', err); }
+    } catch (err) {
+        console.warn('Erro ao buscar pendentes:', err);
+    }
 }
-
 async function buscarVendasAprovadasDaNuvem() {
     if (!sessao) return;
     try {
         const resp = await fetchFromGS('listarVendas');
         if (resp && resp.vendas && Array.isArray(resp.vendas)) {
+            // Converte cada linha da planilha VENDAS para o formato interno
             const aprovadasNuvem = resp.vendas.map(v => ({
-                id: Date.now() + Math.random(), // As aprovadas não precisam de estabilidade extrema
-                nomeCompleto: v.Cliente,
-                produto: v.Plano,
-                valor: v['Valor (R$)'],
+                id: Date.now() + Math.random() + v['Cliente'], // ID provisório (não usado como UUID)
+                uuid: v['UUID'] || null,                       // se existir UUID na VENDAS (opcional)
+                nomeCompleto: v['Cliente'] || '',
+                cpf: v['CPF'] || '',
+                dataNasc: v['Data Nasc.'] || '',
+                nomeMae: v['Nome da Mãe'] || '',
+                rg: v['RG'] || '',
+                orgaoExpeditor: v['Órgão Exp.'] || '',
+                dataExpedicao: v['Data Exp.'] || '',
+                email: v['Email'] || '',
+                telefone1: v['Tel 1'] || '',
+                telefone2: v['Tel 2'] || '',
+                cep: v['CEP'] || '',
+                logradouro: v['Logradouro'] || '',
+                numero: v['N°'] || '',
+                complemento: v['Complemento'] || '',
+                bairro: v['Bairro'] || '',
+                uf: v['Estado'] || '',
+                cidade: v['Cidade'] || '',
+                pontoReferencia: v['Ponto Ref.'] || '',
+                produto: v['Plano'] || '',
+                plano: v['Plano'] || '',
+                velocidade: v['Velocidade'] || '',
+                valor: v['Valor (R$)'] || '0',
+                vencimento: v['Vencimento'] || '',
+                formaPagamento: v['Pagamento'] || '',
+                hp: v['HP'] || '',
+                viabilidade: v['Viabilidade'] || '',
+                planoTipo: v['Plano Tipo'] || '',
+                tipoAprovacao: v['Tipo Aprov.'] || '',
+                contrato: v['Contrato'] || '',
+                infoData: v['Data Inst.'] || '',
+                infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
-                vendedorNome: v.Vendedor,
+                vendedorNome: v['Vendedor'] || '',
+                vendedor_id: null, // será preenchido abaixo se encontrar usuário
                 data: v['Data Aprovação'] ? converterDataParaISO(v['Data Aprovação']) : new Date().toISOString().split('T')[0],
                 finalizada: true,
-                instalacaoStatus: 'Aguardando'
+                instalacaoStatus: 'Aguardando',
+                observacao: v['Observação'] || ''
             }));
+            
+            // Tenta associar o vendedor pelo nome (busca no DB.usuarios)
+            aprovadasNuvem.forEach(v => {
+                const user = DB.usuarios.find(u => u.nome && u.nome.trim().toUpperCase() === (v.vendedorNome || '').trim().toUpperCase());
+                if (user) v.vendedor_id = user.id;
+            });
+            
+            // Mantém as pendentes atuais e substitui as aprovadas pelas vindas da nuvem
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
             salvarDB();
+            
+            // Atualiza a tela se a seção de Vendas Aprovadas estiver visível
             if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) {
                 carregarVendasAprovadas();
             }
-            if (sessao.tipo === 'admin') carregarDashboard();
+            
+            // Atualiza o dashboard do admin (se for admin)
+            if (sessao.tipo === 'admin') {
+                carregarDashboard();
+            }
+            
+            // Se for vendedor, atualiza a lista de controle de vendas e instalações (se visíveis)
+            if (sessao.tipo === 'vendedor') {
+                if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
+                    carregarControleVendas();
+                }
+                if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                    carregarInstalacoes();
+                }
+            }
         }
-    } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
-}
-
-async function enviarVendaPendenteParaPlanilha(venda) {
-    try {
-        const resp = await fetchFromGS('adicionarPendente', { venda: JSON.stringify(venda) });
-        return resp && resp.ok === true;
-    } catch (e) { console.warn('Erro ao enviar pendente:', e); return false; }
-}
-
-function removerVenda(id) {
-    if (confirm('Tem certeza que deseja remover permanentemente esta venda?')) {
-        const venda = DB.ativacoes.find(a => a.id === id);
-        if (venda && venda.nomeCompleto) {
-            postParaGoogleSheets('excluirVenda', { vendaId: venda.nomeCompleto });
-        }
-        DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
-        salvarDB();
-        if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
-        if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
-        if (sessao.tipo === 'admin') carregarDashboard();
+    } catch (err) {
+        console.warn('Erro ao buscar vendas aprovadas da nuvem:', err);
     }
 }
-
+function removerVenda(id) {
+    // Encontra a venda no DB local
+    const venda = DB.ativacoes.find(a => a.id === id);
+    if (!venda) {
+        alert('Venda não encontrada!');
+        return;
+    }
+    
+    const nomeCliente = venda.nomeCompleto || venda.nomeCliente;
+    const uuid = venda.id; // O id da venda agora é o UUID (string)
+    
+    if (!nomeCliente && !uuid) {
+        alert('Não foi possível identificar a venda para exclusão.');
+        return;
+    }
+    
+    if (confirm(`Tem certeza que deseja remover permanentemente a venda de "${nomeCliente || uuid}"?`)) {
+        // Envia para o Google Sheets (tenta excluir por UUID primeiro, depois por nome)
+        if (uuid && typeof uuid === 'string' && uuid.includes('-')) {
+            // É um UUID válido (contém hífens)
+            postParaGoogleSheets('excluirVenda', { uuid: uuid });
+        } else if (nomeCliente) {
+            postParaGoogleSheets('excluirVenda', { vendaId: nomeCliente });
+        } else {
+            alert('Dados insuficientes para exclusão na planilha.');
+        }
+        
+        // Remove do DB local
+        DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
+        salvarDB();
+        
+        // Atualiza as telas conforme a seção ativa
+        if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
+            carregarAtivacoes();
+        }
+        if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) {
+            carregarVendasAprovadas();
+        }
+        if (sessao.tipo === 'admin') {
+            carregarDashboard();
+        } else if (sessao.tipo === 'vendedor') {
+            if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
+                carregarControleVendas();
+            }
+            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                carregarInstalacoes();
+            }
+        }
+        
+        alert('✅ Venda removida com sucesso!');
+    }
+}
 function converterDataParaISO(dataStr) {
-    if (!dataStr) return '';
+    if (!dataStr || typeof dataStr !== 'string') return '';
+    // Remove espaços extras
+    dataStr = dataStr.trim();
+    // Verifica se já está no formato ISO (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) {
+        return dataStr;
+    }
+    // Tenta converter formato DD/MM/AAAA ou DD/MM/AA
     const partes = dataStr.split('/');
-    if (partes.length === 3) return `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`;
+    if (partes.length === 3) {
+        let dia = partes[0].padStart(2, '0');
+        let mes = partes[1].padStart(2, '0');
+        let ano = partes[2];
+        // Se ano com 2 dígitos, assume 20xx
+        if (ano.length === 2) ano = '20' + ano;
+        return `${ano}-${mes}-${dia}`;
+    }
+    // Se não conseguiu converter, retorna a string original
     return dataStr;
 }
 
@@ -282,10 +439,21 @@ async function postParaGoogleSheets(acao, dados = {}) {
     try {
         const formData = new URLSearchParams();
         formData.append('acao', acao);
-        for (let key in dados) formData.append(key, dados[key]);
-        await fetch(GOOGLE_SHEET_VENDAS_URL, { method: 'POST', body: formData, mode: 'no-cors' });
-        console.log(`✅ POST '${acao}' enviado`);
-    } catch (e) { console.warn(`⚠️ Falha no POST '${acao}':`, e); }
+        for (let key in dados) {
+            if (dados.hasOwnProperty(key)) {
+                formData.append(key, dados[key]);
+            }
+        }
+        // Usa fetch com no-cors (não conseguimos ler a resposta, mas o GS recebe os dados)
+        await fetch(GOOGLE_SHEET_VENDAS_URL, {
+            method: 'POST',
+            body: formData,
+            mode: 'no-cors'
+        });
+        console.log(`✅ POST '${acao}' enviado com sucesso`, dados);
+    } catch (e) {
+        console.warn(`⚠️ Falha no POST '${acao}':`, e);
+    }
 }
 
 function excluirVendaDoGoogleSheets(vendaId) { postParaGoogleSheets('excluirVenda', { vendaId }); }
@@ -778,22 +946,43 @@ function mostrarNotificacao(mensagem) { const toast = document.getElementById('t
 function fecharToast() { document.getElementById('toastNotificacao').style.display = 'none'; }
 function tocarAlerta() {
     try {
-        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        // Cria um contexto de áudio (necessário para browsers modernos)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
+        
         osc.connect(gain);
         gain.connect(ctx.destination);
+        
         osc.type = 'sine';
         gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        
+        // Primeiro bip: 880 Hz
         osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+        
+        // Segundo bip: 1100 Hz, após pequena pausa
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.25);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+        
         osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.4);
-    } catch(e) {}
+        osc.stop(ctx.currentTime + 0.5);
+        
+        // Retomar o contexto se estiver suspenso (política de autoplay)
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+    } catch(e) {
+        console.warn('Erro ao tocar alerta:', e);
+        // Fallback: tenta usar um elemento de áudio simples
+        try {
+            const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCB...'); // beep base64 curto
+            audio.play().catch(() => {});
+        } catch(e2) {}
+    }
 }
-
 // ===== RELATÓRIOS (mantido) =====
 function carregarRelatorios() { const periodo = document.getElementById('filtroPeriodo').value; let dadosAtual, dadosAnterior; if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); } else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); } else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); } carregarComparativoProdutos(dadosAtual, dadosAnterior, periodo); carregarVendasPorVendedor(dadosAtual, dadosAnterior); carregarVendasPorEquipe(dadosAtual, dadosAnterior); carregarRankingRelatorio(dadosAtual); }
 function gerarVendasQuinzenaAtual() { const hoje = new Date(); const dia = hoje.getDate(); const todas = gerarVendasMesAtual(); if (dia <= 15) return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); else return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; }); }
@@ -847,17 +1036,32 @@ window.addEventListener('storage', function(e) {
 });
 
 // ===== NOTIFICAÇÃO DE NOVA VENDA =====
-function mostrarModalNovaVenda() { 
-    const existente = document.getElementById('modalNovaVenda'); 
-    if (existente) existente.remove(); 
-    const modal = document.createElement('div'); 
-    modal.id = 'modalNovaVenda'; 
-    modal.className = 'modal-overlay'; 
-    modal.style.display = 'flex'; 
-    modal.style.zIndex = '99999'; 
-    modal.innerHTML = `<div class="modal-glass modal-parabens modal-vibrando" style="text-align:center;max-width:450px;"><div class="parabens-icon" style="font-size:64px;">🔔</div><h2 style="color:#ffd700;font-size:28px;margin:15px 0;">NOVA VENDA!</h2><p style="color:#fff;font-size:16px;">Uma nova venda foi recebida no sistema.</p><button onclick="fecharModalNovaVenda()" class="btn-glass-primary" style="margin-top:20px;background:#ff4757;">Fechar (X)</button></div>`; 
-    document.body.appendChild(modal); 
-    tocarAlerta(); 
+function mostrarModalNovaVenda() {
+    // Remove qualquer modal existente para evitar duplicação
+    const existente = document.getElementById('modalNovaVenda');
+    if (existente) existente.remove();
+    
+    // Cria o elemento do modal
+    const modal = document.createElement('div');
+    modal.id = 'modalNovaVenda';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '99999';
+    modal.innerHTML = `
+        <div class="modal-glass modal-parabens modal-vibrando" style="text-align:center;max-width:450px;">
+            <div class="parabens-icon" style="font-size:64px;">🔔</div>
+            <h2 style="color:#ffd700;font-size:28px;margin:15px 0;">NOVA VENDA!</h2>
+            <p style="color:#fff;font-size:16px;">Uma nova venda foi recebida no sistema.</p>
+            <button onclick="fecharModalNovaVenda()" class="btn-glass-primary" style="margin-top:20px;background:#ff4757;cursor:pointer;">Fechar (X)</button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Auto-fechar após 8 segundos
+    setTimeout(() => {
+        fecharModalNovaVenda();
+    }, 20000);
 }
 function fecharModalNovaVenda() { const modal = document.getElementById('modalNovaVenda'); if (modal) modal.remove(); novasVendas = false; }
 
@@ -871,63 +1075,75 @@ function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.i
 // ===== ATIVAÇÕES (MODAL DE EDIÇÃO) =====
 function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
-    if (!a) return;
+    if (!a) {
+        console.error('Venda não encontrada:', id);
+        return;
+    }
+    
     vendaSendoVisualizada = id;
+    
+    // Marca que este admin está tratando a venda
     a.tratandoPor = sessao.nome;
     salvarDB();
-    const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
-    document.getElementById('conteudoModalAtivacao').innerHTML = `
+    
+    // Gera as opções de status dinamicamente
+    const statusOptions = DB.statusFlags.map(f => 
+        `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`
+    ).join('');
+    
+    // Preenche o conteúdo do modal com todos os campos (usando os valores do objeto `a`)
+    const html = `
         <div class="form-grid">
             <div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div>
-            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao||''}</textarea></div>
-            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto||''}" id="editNomeCompleto"></div>
-            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae||''}" id="editNomeMae"></div>
-            <div class="input-group"><label>Data Nasc.</label><input value="${a.dataNasc||''}" id="editDataNasc"></div>
-            <div class="input-group"><label>CPF</label><input value="${a.cpf||''}" id="editCpf"></div>
-            <div class="input-group"><label>RG</label><input value="${a.rg||''}" id="editRg"></div>
-            <div class="input-group"><label>Órgão Exp.</label><input value="${a.orgaoExpeditor||''}" id="editOrgaoExpeditor"></div>
-            <div class="input-group"><label>Data Exp.</label><input value="${a.dataExpedicao||''}" id="editDataExpedicao"></div>
-            <div class="input-group"><label>Email</label><input value="${a.email||''}" id="editEmail"></div>
-            <div class="input-group"><label>Tel 1</label><input value="${a.telefone1||''}" id="editTelefone1"></div>
-            <div class="input-group"><label>Tel 2</label><input value="${a.telefone2||''}" id="editTelefone2"></div>
-            <div class="input-group"><label>CEP</label><input value="${a.cep||''}" id="editCep"></div>
-            <div class="input-group"><label>Logradouro</label><input value="${a.logradouro||''}" id="editLogradouro"></div>
-            <div class="input-group"><label>N°</label><input value="${a.numero||''}" id="editNumero"></div>
-            <div class="input-group"><label>Complemento</label><input value="${a.complemento||''}" id="editComplemento"></div>
-            <div class="input-group"><label>Bairro</label><input value="${a.bairro||''}" id="editBairro"></div>
-            <div class="input-group"><label>Estado</label><input value="${a.uf||''}" id="editUf"></div>
-            <div class="input-group"><label>Cidade</label><input value="${a.cidade||''}" id="editCidade"></div>
-            <div class="input-group"><label>Ponto Ref.</label><input value="${a.pontoReferencia||''}" id="editPontoReferencia"></div>
-            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade||''}" id="editVelocidade"></div>
-            <div class="input-group"><label>Produto</label><input value="${a.produto||a.plano||''}" id="editProduto"></div>
-            <div class="input-group"><label>Valor</label><input value="${a.valor||''}" id="editValor"></div>
-            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento||''}" id="editVencimento"></div>
-            <div class="input-group"><label>Pagamento</label><input value="${a.formaPagamento||''}" id="editFormaPagamento"></div>
-            <div class="input-group"><label>HP</label><input value="${a.hp||''}" id="editHp"></div>
-            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade||''}" id="editViabilidade"></div>
-            <div class="input-group"><label>Plano Tipo</label><input value="${a.planoTipo||''}" id="editPlanoTipo"></div>
-            <div class="input-group"><label>Tipo Aprov.</label><input value="${a.tipoAprovacao||''}" id="editTipoAprovacao"></div>
-        </div>`;
-    document.getElementById('modalAtivacao').style.display = 'flex';
+            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao || ''}</textarea></div>
+            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto || ''}" id="editNomeCompleto"></div>
+            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae || ''}" id="editNomeMae"></div>
+            <div class="input-group"><label>Data Nasc.</label><input value="${a.dataNasc || ''}" id="editDataNasc"></div>
+            <div class="input-group"><label>CPF</label><input value="${a.cpf || ''}" id="editCpf"></div>
+            <div class="input-group"><label>RG</label><input value="${a.rg || ''}" id="editRg"></div>
+            <div class="input-group"><label>Órgão Exp.</label><input value="${a.orgaoExpeditor || ''}" id="editOrgaoExpeditor"></div>
+            <div class="input-group"><label>Data Exp.</label><input value="${a.dataExpedicao || ''}" id="editDataExpedicao"></div>
+            <div class="input-group"><label>Email</label><input value="${a.email || ''}" id="editEmail"></div>
+            <div class="input-group"><label>Tel 1</label><input value="${a.telefone1 || ''}" id="editTelefone1"></div>
+            <div class="input-group"><label>Tel 2</label><input value="${a.telefone2 || ''}" id="editTelefone2"></div>
+            <div class="input-group"><label>CEP</label><input value="${a.cep || ''}" id="editCep"></div>
+            <div class="input-group"><label>Logradouro</label><input value="${a.logradouro || ''}" id="editLogradouro"></div>
+            <div class="input-group"><label>N°</label><input value="${a.numero || ''}" id="editNumero"></div>
+            <div class="input-group"><label>Complemento</label><input value="${a.complemento || ''}" id="editComplemento"></div>
+            <div class="input-group"><label>Bairro</label><input value="${a.bairro || ''}" id="editBairro"></div>
+            <div class="input-group"><label>Estado</label><input value="${a.uf || ''}" id="editUf"></div>
+            <div class="input-group"><label>Cidade</label><input value="${a.cidade || ''}" id="editCidade"></div>
+            <div class="input-group"><label>Ponto Ref.</label><input value="${a.pontoReferencia || ''}" id="editPontoReferencia"></div>
+            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade || ''}" id="editVelocidade"></div>
+            <div class="input-group"><label>Produto</label><input value="${a.produto || a.plano || ''}" id="editProduto"></div>
+            <div class="input-group"><label>Valor</label><input value="${a.valor || ''}" id="editValor"></div>
+            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento || ''}" id="editVencimento"></div>
+            <div class="input-group"><label>Pagamento</label><input value="${a.formaPagamento || ''}" id="editFormaPagamento"></div>
+            <div class="input-group"><label>HP</label><input value="${a.hp || ''}" id="editHp"></div>
+            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade || ''}" id="editViabilidade"></div>
+            <div class="input-group"><label>Plano Tipo</label><input value="${a.planoTipo || ''}" id="editPlanoTipo"></div>
+            <div class="input-group"><label>Tipo Aprov.</label><input value="${a.tipoAprovacao || ''}" id="editTipoAprovacao"></div>
+        </div>
+    `;
+    
+    const container = document.getElementById('conteudoModalAtivacao');
+    if (container) container.innerHTML = html;
+    
+    // Exibe o modal
+    const modal = document.getElementById('modalAtivacao');
+    if (modal) modal.style.display = 'flex';
+    
+    // Recarrega a lista de ativações para garantir sincronia (opcional)
     carregarAtivacoes();
 }
+
 
 function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (a) {
         const novoStatus = document.getElementById('editStatus')?.value;
-        if (novoStatus) {
-            if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
-                if (confirm('Deseja finalizar essa venda? Ao aprovar, ela será contabilizada.')) {
-                    a.status = 'Aprovado';
-                    a.finalizada = true;
-                    if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
-                    enviarParaGoogleSheets(a);
-                }
-            } else {
-                a.status = novoStatus;
-            }
-        }
+        
+        // Atualiza todos os campos do objeto com os valores do modal
         a.observacao = document.getElementById('editObservacao')?.value || '';
         a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
         a.nomeMae = document.getElementById('editNomeMae')?.value || '';
@@ -957,33 +1173,62 @@ function fecharModalAtivacao() {
         a.viabilidade = document.getElementById('editViabilidade')?.value || '';
         a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
         a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
+        
+        // Tratamento do status
+        if (novoStatus) {
+            if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
+                if (confirm('Deseja finalizar essa venda? Ao aprovar, ela será contabilizada na aba de vendas aprovadas.')) {
+                    a.status = 'Aprovado';
+                    a.finalizada = true;
+                    if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
+                    // Envia a venda aprovada para o Google Sheets (incluindo o UUID)
+                    enviarParaGoogleSheets(a);
+                } else {
+                    // Se o admin cancelou a aprovação, mantém o status anterior
+                    a.status = a.status; // não altera
+                }
+            } else {
+                a.status = novoStatus;
+            }
+        }
+        
         a.tratandoPor = null;
         salvarDB();
+        
+        // Se a venda foi aprovada, buscamos os dados atualizados da nuvem (pendentes e aprovadas)
         if (novoStatus === 'Aprovado') {
             buscarPendentesDaNuvem();
             buscarVendasAprovadasDaNuvem();
         }
     }
-    document.getElementById('modalAtivacao').style.display = 'none';
+    
+    // Fecha o modal
+    const modal = document.getElementById('modalAtivacao');
+    if (modal) modal.style.display = 'none';
     vendaSendoVisualizada = null;
+    
+    // Recarrega as telas relevantes
     carregarAtivacoes();
     if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) {
         carregarVendasAprovadas();
     }
-    carregarDashboard();
+    if (sessao.tipo === 'admin') {
+        carregarDashboard();
+    }
 }
 
 function enviarParaGoogleSheets(venda) {
     const p = venda;
     const payload = {
+        uuid: p.id,                              // 👈 ESSENCIAL: UUID da venda pendente
         status: p.status || 'Aprovado',
         nomeCliente: p.nomeCompleto || p.nomeCliente || '',
         cpf: p.cpf || '',
-        dataNasc: p.dataNasc ? new Date(p.dataNasc+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        dataNasc: p.dataNasc ? new Date(p.dataNasc + 'T00:00:00').toLocaleDateString('pt-BR') : '',
         nomeMae: p.nomeMae || '',
         rg: p.rg || '',
         orgaoExpeditor: p.orgaoExpeditor || '',
-        dataExpedicao: p.dataExpedicao ? new Date(p.dataExpedicao+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        dataExpedicao: p.dataExpedicao ? new Date(p.dataExpedicao + 'T00:00:00').toLocaleDateString('pt-BR') : '',
         email: p.email || '',
         telefone1: p.telefone1 || '',
         telefone2: p.telefone2 || '',
@@ -998,17 +1243,17 @@ function enviarParaGoogleSheets(venda) {
         plano: p.produto || p.plano || '',
         velocidade: p.velocidade || '',
         valor: p.valor || '',
-        vencimento: p.vencimento ? new Date(p.vencimento+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        vencimento: p.vencimento ? new Date(p.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '',
         formaPagamento: p.formaPagamento || '',
         hp: p.hp || '',
         viabilidade: p.viabilidade || '',
         planoTipo: p.planoTipo || '',
         tipoAprovacao: p.tipoAprovacao || '',
         contrato: p.contrato || '',
-        infoData: p.infoData ? new Date(p.infoData+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        infoData: p.infoData ? new Date(p.infoData + 'T00:00:00').toLocaleDateString('pt-BR') : '',
         infoPeriodo: p.infoPeriodo || '',
-        vendedorNome: (DB.usuarios.find(u=>u.id===p.vendedor_id) || {}).nome || 'N/A',
-        dataAprovacao: p.data ? new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
+        vendedorNome: (DB.usuarios.find(u => u.id === p.vendedor_id) || {}).nome || 'N/A',
+        dataAprovacao: p.data ? new Date(p.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
     postParaGoogleSheets('enviarVenda', payload);
 }
