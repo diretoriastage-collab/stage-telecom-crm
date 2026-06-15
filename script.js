@@ -16,7 +16,7 @@ if (!DB) {
             { 
                 id: 1, 
                 usuario: "admin", 
-                senha: "admin123",
+                senha: "", // Senha gerenciada pela planilha Google Sheets
                 nome: "Master Admin", 
                 email: "admin@stagetelecom.com.br", 
                 tipo: "admin", 
@@ -63,7 +63,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz76Kpo9V_v3z1DjtqDURZWA7AVt_17N5cGAMyQKVoDsN5Re5Ucg02yS29_lh8_xe1X2g/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz5oohoqYnNCD6YHfYaQ3L20o8wtwd-fa7gC3-zx49pOdQQpmvGdF2biU2V3a6MPEELxA/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -99,8 +99,25 @@ setInterval(() => {
     if(periodoElV) periodoElV.textContent = periodo;
 }, 1000);
 
-// ===== AUTENTICAÇÃO LOCAL =====
+// ===== AUTENTICAÇÃO VIA GOOGLE SHEETS =====
 async function autenticarUsuario(usuario, senha) {
+    // 1. Tenta autenticar pela planilha do Google Sheets
+    try {
+        const resp = await consultarSheetUsuarios(usuario, senha);
+        if (resp && resp.autorizado === true) {
+            return {
+                id: resp.id || Date.now(),
+                nome: resp.nome,
+                email: resp.email || '',
+                tipo: resp.categoria,
+                equipe: resp.equipe || 'Geral'
+            };
+        }
+    } catch (e) {
+        console.warn('Erro ao consultar planilha:', e);
+    }
+    
+    // 2. Fallback: tenta no localStorage
     const userLocal = DB.usuarios.find(u => u.usuario === usuario && u.ativo === true && !u.deletedAt && u.senha === senha);
     if (userLocal) {
         return {
@@ -111,7 +128,44 @@ async function autenticarUsuario(usuario, senha) {
             equipe: userLocal.equipe || 'Geral'
         };
     }
+    
     return null;
+}
+
+function consultarSheetUsuarios(usuario, senha) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'cbUsers' + Date.now();
+        const script = document.createElement('script');
+        const params = new URLSearchParams({
+            acao: 'autenticar',
+            usuario: usuario,
+            senha: senha,
+            callback: callbackName
+        });
+        script.src = GOOGLE_SHEET_VENDAS_URL + '?' + params.toString();
+        
+        const timeout = setTimeout(() => {
+            document.body.removeChild(script);
+            delete window[callbackName];
+            reject(new Error('Timeout'));
+        }, 5000);
+        
+        window[callbackName] = function(res) {
+            clearTimeout(timeout);
+            document.body.removeChild(script);
+            delete window[callbackName];
+            resolve(res);
+        };
+        
+        script.onerror = () => {
+            clearTimeout(timeout);
+            document.body.removeChild(script);
+            delete window[callbackName];
+            reject(new Error('Erro de rede'));
+        };
+        
+        document.body.appendChild(script);
+    });
 }
 
 // ===== LOGIN =====
