@@ -620,15 +620,57 @@ function converterDataParaISO(dataStr) { if (!dataStr) return ''; const partes =
 
 // ===== ENVIAR VENDA PARA GOOGLE SHEETS =====
 function enviarParaGoogleSheets(venda) {
+    const p = venda;
     const payload = {
-        status: venda.status || 'Aprovado', nomeCliente: venda.nomeCompleto || venda.nomeCliente || '', cpf: venda.cpf || '', dataNasc: venda.dataNasc ? new Date(venda.dataNasc+'T00:00:00').toLocaleDateString('pt-BR') : '', nomeMae: venda.nomeMae || '', rg: venda.rg || '', orgaoExpeditor: venda.orgaoExpeditor || '', dataExpedicao: venda.dataExpedicao ? new Date(venda.dataExpedicao+'T00:00:00').toLocaleDateString('pt-BR') : '', email: venda.email || '', telefone1: venda.telefone1 || '', telefone2: venda.telefone2 || '', cep: venda.cep || '', logradouro: venda.logradouro || '', numero: venda.numero || '', complemento: venda.complemento || '', bairro: venda.bairro || '', uf: venda.uf || '', cidade: venda.cidade || '', pontoReferencia: venda.pontoReferencia || '', plano: venda.produto || venda.plano || '', velocidade: venda.velocidade || '', valor: venda.valor || '', vencimento: venda.vencimento ? new Date(venda.vencimento+'T00:00:00').toLocaleDateString('pt-BR') : '', formaPagamento: venda.formaPagamento || '', hp: venda.hp || '', viabilidade: venda.viabilidade || '', planoTipo: venda.planoTipo || '', tipoAprovacao: venda.tipoAprovacao || '', contrato: venda.contrato || '', infoData: venda.infoData ? new Date(venda.infoData+'T00:00:00').toLocaleDateString('pt-BR') : '', infoPeriodo: venda.infoPeriodo || '', vendedorNome: (DB.usuarios.find(u=>u.id===venda.vendedor_id) || {}).nome || 'N/A', dataAprovacao: venda.data ? new Date(venda.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
+        status: p.status || 'Aprovado',
+        nomeCliente: p.nomeCompleto || p.nomeCliente || '',
+        cpf: p.cpf || '',
+        dataNasc: p.dataNasc ? new Date(p.dataNasc+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        nomeMae: p.nomeMae || '',
+        rg: p.rg || '',
+        orgaoExpeditor: p.orgaoExpeditor || '',
+        dataExpedicao: p.dataExpedicao ? new Date(p.dataExpedicao+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        email: p.email || '',
+        telefone1: p.telefone1 || '',
+        telefone2: p.telefone2 || '',
+        cep: p.cep || '',
+        logradouro: p.logradouro || '',
+        numero: p.numero || '',
+        complemento: p.complemento || '',
+        bairro: p.bairro || '',
+        uf: p.uf || '',
+        cidade: p.cidade || '',
+        pontoReferencia: p.pontoReferencia || '',
+        plano: p.produto || p.plano || '',
+        velocidade: p.velocidade || '',
+        valor: p.valor || '',
+        vencimento: p.vencimento ? new Date(p.vencimento+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        formaPagamento: p.formaPagamento || '',
+        hp: p.hp || '',
+        viabilidade: p.viabilidade || '',
+        planoTipo: p.planoTipo || '',
+        tipoAprovacao: p.tipoAprovacao || '',
+        contrato: p.contrato || '',
+        infoData: p.infoData ? new Date(p.infoData+'T00:00:00').toLocaleDateString('pt-BR') : '',
+        infoPeriodo: p.infoPeriodo || '',
+        vendedorNome: (DB.usuarios.find(u=>u.id===p.vendedor_id) || {}).nome || 'N/A',
+        dataAprovacao: p.data ? new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
-    const callbackName = 'jsonpVenda' + Date.now();
-    const params = new URLSearchParams(payload);
-    params.append('acao', 'enviarVenda'); params.append('callback', callbackName);
+
+    // Montagem manual com encodeURIComponent para evitar quebra de URL
+    let queryString = 'acao=enviarVenda&callback=jsonpVenda' + Date.now();
+    for (let key in payload) {
+        queryString += '&' + key + '=' + encodeURIComponent(payload[key]);
+    }
+
     const script = document.createElement('script');
-    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + params.toString();
-    window[callbackName] = function(res) { document.body.removeChild(script); delete window[callbackName]; if (res && res.ok) console.log('✅ Venda enviada para Google Sheets'); else console.warn('⚠️ Falha ao enviar para Google Sheets:', res); };
+    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + queryString;
+    window['jsonpVendaCallback'] = function(res) {
+        document.body.removeChild(script);
+        delete window['jsonpVendaCallback'];
+        if (res && res.ok) console.log('✅ Venda enviada para Google Sheets');
+        else console.warn('⚠️ Falha ao enviar para Google Sheets:', res);
+    };
     document.body.appendChild(script);
 }
 
