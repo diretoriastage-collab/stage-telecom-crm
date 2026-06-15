@@ -653,47 +653,31 @@ function enviarParaGoogleSheets(venda) {
         dataAprovacao: p.data ? new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
 
-    const callbackName = 'jsonpVendaCallback_' + Date.now();
-    // Monta a query manualmente com encodeURIComponent
-    let query = 'acao=enviarVenda&callback=' + callbackName;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = GOOGLE_SHEET_VENDAS_URL;
+    form.target = '_blank';
+    form.style.display = 'none';
+
+    const acaoInput = document.createElement('input');
+    acaoInput.type = 'hidden';
+    acaoInput.name = 'acao';
+    acaoInput.value = 'enviarVenda';
+    form.appendChild(acaoInput);
+
     for (let key in payload) {
-        query += '&' + key + '=' + encodeURIComponent(payload[key]);
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = payload[key];
+        form.appendChild(input);
     }
 
-    // Define o callback global
-    window[callbackName] = function(res) {
-        // Remove o script após executar
-        const script = document.getElementById('jsonpScript_' + callbackName);
-        if (script) script.remove();
-        delete window[callbackName];
-        if (res && res.ok) {
-            console.log('✅ Venda enviada para Google Sheets');
-        } else {
-            console.warn('⚠️ Falha ao enviar para Google Sheets:', res);
-        }
-    };
-
-    // Cria o script e adiciona à página
-    const script = document.createElement('script');
-    script.id = 'jsonpScript_' + callbackName;
-    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + query;
-    // Timeout de 10 segundos para limpeza em caso de falha
-    script.onerror = function() {
-        if (window[callbackName]) {
-            delete window[callbackName];
-            script.remove();
-            console.warn('⚠️ Erro de rede ao enviar para Google Sheets');
-        }
-    };
-    document.body.appendChild(script);
-    // Garante limpeza após 15 segundos mesmo que o callback não seja chamado
-    setTimeout(() => {
-        if (window[callbackName]) {
-            delete window[callbackName];
-            if (script.parentNode) script.remove();
-        }
-    }, 15000);
-}
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    console.log('✅ Venda enviada para Google Sheets (POST)');
+}S
 // ===== BAIXAR PLANILHA =====
 function baixarPlanilha(tipo, mesAno = null) {
     let vendas = [];
