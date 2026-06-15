@@ -196,31 +196,8 @@ function salvarDB() {
     // Não chama sincronizarComNuvem aqui – o push será feito manualmente quando necessário
 }
 function sincronizarComNuvem() {
-    const callbackName = 'jsonpSync' + Date.now();
-    const script = document.createElement('script');
-    const params = new URLSearchParams({
-        acao: 'sincronizarDB',
-        dados: JSON.stringify(DB),
-        callback: callbackName
-    });
-    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + params.toString();
-    
-    window[callbackName] = function(res) {
-        document.body.removeChild(script);
-        delete window[callbackName];
-        if (res && res.ok) {
-            console.log('✅ Dados sincronizados em:', res.timestamp);
-        }
-    };
-    
-    script.onerror = () => {
-        document.body.removeChild(script);
-        delete window[callbackName];
-    };
-    
-    document.body.appendChild(script);
+    postParaGoogleSheets('sincronizarDB', { dados: JSON.stringify(DB) });
 }
-
 function carregarDadosDaNuvem() {
     const callbackName = 'jsonpLoad' + Date.now();
     const script = document.createElement('script');
@@ -576,13 +553,10 @@ function removerVenda(id) {
         carregarDashboard();
     }
 }
+
+// ===== EXCLUIR VENDA DO GOOGLE SHEETS (POST) =====
 function excluirVendaDoGoogleSheets(vendaId) {
-    const callbackName = 'jsonpDelete' + Date.now();
-    const script = document.createElement('script');
-    const params = new URLSearchParams({ acao: 'excluirVenda', vendaId: vendaId, callback: callbackName });
-    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + params.toString();
-    window[callbackName] = function(res) { document.body.removeChild(script); delete window[callbackName]; };
-    document.body.appendChild(script);
+    postParaGoogleSheets('excluirVenda', { vendaId: vendaId });
 }
 
 
@@ -614,7 +588,26 @@ function recuperarVendasDaPlanilha() {
 }
 function converterDataParaISO(dataStr) { if (!dataStr) return ''; const partes = dataStr.split('/'); if (partes.length === 3) return `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`; return dataStr; }
 
-// ===== ENVIAR VENDA PARA GOOGLE SHEETS =====
+/ ===== ENVIA DADOS PARA O GOOGLE SHEETS (POST SEM POP-UP) =====
+async function postParaGoogleSheets(acao, dados = {}) {
+    try {
+        const formData = new URLSearchParams();
+        formData.append('acao', acao);
+        for (let key in dados) {
+            formData.append(key, dados[key]);
+        }
+        await fetch(GOOGLE_SHEET_VENDAS_URL, {
+            method: 'POST',
+            body: formData,
+            mode: 'no-cors'
+        });
+        console.log(`✅ POST '${acao}' enviado`);
+    } catch (e) {
+        console.warn(`⚠️ Falha no POST '${acao}':`, e);
+    }
+}
+
+// ===== ENVIAR VENDA APROVADA =====
 function enviarParaGoogleSheets(venda) {
     const p = venda;
     const payload = {
@@ -652,32 +645,8 @@ function enviarParaGoogleSheets(venda) {
         vendedorNome: (DB.usuarios.find(u=>u.id===p.vendedor_id) || {}).nome || 'N/A',
         dataAprovacao: p.data ? new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = GOOGLE_SHEET_VENDAS_URL;
-    form.target = '_blank';
-    form.style.display = 'none';
-
-    const acaoInput = document.createElement('input');
-    acaoInput.type = 'hidden';
-    acaoInput.name = 'acao';
-    acaoInput.value = 'enviarVenda';
-    form.appendChild(acaoInput);
-
-    for (let key in payload) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = payload[key];
-        form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-    console.log('✅ Venda enviada para Google Sheets (POST)');
-}S
+    postParaGoogleSheets('enviarVenda', payload);
+}
 // ===== BAIXAR PLANILHA =====
 function baixarPlanilha(tipo, mesAno = null) {
     let vendas = [];
