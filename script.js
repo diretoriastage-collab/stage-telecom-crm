@@ -74,7 +74,7 @@ async function hashSenha(senha) {
 }
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/SEU_ID_VENDAS/exec'; // Substitua pela URL real do seu Web App de vendas
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/SEU_ID_VENDAS/exec'; // Substitua pela URL real
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -345,9 +345,9 @@ function mostrarSecao(secao) {
     if(secao==='promocoes') carregarPromocoes();
 }
 
-// ===== CADASTRO DE USUÁRIOS =====
+// ===== CADASTRO DE USUÁRIOS (SENHA TEXTO PURO) =====
 function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
-async function cadastrarUsuario(){
+function cadastrarUsuario(){
     const n=document.getElementById('nomeUsuario').value.trim();
     const u=document.getElementById('usuarioUsuario').value.trim();
     const s=document.getElementById('senhaUsuario').value.trim();
@@ -356,7 +356,18 @@ async function cadastrarUsuario(){
     const eq=document.getElementById('equipeUsuario').value.trim();
     if(!n||!u||!s||!e) return alert('Preencha todos os campos obrigatórios!');
     if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
-    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':(eq||'Geral')});
+    DB.usuarios.push({
+        id: DB.usuarios.length + 1,
+        usuario: u,
+        senha: s, // TEXTO PURO – sem hash
+        nome: n,
+        email: e,
+        tipo: cat,
+        categoria: cat,
+        ativo: true,
+        deletedAt: null,
+        equipe: cat === 'admin' ? 'Gestão' : (eq || 'Geral')
+    });
     salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display='none';
     ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>document.getElementById(id).value='');
 }
@@ -399,7 +410,7 @@ function abrirModalEditar(id){
     document.getElementById('modalEditarUsuario').style.display = 'flex';
 }
 function fecharModalEditar(){ document.getElementById('modalEditarUsuario').style.display = 'none'; }
-async function salvarEdicaoUsuario(){
+function salvarEdicaoUsuario(){
     const id = parseInt(document.getElementById('editUsuarioId').value);
     const nome = document.getElementById('editNomeUsuario').value.trim();
     const usuario = document.getElementById('editLoginUsuario').value.trim();
@@ -412,7 +423,7 @@ async function salvarEdicaoUsuario(){
     const conflito = DB.usuarios.find(u=>u.usuario===usuario && u.id!==id && !u.deletedAt);
     if(conflito) return alert('Usuário já existe.');
     u.nome=nome; u.usuario=usuario; u.email=email; u.categoria=categoria; u.tipo=categoria;
-    if(novaSenha) u.senha = novaSenha;
+    if(novaSenha) u.senha = novaSenha; // TEXTO PURO
     u.equipe = categoria==='admin'?'Gestão':(equipe||'Geral');
     salvarDB(); carregarUsuarios(); fecharModalEditar();
 }
