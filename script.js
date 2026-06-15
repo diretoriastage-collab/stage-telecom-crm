@@ -270,7 +270,11 @@ function carregarDadosDaNuvem() {
     
     document.body.appendChild(script);
 }
+// Sincroniza a cada 3 segundos (envia dados locais para nuvem)
 setInterval(() => { if (sessao) sincronizarComNuvem(); }, 3000);
+
+// Verifica dados novos da nuvem a cada 5 segundos
+setInterval(() => { if (sessao) carregarDadosDaNuvem(); }, 5000);
 
 // ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
@@ -417,8 +421,10 @@ function mostrarSecao(secao) {
     const nav = document.querySelector(`[data-section="${secao}"]`); if(nav) nav.classList.add('active');
     document.getElementById('tituloSecao').innerHTML = { dashboard:'📊 Dashboard', cadastro:'👥 Cadastro', ativacoes:'⚡ Ativações', vendasAprovadas:'✅ Vendas Aprovadas', relatorios:'📈 Relatórios', metas:'🎯 Metas', promocoes:'🏆 Promoções' }[secao]||secao;
     if(secao==='cadastro') carregarUsuarios();
-    if(secao==='ativacoes') { paginaAtualAtivacoes = 1; carregarAtivacoes(); }
-    if(secao==='vendasAprovadas') { paginaAtualVendasAprovadas = 1; carregarVendasAprovadas(); }
+    if(secao==='ativacoes') { paginaAtualAtivacoes = 1; carregarDadosDaNuvem();  // 👈 ADICIONE
+                             carregarAtivacoes(); }
+    if(secao==='vendasAprovadas') { paginaAtualVendasAprovadas = 1; carregarDadosDaNuvem();  // 👈 ADICIONE
+                                   carregarVendasAprovadas(); }
     if(secao==='relatorios') carregarRelatorios();
     if(secao==='metas') carregarMetas();
     if(secao==='promocoes') carregarPromocoes();
