@@ -16,7 +16,7 @@ if (!DB) {
             { 
                 id: 1, 
                 usuario: "admin", 
-                senha: "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9", // hash de "admin123"
+                senha: "admin123", // texto puro para acesso imediato
                 nome: "Master Admin", 
                 email: "admin@stagetelecom.com.br", 
                 tipo: "admin", 
@@ -64,7 +64,7 @@ DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor';
 
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
-// ===== HASH DE SENHAS (SHA-256) =====
+// ===== HASH DE SENHAS (mantida, mas não usada no login para desbloquear) =====
 async function hashSenha(senha) {
     const encoder = new TextEncoder();
     const data = encoder.encode(senha);
@@ -74,7 +74,7 @@ async function hashSenha(senha) {
 }
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwlD0lCiWUMJx4gdZI-WnOqjzXFA8aWUoWQ7u9iDKcezikGv8H7BoqxuegBRnb2Q2q6SA/exec'; // Substitua pela URL real do seu Web App de vendas
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/SEU_ID_VENDAS/exec'; // Substitua pela URL real do seu Web App de vendas
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -111,10 +111,9 @@ setInterval(() => {
     if(periodoElV) periodoElV.textContent = periodo;
 }, 1000);
 
-// ===== AUTENTICAÇÃO LOCAL =====
+// ===== AUTENTICAÇÃO LOCAL (SENHA EM TEXTO PURO – acesso imediato) =====
 async function autenticarUsuario(usuario, senha) {
-    const hash = await hashSenha(senha);
-    const userLocal = DB.usuarios.find(u => u.usuario === usuario && u.ativo && !u.deletedAt && u.senha === hash);
+    const userLocal = DB.usuarios.find(u => u.usuario === usuario && u.ativo && !u.deletedAt && u.senha === senha);
     if (userLocal) {
         return {
             id: userLocal.id,
@@ -346,7 +345,7 @@ function mostrarSecao(secao) {
     if(secao==='promocoes') carregarPromocoes();
 }
 
-// ===== CADASTRO DE USUÁRIOS (com hash) =====
+// ===== CADASTRO DE USUÁRIOS =====
 function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
 async function cadastrarUsuario(){
     const n=document.getElementById('nomeUsuario').value.trim();
@@ -357,8 +356,7 @@ async function cadastrarUsuario(){
     const eq=document.getElementById('equipeUsuario').value.trim();
     if(!n||!u||!s||!e) return alert('Preencha todos os campos obrigatórios!');
     if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
-    const senhaHash = await hashSenha(s);
-    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:senhaHash,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':(eq||'Geral')});
+    DB.usuarios.push({id:DB.usuarios.length+1,usuario:u,senha:s,nome:n,email:e,tipo:cat,categoria:cat,ativo:true,deletedAt:null,equipe:cat==='admin'?'Gestão':(eq||'Geral')});
     salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display='none';
     ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>document.getElementById(id).value='');
 }
@@ -414,7 +412,7 @@ async function salvarEdicaoUsuario(){
     const conflito = DB.usuarios.find(u=>u.usuario===usuario && u.id!==id && !u.deletedAt);
     if(conflito) return alert('Usuário já existe.');
     u.nome=nome; u.usuario=usuario; u.email=email; u.categoria=categoria; u.tipo=categoria;
-    if(novaSenha) u.senha = await hashSenha(novaSenha);
+    if(novaSenha) u.senha = novaSenha;
     u.equipe = categoria==='admin'?'Gestão':(equipe||'Geral');
     salvarDB(); carregarUsuarios(); fecharModalEditar();
 }
