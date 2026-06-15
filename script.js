@@ -240,32 +240,26 @@ function carregarDadosDaNuvem() {
         if (res && res.dados && res.dados !== 'undefined') {
             try {
                 const dadosNuvem = JSON.parse(res.dados);
-                const localLength = (DB.ativacoes || []).length + (DB.usuarios || []).length;
-                const nuvemLength = (dadosNuvem.ativacoes || []).length + (dadosNuvem.usuarios || []).length;
+                const totalLocal = (DB.ativacoes || []).length;
+                const totalNuvem = (dadosNuvem.ativacoes || []).length;
                 
-                if (nuvemLength > localLength) {
-                    // 🆕 Verifica se há vendas NOVAS (não aprovadas)
-                    const novasVendasNuvem = (dadosNuvem.ativacoes || []).filter(a => a.status !== 'Aprovado');
-                    const novasVendasLocal = (DB.ativacoes || []).filter(a => a.status !== 'Aprovado');
+                console.log('📊 Local:', totalLocal, 'Nuvem:', totalNuvem);
+                
+                if (totalNuvem > totalLocal) {
+                    console.log('🆕 Vendas novas encontradas!');
                     
-                    // 🔔 Se há mais vendas pendentes na nuvem, salva notificação
-                    if (novasVendasNuvem.length > novasVendasLocal.length && sessao && sessao.tipo === 'admin') {
-                        console.log('🔔 Nova venda detectada! Notificação será mostrada.');
-                        sessionStorage.setItem('stage_notificacao_pendente', 'true');
-                    }
+                    // Sempre notifica quando há dados novos
+                    sessionStorage.setItem('stage_notificacao_pendente', 'true');
                     
                     DB = dadosNuvem;
                     localStorage.setItem('stage_db', JSON.stringify(DB));
-                    console.log('✅ Dados atualizados da nuvem');
                     
                     if (sessao) {
                         location.reload();
                     }
-                } else if (localLength > nuvemLength && sessao) {
-                    sincronizarComNuvem();
                 }
             } catch (e) {
-                console.warn('Erro ao processar dados da nuvem:', e);
+                console.warn('Erro:', e);
             }
         }
     };
