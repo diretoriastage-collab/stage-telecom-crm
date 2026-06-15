@@ -243,14 +243,18 @@ function carregarDadosDaNuvem() {
                 const localLength = (DB.ativacoes || []).length + (DB.usuarios || []).length;
                 const nuvemLength = (dadosNuvem.ativacoes || []).length + (dadosNuvem.usuarios || []).length;
                 
+                // Se a nuvem tem mais dados, atualiza automaticamente (sem perguntar)
                 if (nuvemLength > localLength) {
-                    if (confirm('🔄 Existem dados mais recentes na nuvem. Deseja carregá-los?')) {
-                        DB = dadosNuvem;
-                        localStorage.setItem('stage_db', JSON.stringify(DB));
-                        alert('✅ Dados carregados! A página será recarregada.');
+                    DB = dadosNuvem;
+                    localStorage.setItem('stage_db', JSON.stringify(DB));
+                    console.log('✅ Dados atualizados da nuvem silenciosamente');
+                    // Recarrega a página apenas se houver sessão ativa
+                    if (sessao) {
                         location.reload();
                     }
-                } else if (localLength > nuvemLength && sessao) {
+                } 
+                // Se local tem mais dados, envia para nuvem
+                else if (localLength > nuvemLength && sessao) {
                     sincronizarComNuvem();
                 }
             } catch (e) {
@@ -266,13 +270,6 @@ function carregarDadosDaNuvem() {
     
     document.body.appendChild(script);
 }
-
-setInterval(() => {
-    if (sessao) {
-        sincronizarComNuvem();
-    }
-}, 30000);
-
 // ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
     sessionStorage.removeItem('stage_session');
@@ -846,6 +843,143 @@ function carregarListaStatusFlags() { const container = document.getElementById(
 function adicionarStatusFlag() { const nome = document.getElementById('novoStatusNome').value.trim(); const cor = document.getElementById('novoStatusCor').value; if (!nome) return alert('Digite um nome para a flag!'); DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = ''; }
 function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
 
+// ===== ATIVAÇÕES (MODAL DE EDIÇÃO) =====
+function abrirModalAtivacao(id) {
+    const a = DB.ativacoes.find(x => x.id === id);
+    if (!a) return;
+    vendaSendoVisualizada = id;
+    a.tratandoPor = sessao.nome;
+    salvarDB();
+    const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
+    document.getElementById('conteudoModalAtivacao').innerHTML = `
+        <div class="form-grid">
+            <div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div>
+            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao||''}</textarea></div>
+            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto||''}" id="editNomeCompleto"></div>
+            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae||''}" id="editNomeMae"></div>
+            <div class="input-group"><label>Data Nasc.</label><input value="${a.dataNasc||''}" id="editDataNasc"></div>
+            <div class="input-group"><label>CPF</label><input value="${a.cpf||''}" id="editCpf"></div>
+            <div class="input-group"><label>RG</label><input value="${a.rg||''}" id="editRg"></div>
+            <div class="input-group"><label>Órgão Exp.</label><input value="${a.orgaoExpeditor||''}" id="editOrgaoExpeditor"></div>
+            <div class="input-group"><label>Data Exp.</label><input value="${a.dataExpedicao||''}" id="editDataExpedicao"></div>
+            <div class="input-group"><label>Email</label><input value="${a.email||''}" id="editEmail"></div>
+            <div class="input-group"><label>Tel 1</label><input value="${a.telefone1||''}" id="editTelefone1"></div>
+            <div class="input-group"><label>Tel 2</label><input value="${a.telefone2||''}" id="editTelefone2"></div>
+            <div class="input-group"><label>CEP</label><input value="${a.cep||''}" id="editCep"></div>
+            <div class="input-group"><label>Logradouro</label><input value="${a.logradouro||''}" id="editLogradouro"></div>
+            <div class="input-group"><label>N°</label><input value="${a.numero||''}" id="editNumero"></div>
+            <div class="input-group"><label>Complemento</label><input value="${a.complemento||''}" id="editComplemento"></div>
+            <div class="input-group"><label>Bairro</label><input value="${a.bairro||''}" id="editBairro"></div>
+            <div class="input-group"><label>Estado</label><input value="${a.uf||''}" id="editUf"></div>
+            <div class="input-group"><label>Cidade</label><input value="${a.cidade||''}" id="editCidade"></div>
+            <div class="input-group"><label>Ponto Ref.</label><input value="${a.pontoReferencia||''}" id="editPontoReferencia"></div>
+            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade||''}" id="editVelocidade"></div>
+            <div class="input-group"><label>Produto</label><input value="${a.produto||a.plano||''}" id="editProduto"></div>
+            <div class="input-group"><label>Valor</label><input value="${a.valor||''}" id="editValor"></div>
+            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento||''}" id="editVencimento"></div>
+            <div class="input-group"><label>Pagamento</label><input value="${a.formaPagamento||''}" id="editFormaPagamento"></div>
+            <div class="input-group"><label>HP</label><input value="${a.hp||''}" id="editHp"></div>
+            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade||''}" id="editViabilidade"></div>
+            <div class="input-group"><label>Plano Tipo</label><input value="${a.planoTipo||''}" id="editPlanoTipo"></div>
+            <div class="input-group"><label>Tipo Aprov.</label><input value="${a.tipoAprovacao||''}" id="editTipoAprovacao"></div>
+        </div>`;
+    document.getElementById('modalAtivacao').style.display = 'flex';
+    carregarAtivacoes();
+}
+
+function fecharModalAtivacao() {
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (a) {
+        const novoStatus = document.getElementById('editStatus')?.value;
+        if (novoStatus) {
+            if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
+                if (confirm('Deseja finalizar essa venda? Ao aprovar, ela será contabilizada.')) {
+                    a.status = 'Aprovado';
+                    a.finalizada = true;
+                    if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
+                    // Enviar para Google Sheets
+                    enviarParaGoogleSheets(a);
+                }
+            } else {
+                a.status = novoStatus;
+            }
+        }
+        a.observacao = document.getElementById('editObservacao')?.value || '';
+        a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
+        a.nomeMae = document.getElementById('editNomeMae')?.value || '';
+        a.dataNasc = document.getElementById('editDataNasc')?.value || '';
+        a.cpf = document.getElementById('editCpf')?.value || '';
+        a.rg = document.getElementById('editRg')?.value || '';
+        a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor')?.value || '';
+        a.dataExpedicao = document.getElementById('editDataExpedicao')?.value || '';
+        a.email = document.getElementById('editEmail')?.value || '';
+        a.telefone1 = document.getElementById('editTelefone1')?.value || '';
+        a.telefone2 = document.getElementById('editTelefone2')?.value || '';
+        a.cep = document.getElementById('editCep')?.value || '';
+        a.logradouro = document.getElementById('editLogradouro')?.value || '';
+        a.numero = document.getElementById('editNumero')?.value || '';
+        a.complemento = document.getElementById('editComplemento')?.value || '';
+        a.bairro = document.getElementById('editBairro')?.value || '';
+        a.uf = document.getElementById('editUf')?.value || '';
+        a.cidade = document.getElementById('editCidade')?.value || '';
+        a.pontoReferencia = document.getElementById('editPontoReferencia')?.value || '';
+        a.velocidade = document.getElementById('editVelocidade')?.value || '';
+        a.produto = document.getElementById('editProduto')?.value || '';
+        a.plano = a.produto;
+        a.valor = document.getElementById('editValor')?.value || '';
+        a.vencimento = document.getElementById('editVencimento')?.value || '';
+        a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
+        a.hp = document.getElementById('editHp')?.value || '';
+        a.viabilidade = document.getElementById('editViabilidade')?.value || '';
+        a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
+        a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
+        a.tratandoPor = null;
+        salvarDB();
+    }
+    document.getElementById('modalAtivacao').style.display = 'none';
+    vendaSendoVisualizada = null;
+    carregarAtivacoes();
+    if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) {
+        carregarVendasAprovadas();
+    }
+    carregarDashboard();
+}
+
+// ===== INFORMAÇÕES ADICIONAIS =====
+function abrirModalInfoAdicional() {
+    if (!vendaSendoVisualizada) return;
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (!a) return;
+    document.getElementById('infoContrato').value = a.contrato || '';
+    document.getElementById('infoData').value = a.infoData || '';
+    document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
+    document.getElementById('modalInfoAdicional').style.display = 'flex';
+}
+
+function fecharModalInfoAdicional() {
+    document.getElementById('modalInfoAdicional').style.display = 'none';
+}
+
+function salvarInfoAdicional() {
+    if (!vendaSendoVisualizada) return;
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (!a) return;
+    const contrato = document.getElementById('infoContrato').value.trim();
+    const data = document.getElementById('infoData').value;
+    const periodo = document.getElementById('infoPeriodo').value;
+    if (!contrato || !data || !periodo) {
+        alert('Preencha todos os campos!');
+        return;
+    }
+    a.contrato = contrato;
+    a.infoData = data;
+    a.infoPeriodo = periodo;
+    salvarDB();
+    const nomeCliente = a.nomeCompleto || a.nomeCliente;
+    const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
+    alert(`CLIENTE: ${nomeCliente}\nVENDA AGENDADA NO DIA ${dataFormatada}\nPERÍODO ${periodo}`);
+    fecharModalInfoAdicional();
+}
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
     const lembrar = localStorage.getItem('stage_remember');
