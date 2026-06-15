@@ -243,18 +243,25 @@ function carregarDadosDaNuvem() {
                 const localLength = (DB.ativacoes || []).length + (DB.usuarios || []).length;
                 const nuvemLength = (dadosNuvem.ativacoes || []).length + (dadosNuvem.usuarios || []).length;
                 
-                // Se a nuvem tem mais dados, atualiza automaticamente (sem perguntar)
                 if (nuvemLength > localLength) {
+                    // 🆕 Verifica se há vendas NOVAS (não aprovadas)
+                    const novasVendasNuvem = (dadosNuvem.ativacoes || []).filter(a => a.status !== 'Aprovado');
+                    const novasVendasLocal = (DB.ativacoes || []).filter(a => a.status !== 'Aprovado');
+                    
+                    // 🔔 Se há mais vendas pendentes na nuvem, salva notificação
+                    if (novasVendasNuvem.length > novasVendasLocal.length && sessao && sessao.tipo === 'admin') {
+                        console.log('🔔 Nova venda detectada! Notificação será mostrada.');
+                        sessionStorage.setItem('stage_notificacao_pendente', 'true');
+                    }
+                    
                     DB = dadosNuvem;
                     localStorage.setItem('stage_db', JSON.stringify(DB));
-                    console.log('✅ Dados atualizados da nuvem silenciosamente');
-                    // Recarrega a página apenas se houver sessão ativa
+                    console.log('✅ Dados atualizados da nuvem');
+                    
                     if (sessao) {
                         location.reload();
                     }
-                } 
-                // Se local tem mais dados, envia para nuvem
-                else if (localLength > nuvemLength && sessao) {
+                } else if (localLength > nuvemLength && sessao) {
                     sincronizarComNuvem();
                 }
             } catch (e) {
@@ -270,12 +277,9 @@ function carregarDadosDaNuvem() {
     
     document.body.appendChild(script);
 }
-// Sincroniza a cada 3 segundos (envia dados locais para nuvem)
-setInterval(() => { if (sessao) sincronizarComNuvem(); }, 3000);
-
-// Verifica dados novos da nuvem a cada 5 segundos
-setInterval(() => { if (sessao) carregarDadosDaNuvem(); }, 5000);
-
+// ⬇️ Estes dois intervalos devem ficar aqui ⬇️
+setInterval(() => { if (sessao) sincronizarComNuvem(); }, 3000);  // Envia dados para nuvem
+setInterval(() => { if (sessao) carregarDadosDaNuvem(); }, 5000); // 👈 COLE AQUI - Verifica dados novos
 // ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
     sessionStorage.removeItem('stage_session');
