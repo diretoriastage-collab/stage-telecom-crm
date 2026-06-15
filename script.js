@@ -63,7 +63,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz5oohoqYnNCD6YHfYaQ3L20o8wtwd-fa7gC3-zx49pOdQQpmvGdF2biU2V3a6MPEELxA/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyrAgaMEFVdOf22wasHlvrznm3QytmYUwXatjwBwVdx-ZabS4SqXfCPVKuy_3I1s05Kdw/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -270,6 +270,8 @@ function carregarDadosDaNuvem() {
     
     document.body.appendChild(script);
 }
+setInterval(() => { if (sessao) sincronizarComNuvem(); }, 3000);
+
 // ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
     sessionStorage.removeItem('stage_session');
@@ -558,13 +560,28 @@ function filtrarAtivacoes() { paginaAtualAtivacoes = 1; carregarAtivacoes(1); }
 // ===== REMOVER VENDA =====
 function removerVenda(id) {
     if (confirm('Tem certeza que deseja remover permanentemente esta venda?')) {
+        const venda = DB.ativacoes.find(a => a.id === id);
         DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
         salvarDB();
+        sincronizarComNuvem();
+        if (venda && venda.status === 'Aprovado') {
+            excluirVendaDoGoogleSheets(venda.nomeCompleto || venda.nomeCliente);
+        }
         if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
         if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
         carregarDashboard();
     }
 }
+function excluirVendaDoGoogleSheets(vendaId) {
+    const callbackName = 'jsonpDelete' + Date.now();
+    const script = document.createElement('script');
+    const params = new URLSearchParams({ acao: 'excluirVenda', vendaId: vendaId, callback: callbackName });
+    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + params.toString();
+    window[callbackName] = function(res) { document.body.removeChild(script); delete window[callbackName]; };
+    document.body.appendChild(script);
+}
+
+
 
 // ===== RECUPERAR VENDAS DA PLANILHA =====
 function recuperarVendasDaPlanilha() {
@@ -706,6 +723,7 @@ function enviarVenda() {
     const novaAtivacao = { id: Date.now(), nomeCliente: campos.nomeCompleto, vendedor_id: sessao.id, vendedorNome: sessao.nome, status: "Pendente", data: new Date().toISOString().split('T')[0], finalizada: false, ...campos };
     DB.ativacoes.push(novaAtivacao);
     salvarDB();
+    sincronizarComNuvem();
     ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     alert('✅ Venda enviada com sucesso!');
 }
@@ -775,7 +793,7 @@ function iniciarPollingChat() { if (chatIntervalo) clearInterval(chatIntervalo);
 function toggleChat() { const widget = document.getElementById('chatWidget'); if (widget.classList.contains('expanded')) { widget.classList.remove('expanded'); widget.classList.add('minimized'); } else { widget.classList.remove('minimized'); widget.classList.add('expanded'); carregarUsuariosChat(); atualizarListaConversas(); if (!chatConversationAtual) { document.getElementById('chatSidebar').style.display = 'block'; document.getElementById('chatMain').style.display = 'none'; document.getElementById('chatBackBtn').style.display = 'none'; document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat'; } else { abrirConversaChat(chatConversationAtual); } } }
 function iniciarChat() { if (!sessao) return; const chatWidget = document.getElementById('chatWidget'); if (chatWidget) chatWidget.style.display = 'flex'; carregarUsuariosChat(); atualizarListaConversas(); atualizarBadge(); iniciarPollingChat(); }
 function limparMensagensAntigas(dias = 90) { const agora = Date.now(); const limite = agora - (dias * 24 * 60 * 60 * 1000); const antes = DB.chatMessages.length; DB.chatMessages = DB.chatMessages.filter(m => m.timestamp > limite); if (DB.chatMessages.length < antes) { salvarDB(); console.log(`🧹 Chat limpo: ${antes - DB.chatMessages.length} mensagens removidas (mais de ${dias} dias).`); } }
-limparMensagensAntigas(90);
+limparMensagensAntigas(15);
 
 // ===== PROMOÇÕES =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
@@ -796,8 +814,23 @@ function mostrarNotificacao(mensagem) { const toast = document.getElementById('t
 function fecharToast() { document.getElementById('toastNotificacao').style.display = 'none'; }
 
 // ===== SOM DE ALERTA =====
-function tocarAlerta() { try { const ctx = new (window.AudioContext||window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 800; osc.type = 'square'; gain.gain.setValueAtTime(0.3, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.3); osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.3); } catch(e){} }
-
+function tocarAlerta() {
+    try {
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+    } catch(e) {}
+}
 // ===== RELATÓRIOS =====
 function carregarRelatorios() { const periodo = document.getElementById('filtroPeriodo').value; let dadosAtual, dadosAnterior; if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); } else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); } else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); } carregarComparativoProdutos(dadosAtual, dadosAnterior, periodo); carregarVendasPorVendedor(dadosAtual, dadosAnterior); carregarVendasPorEquipe(dadosAtual, dadosAnterior); carregarRankingRelatorio(dadosAtual); }
 function gerarVendasQuinzenaAtual() { const hoje = new Date(); const dia = hoje.getDate(); const todas = gerarVendasMesAtual(); if (dia <= 15) return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); else return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; }); }
@@ -935,6 +968,7 @@ function fecharModalAtivacao() {
         a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
         a.tratandoPor = null;
         salvarDB();
+        sincronizarComNuvem();
     }
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
