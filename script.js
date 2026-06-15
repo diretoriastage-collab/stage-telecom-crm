@@ -63,7 +63,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES DAS PLANILHAS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyrAgaMEFVdOf22wasHlvrznm3QytmYUwXatjwBwVdx-ZabS4SqXfCPVKuy_3I1s05Kdw/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzq8qVJjND5ZCl7lTNSOebUF5gK0-SRiDyd0JnjyyLuyvaBST0bh7GYYnV2yhQ-zNZ0/exec'; // ⚠️ SUBSTITUA PELA SUA URL REAL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -1013,6 +1013,16 @@ function salvarInfoAdicional() {
     const dataFormatada = new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
     alert(`CLIENTE: ${nomeCliente}\nVENDA AGENDADA NO DIA ${dataFormatada}\nPERÍODO ${periodo}`);
     fecharModalInfoAdicional();
+}
+
+// Verifica se há notificação pendente ao carregar a página
+function verificarNotificacaoPendente() {
+    if (sessionStorage.getItem('stage_notificacao_pendente') === 'true') {
+        sessionStorage.removeItem('stage_notificacao_pendente');
+        setTimeout(() => {
+            mostrarModalNovaVenda();
+        }, 1000);
+    }
 }
 // ===== INICIAR =====
 document.addEventListener('DOMContentLoaded',()=>{
