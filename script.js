@@ -193,11 +193,8 @@ async function fazerLogin() {
 // ===== SINCRONIZAÇÃO COM GOOGLE SHEETS =====
 function salvarDB() {
     localStorage.setItem('stage_db', JSON.stringify(DB));
-    if (sessao) {
-        sincronizarComNuvem();
-    }
+    // Não chama sincronizarComNuvem aqui – o push será feito manualmente quando necessário
 }
-
 function sincronizarComNuvem() {
     const callbackName = 'jsonpSync' + Date.now();
     const script = document.createElement('script');
@@ -656,23 +653,47 @@ function enviarParaGoogleSheets(venda) {
         dataAprovacao: p.data ? new Date(p.data+'T00:00:00').toLocaleDateString('pt-BR') : ''
     };
 
-    // Montagem manual com encodeURIComponent para evitar quebra de URL
-    let queryString = 'acao=enviarVenda&callback=jsonpVenda' + Date.now();
+    const callbackName = 'jsonpVendaCallback_' + Date.now();
+    // Monta a query manualmente com encodeURIComponent
+    let query = 'acao=enviarVenda&callback=' + callbackName;
     for (let key in payload) {
-        queryString += '&' + key + '=' + encodeURIComponent(payload[key]);
+        query += '&' + key + '=' + encodeURIComponent(payload[key]);
     }
 
+    // Define o callback global
+    window[callbackName] = function(res) {
+        // Remove o script após executar
+        const script = document.getElementById('jsonpScript_' + callbackName);
+        if (script) script.remove();
+        delete window[callbackName];
+        if (res && res.ok) {
+            console.log('✅ Venda enviada para Google Sheets');
+        } else {
+            console.warn('⚠️ Falha ao enviar para Google Sheets:', res);
+        }
+    };
+
+    // Cria o script e adiciona à página
     const script = document.createElement('script');
-    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + queryString;
-    window['jsonpVendaCallback'] = function(res) {
-        document.body.removeChild(script);
-        delete window['jsonpVendaCallback'];
-        if (res && res.ok) console.log('✅ Venda enviada para Google Sheets');
-        else console.warn('⚠️ Falha ao enviar para Google Sheets:', res);
+    script.id = 'jsonpScript_' + callbackName;
+    script.src = GOOGLE_SHEET_VENDAS_URL + '?' + query;
+    // Timeout de 10 segundos para limpeza em caso de falha
+    script.onerror = function() {
+        if (window[callbackName]) {
+            delete window[callbackName];
+            script.remove();
+            console.warn('⚠️ Erro de rede ao enviar para Google Sheets');
+        }
     };
     document.body.appendChild(script);
+    // Garante limpeza após 15 segundos mesmo que o callback não seja chamado
+    setTimeout(() => {
+        if (window[callbackName]) {
+            delete window[callbackName];
+            if (script.parentNode) script.remove();
+        }
+    }, 15000);
 }
-
 // ===== BAIXAR PLANILHA =====
 function baixarPlanilha(tipo, mesAno = null) {
     let vendas = [];
