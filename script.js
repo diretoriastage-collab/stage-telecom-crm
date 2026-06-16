@@ -626,20 +626,22 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        return `<table>
+        // 🔥 CORREÇÃO: formata a data para DD/MM/AAAA
+        const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
+        return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.produto || a.plano || '—'}</td>
             <td>${vendedor ? vendedor.nome : 'N/A'}</td>
             <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
-            <td>${a.data || '—'}</td>
-            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
+            <td>${dataFormatada}</td>
+            <td>
+                <button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
                 <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
-
 function mudarPaginaVendasAprovadas(direcao) {
     if (direcao === 'anterior' && paginaAtualVendasAprovadas > 1) carregarVendasAprovadas(paginaAtualVendasAprovadas - 1);
     else if (direcao === 'proximo') {
