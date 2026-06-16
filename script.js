@@ -333,7 +333,8 @@ async function buscarVendasAprovadasDaNuvem() {
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
-    let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => (a.data || '').localeCompare(b.data || ''));
+    // 🔥 Ordenação decrescente (mais recentes primeiro)
+    let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => (b.data || '').localeCompare(a.data || ''));
     const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
     if (termo) {
         naoAprovadas = naoAprovadas.filter(a => {
@@ -346,19 +347,22 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     paginaAtualAtivacoes = Math.min(pagina, totalPaginas || 1);
     const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
     const itensExibidos = naoAprovadas.slice(inicio, inicio + itensPorPagina);
-    tabela.innerHTML = itensExibidos.map(a => `
-        <tr>
-            <td><strong>${a.nomeCompleto || '—'}</strong></td>
-            <td>${a.produto || a.plano || '—'}</td>
-            <td>${a.vendedorNome || '—'}</td>
-            <td><span style="color:#ffa502;font-weight:600;">● ${a.status}</span></td>
-            <td><span style="font-size:12px;">${a.tratandoPor || '—'}</span></td>
-            <td>
-                <button onclick="abrirModalAtivacao('${a.id}')" class="btn-glass-sm" style="margin-right:4px;"><i class="fas fa-search"></i></button>
-                <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>
-    `).join('') || '<td><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
+    tabela.innerHTML = itensExibidos.map(a => {
+        const idStr = String(a.id);
+        return `
+            <tr>
+                <td><strong>${a.nomeCompleto || '—'}</strong></td>
+                <td>${a.produto || a.plano || '—'}</td>
+                <td>${a.vendedorNome || '—'}</td>
+                <td><span style="color:#ffa502;font-weight:600;">● ${a.status}</span></td>
+                <td><span style="font-size:12px;">${a.tratandoPor || '—'}</span></td>
+                <td>
+                    <button onclick="abrirModalAtivacao('${idStr}')" class="btn-glass-sm" style="margin-right:4px;"><i class="fas fa-search"></i></button>
+                    <button onclick="removerVenda('${idStr}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
     atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
 
@@ -593,6 +597,7 @@ function salvarInfoAdicional() {
 function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const tabela = document.getElementById('tabelaVendasAprovadas');
     if (!tabela) return;
+    // 🔥 Ordenação decrescente (mais recentes primeiro)
     let aprovadas = DB.ativacoes.filter(a => a.status === 'Aprovado').sort((a,b) => b.data.localeCompare(a.data));
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
     if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
@@ -603,7 +608,6 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        // 🔥 CORREÇÃO: formata a data para DD/MM/AAAA
         const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
         return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
@@ -798,12 +802,14 @@ function enviarVenda() {
 }
 
 function carregarControleVendas() {
-    const minhasAtivacoes = DB.ativacoes.filter(a => a.vendedor_id === sessao.id).sort((a,b) => b.id - a.id);
+    const minhasAtivacoes = DB.ativacoes
+        .filter(a => a.vendedor_id === sessao.id)
+        .sort((a, b) => (b.data || '').localeCompare(a.data || '')); // 🔥 MAIS RECENTE PRIMEIRO
+
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-        // 🔥 CORREÇÃO: formata a data para DD/MM/AAAA
         const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
         return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
@@ -811,13 +817,15 @@ function carregarControleVendas() {
             <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
             <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
             <td>${dataFormatada}</td>
-            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
-            </td>
+            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
         </tr>`;
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
 }
 function carregarInstalacoes() {
-    const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false).sort((a,b) => b.id - a.id);
+    const aprovadas = DB.ativacoes
+        .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
+        .sort((a, b) => (b.data || '').localeCompare(a.data || '')); // 🔥 MAIS RECENTE PRIMEIRO
+
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
     tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
@@ -826,13 +834,14 @@ function carregarInstalacoes() {
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.plano || a.produto || '—'}</td>
             <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
-            <td><select onchange="alterarStatusInstalacao('${a.id}', this.value)" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:4px 8px;border-radius:6px;">
-                <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
-                <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''}>Instalado</option>
-                <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
-            </select></td>
-            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
+            <td>
+                <select onchange="alterarStatusInstalacao('${a.id}', this.value)" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:4px 8px;border-radius:6px;">
+                    <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
+                    <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''}>Instalado</option>
+                    <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+                </select>
             </td>
+            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
         </tr>`;
     }).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;">Nenhuma venda aprovada para instalação</td></tr>';
 }
