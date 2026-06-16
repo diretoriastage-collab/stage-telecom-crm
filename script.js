@@ -1082,13 +1082,12 @@ async function alterarStatusInstalacao(id, novoStatus) {
         }
     }
 
-    // Atualiza localmente primeiro (otimista)
+    // Atualiza localmente
     const statusAnterior = a.instalacaoStatus;
     a.instalacaoStatus = novoStatus;
     salvarDB();
 
     try {
-        // 🔥 USA JSONP (GET) EM VEZ DE POST
         const resp = await fetchFromGS('atualizarStatusInstalacaoVendedor', {
             uuid: a.id,
             status: novoStatus,
@@ -1100,13 +1099,17 @@ async function alterarStatusInstalacao(id, novoStatus) {
 
         if (resp && resp.ok === true) {
             console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
-            // Recarrega a lista para garantir consistência
+            // Recarrega para garantir consistência
+            await buscarVendasDoVendedor();
+            await buscarVendasInstaladasDoVendedor();
             if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
                 carregarInstalacoes();
             }
+            if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
+                carregarControleVendas();
+            }
         } else {
             console.error('❌ Erro ao atualizar status:', resp?.erro || 'Erro desconhecido');
-            // Reverte o status
             a.instalacaoStatus = statusAnterior;
             salvarDB();
             alert('❌ Erro ao atualizar status. Tente novamente.');
@@ -1897,8 +1900,9 @@ function mostrarVendedor() {
     verificarNotificacoesVendedor();
     iniciarChat();
     buscarPendentesDaNuvem();
-     buscarVendasDoVendedor();  // 🔥 NOVA
-    buscarVendasAprovadasDaNuvem();
+    buscarVendasDoVendedor();          // Busca aprovadas (não instaladas)
+    buscarVendasInstaladasDoVendedor(); // Busca instaladas
+    // NÃO chama buscarVendasAprovadasDaNuvem() para vendedor
 }
 
 // ===== INICIALIZAÇÃO =====
