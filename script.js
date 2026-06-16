@@ -632,13 +632,36 @@ function abrirModalVisualizacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) return;
     const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-    
-    // Formata as datas para exibição
+
+    // Formata datas
     const dataNascFormatada = a.dataNasc ? formatarDataISO(a.dataNasc) : '';
     const dataExpedicaoFormatada = a.dataExpedicao ? formatarDataISO(a.dataExpedicao) : '';
     const dataInstalacaoFormatada = a.infoData ? formatarDataISO(a.infoData) : '';
-    
-    let html = `
+
+    let html = '';
+
+    // 🔥 BLOCO DE INFORMAÇÕES DE INSTALAÇÃO NO TOPO
+    if (a.contrato || a.infoData || a.infoPeriodo) {
+        html += `
+            <div class="instalacao-info-top">
+                <div class="info-item">
+                    <span class="label">📄 Contrato</span>
+                    <span class="value ${a.contrato ? '' : 'empty'}">${a.contrato || '—'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">📅 Data Instalação</span>
+                    <span class="value ${dataInstalacaoFormatada ? '' : 'empty'}">${dataInstalacaoFormatada || '—'}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">⏰ Período</span>
+                    <span class="value ${a.infoPeriodo ? '' : 'empty'}">${a.infoPeriodo || '—'}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Status, Plano, Valor
+    html += `
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
             <span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;">
                 <strong>Status:</strong> <span style="color:${flag.cor}">${a.status}</span>
@@ -652,29 +675,7 @@ function abrirModalVisualizacao(id) {
         </div>
     `;
 
-    // 🔥 INFORMAÇÕES ADICIONAIS (Contrato, Data Inst., Período Inst.)
-    if (a.contrato || a.infoData || a.infoPeriodo) {
-        html += `
-            <div style="background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.3);border-radius:12px;padding:12px 15px;margin-bottom:20px;">
-                <h4 style="color:#2ed573;margin:0 0 10px 0;font-size:14px;">📋 Informações de Instalação</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;">
-                    <div>
-                        <strong style="color:var(--text-secondary);font-size:11px;">Contrato</strong><br>
-                        <span style="color:#fff;">${a.contrato || '—'}</span>
-                    </div>
-                    <div>
-                        <strong style="color:var(--text-secondary);font-size:11px;">Data Instalação</strong><br>
-                        <span style="color:#fff;">${dataInstalacaoFormatada || '—'}</span>
-                    </div>
-                    <div>
-                        <strong style="color:var(--text-secondary);font-size:11px;">Período</strong><br>
-                        <span style="color:#fff;">${a.infoPeriodo || '—'}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
+    // Demais campos
     html += `<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:8px;">`;
     const campos = [
         ['Nome Completo', a.nomeCompleto],
@@ -709,6 +710,7 @@ function abrirModalVisualizacao(id) {
         html += `<div class="input-group"><label>${label}</label><input value="${valor || ''}" readonly style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);"></div>`;
     });
     html += `</div>`;
+
     document.getElementById('conteudoModalVisualizacao').innerHTML = html;
     document.getElementById('modalVisualizacao').style.display = 'flex';
 }
