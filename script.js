@@ -395,80 +395,99 @@ function abrirModalAtivacao(id) {
     a.tratandoPor = sessao.nome;
     salvarDB();
     postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome });
-    
-    const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
-    document.getElementById('editStatus').innerHTML = statusOptions;
-    document.getElementById('editObservacao').value = a.observacao || '';
-    document.getElementById('editNomeCompleto').value = a.nomeCompleto || '';
-    document.getElementById('editNomeMae').value = a.nomeMae || '';
-    document.getElementById('editDataNasc').value = a.dataNasc || '';
-    document.getElementById('editCpf').value = a.cpf || '';
-    document.getElementById('editRg').value = a.rg || '';
-    document.getElementById('editOrgaoExpeditor').value = a.orgaoExpeditor || '';
-    document.getElementById('editDataExpedicao').value = a.dataExpedicao || '';
-    document.getElementById('editEmail').value = a.email || '';
-    document.getElementById('editTelefone1').value = a.telefone1 || '';
-    document.getElementById('editTelefone2').value = a.telefone2 || '';
-    document.getElementById('editCep').value = a.cep || '';
-    document.getElementById('editLogradouro').value = a.logradouro || '';
-    document.getElementById('editNumero').value = a.numero || '';
-    document.getElementById('editComplemento').value = a.complemento || '';
-    document.getElementById('editBairro').value = a.bairro || '';
-    document.getElementById('editUf').value = a.uf || '';
-    document.getElementById('editCidade').value = a.cidade || '';
-    document.getElementById('editPontoReferencia').value = a.pontoReferencia || '';
-    document.getElementById('editVelocidade').value = a.velocidade || '';
-    document.getElementById('editProduto').value = a.produto || a.plano || '';
-    document.getElementById('editValor').value = a.valor || '';
-    document.getElementById('editVencimento').value = a.vencimento || '';
-    document.getElementById('editFormaPagamento').value = a.formaPagamento || '';
-    document.getElementById('editHp').value = a.hp || '';
-    document.getElementById('editViabilidade').value = a.viabilidade || '';
-    document.getElementById('editPlanoTipo').value = a.planoTipo || '';
-    document.getElementById('editTipoAprovacao').value = a.tipoAprovacao || '';
+
+    // Gera as opções de status
+    const statusOptions = DB.statusFlags.map(f => 
+        `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`
+    ).join('');
+
+    // Monta o HTML completo do modal com os valores preenchidos
+    const html = `
+        <div class="form-grid">
+            <div class="input-group"><label>Status</label><select id="editStatus">${statusOptions}</select></div>
+            <div class="input-group"><label>Observação</label><textarea id="editObservacao">${a.observacao || ''}</textarea></div>
+            <div class="input-group"><label>Nome Completo</label><input value="${a.nomeCompleto || ''}" id="editNomeCompleto"></div>
+            <div class="input-group"><label>Nome da Mãe</label><input value="${a.nomeMae || ''}" id="editNomeMae"></div>
+            <div class="input-group"><label>Data Nasc.</label><input value="${a.dataNasc || ''}" id="editDataNasc"></div>
+            <div class="input-group"><label>CPF</label><input value="${a.cpf || ''}" id="editCpf"></div>
+            <div class="input-group"><label>RG</label><input value="${a.rg || ''}" id="editRg"></div>
+            <div class="input-group"><label>Órgão Exp.</label><input value="${a.orgaoExpeditor || ''}" id="editOrgaoExpeditor"></div>
+            <div class="input-group"><label>Data Exp.</label><input value="${a.dataExpedicao || ''}" id="editDataExpedicao"></div>
+            <div class="input-group"><label>Email</label><input value="${a.email || ''}" id="editEmail"></div>
+            <div class="input-group"><label>Tel 1</label><input value="${a.telefone1 || ''}" id="editTelefone1"></div>
+            <div class="input-group"><label>Tel 2</label><input value="${a.telefone2 || ''}" id="editTelefone2"></div>
+            <div class="input-group"><label>CEP</label><input value="${a.cep || ''}" id="editCep"></div>
+            <div class="input-group"><label>Logradouro</label><input value="${a.logradouro || ''}" id="editLogradouro"></div>
+            <div class="input-group"><label>N°</label><input value="${a.numero || ''}" id="editNumero"></div>
+            <div class="input-group"><label>Complemento</label><input value="${a.complemento || ''}" id="editComplemento"></div>
+            <div class="input-group"><label>Bairro</label><input value="${a.bairro || ''}" id="editBairro"></div>
+            <div class="input-group"><label>Estado</label><input value="${a.uf || ''}" id="editUf"></div>
+            <div class="input-group"><label>Cidade</label><input value="${a.cidade || ''}" id="editCidade"></div>
+            <div class="input-group"><label>Ponto Ref.</label><input value="${a.pontoReferencia || ''}" id="editPontoReferencia"></div>
+            <div class="input-group"><label>Velocidade</label><input value="${a.velocidade || ''}" id="editVelocidade"></div>
+            <div class="input-group"><label>Produto</label><input value="${a.produto || a.plano || ''}" id="editProduto"></div>
+            <div class="input-group"><label>Valor</label><input value="${a.valor || ''}" id="editValor"></div>
+            <div class="input-group"><label>Vencimento</label><input value="${a.vencimento || ''}" id="editVencimento"></div>
+            <div class="input-group"><label>Pagamento</label><input value="${a.formaPagamento || ''}" id="editFormaPagamento"></div>
+            <div class="input-group"><label>HP</label><input value="${a.hp || ''}" id="editHp"></div>
+            <div class="input-group"><label>Viabilidade</label><input value="${a.viabilidade || ''}" id="editViabilidade"></div>
+            <div class="input-group"><label>Plano Tipo</label><input value="${a.planoTipo || ''}" id="editPlanoTipo"></div>
+            <div class="input-group"><label>Tipo Aprov.</label><input value="${a.tipoAprovacao || ''}" id="editTipoAprovacao"></div>
+        </div>
+    `;
+
+    // Insere o HTML no modal
+    document.getElementById('conteudoModalAtivacao').innerHTML = html;
+
+    // Preenche os campos das informações adicionais (fora do container)
     document.getElementById('infoContrato').value = a.contrato || '';
     document.getElementById('infoData').value = a.infoData || '';
     document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
+
+    // Exibe o modal
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
-
 function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (a) {
-        const novoStatus = document.getElementById('editStatus').value;
-        a.observacao = document.getElementById('editObservacao').value;
-        a.nomeCompleto = document.getElementById('editNomeCompleto').value;
-        a.nomeMae = document.getElementById('editNomeMae').value;
-        a.dataNasc = document.getElementById('editDataNasc').value;
-        a.cpf = document.getElementById('editCpf').value;
-        a.rg = document.getElementById('editRg').value;
-        a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor').value;
-        a.dataExpedicao = document.getElementById('editDataExpedicao').value;
-        a.email = document.getElementById('editEmail').value;
-        a.telefone1 = document.getElementById('editTelefone1').value;
-        a.telefone2 = document.getElementById('editTelefone2').value;
-        a.cep = document.getElementById('editCep').value;
-        a.logradouro = document.getElementById('editLogradouro').value;
-        a.numero = document.getElementById('editNumero').value;
-        a.complemento = document.getElementById('editComplemento').value;
-        a.bairro = document.getElementById('editBairro').value;
-        a.uf = document.getElementById('editUf').value;
-        a.cidade = document.getElementById('editCidade').value;
-        a.pontoReferencia = document.getElementById('editPontoReferencia').value;
-        a.velocidade = document.getElementById('editVelocidade').value;
-        a.produto = document.getElementById('editProduto').value;
+        // Captura os valores do modal
+        const novoStatus = document.getElementById('editStatus')?.value || a.status;
+        a.observacao = document.getElementById('editObservacao')?.value || '';
+        a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
+        a.nomeMae = document.getElementById('editNomeMae')?.value || '';
+        a.dataNasc = document.getElementById('editDataNasc')?.value || '';
+        a.cpf = document.getElementById('editCpf')?.value || '';
+        a.rg = document.getElementById('editRg')?.value || '';
+        a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor')?.value || '';
+        a.dataExpedicao = document.getElementById('editDataExpedicao')?.value || '';
+        a.email = document.getElementById('editEmail')?.value || '';
+        a.telefone1 = document.getElementById('editTelefone1')?.value || '';
+        a.telefone2 = document.getElementById('editTelefone2')?.value || '';
+        a.cep = document.getElementById('editCep')?.value || '';
+        a.logradouro = document.getElementById('editLogradouro')?.value || '';
+        a.numero = document.getElementById('editNumero')?.value || '';
+        a.complemento = document.getElementById('editComplemento')?.value || '';
+        a.bairro = document.getElementById('editBairro')?.value || '';
+        a.uf = document.getElementById('editUf')?.value || '';
+        a.cidade = document.getElementById('editCidade')?.value || '';
+        a.pontoReferencia = document.getElementById('editPontoReferencia')?.value || '';
+        a.velocidade = document.getElementById('editVelocidade')?.value || '';
+        a.produto = document.getElementById('editProduto')?.value || '';
         a.plano = a.produto;
-        a.valor = document.getElementById('editValor').value;
-        a.vencimento = document.getElementById('editVencimento').value;
-        a.formaPagamento = document.getElementById('editFormaPagamento').value;
-        a.hp = document.getElementById('editHp').value;
-        a.viabilidade = document.getElementById('editViabilidade').value;
-        a.planoTipo = document.getElementById('editPlanoTipo').value;
-        a.tipoAprovacao = document.getElementById('editTipoAprovacao').value;
-        a.contrato = document.getElementById('infoContrato').value;
-        a.infoData = document.getElementById('infoData').value;
-        a.infoPeriodo = document.getElementById('infoPeriodo').value;
-        
+        a.valor = document.getElementById('editValor')?.value || '';
+        a.vencimento = document.getElementById('editVencimento')?.value || '';
+        a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
+        a.hp = document.getElementById('editHp')?.value || '';
+        a.viabilidade = document.getElementById('editViabilidade')?.value || '';
+        a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
+        a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
+
+        // Informações adicionais
+        a.contrato = document.getElementById('infoContrato')?.value || '';
+        a.infoData = document.getElementById('infoData')?.value || '';
+        a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
+
+        // Verifica se foi aprovado
         if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
             if (confirm('Deseja aprovar esta venda? Ela será movida para Vendas Aprovadas.')) {
                 a.status = 'Aprovado';
@@ -513,18 +532,23 @@ function fecharModalAtivacao() {
         } else {
             a.status = novoStatus;
         }
+
         a.tratandoPor = null;
         salvarDB();
         postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+
         if (novoStatus === 'Aprovado') {
             buscarPendentesDaNuvem();
             buscarVendasAprovadasDaNuvem();
         }
     }
+
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
-    if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
+    if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) {
+        carregarVendasAprovadas();
+    }
     if (sessao.tipo === 'admin') carregarDashboard();
 }
 
