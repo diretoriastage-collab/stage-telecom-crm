@@ -316,24 +316,36 @@ async function buscarVendasAprovadasDaNuvem() {
                 vendedor_id: null,
                 data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
-                instalacaoStatus: 'Aguardando',
-                 dataCriacao: v.DataCriacao || '',   // 🔥 ADICIONE ESTA LINHA
+                instalacaoStatus: v.InstalacaoStatus || 'Aguardando',
+                dataCriacao: v.DataCriacao || '',
                 createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now())
             }));
-            aprovadasNuvem.forEach(v => {
-                const user = DB.usuarios.find(u => u.nome && u.nome.trim().toUpperCase() === (v.vendedorNome || '').trim().toUpperCase());
-                if (user) v.vendedor_id = user.id;
-            });
+            
+            // 🔥 MANTÉM O STATUS DE INSTALAÇÃO LOCAL (prioriza o que o vendedor definiu)
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
-            DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
-            DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 ADICIONE ESTA LINHA
+            
+            // Mescla: para cada venda aprovada, mantém o status de instalação local se existir
+            const aprovadasMescladas = aprovadasNuvem.map(v => {
+                const local = DB.ativacoes.find(a => a.id === v.id && a.status === 'Aprovado');
+                if (local && local.instalacaoStatus) {
+                    v.instalacaoStatus = local.instalacaoStatus;
+                }
+                return v;
+            });
+            
+            DB.ativacoes = [...pendentesLocais, ...aprovadasMescladas];
+            DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
             salvarDB();
+            
             if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
             if (sessao.tipo === 'admin') carregarDashboard();
+            if (sessao.tipo === 'vendedor') {
+                if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) carregarInstalacoes();
+                if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) carregarControleVendas();
+            }
         }
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
-
 async function buscarVendasDoVendedor() {
     if (!sessao || sessao.tipo !== 'vendedor') return;
     try {
