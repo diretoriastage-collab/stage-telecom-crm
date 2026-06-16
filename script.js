@@ -767,12 +767,14 @@ function carregarControleVendas() {
     if (!tabela) return;
     tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
+        // 🔥 CORREÇÃO: formata a data para DD/MM/AAAA
+        const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
         return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.plano || a.produto || '—'}</td>
             <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
             <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
-            <td>${a.data || '—'}</td>
+            <td>${dataFormatada}</td>
             <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
             </td>
         </tr>`;
