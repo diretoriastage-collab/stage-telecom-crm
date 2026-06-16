@@ -444,7 +444,7 @@
                             <select id="vVelocidade"><option value="">Selecione a velocidade</option></select>
                             <select id="vPlano"><option value="">Selecione o plano</option></select>
                             <select id="vValor"><option value="">Selecione o valor</option></select>
-                            <input type="date" id="vVencimento" placeholder="Vencimento">
+                            <input type="text" id="vVencimento" placeholder="Vencimento (ex: 15062026)" maxlength="8" oninput="this.value = this.value.replace(/\D/g, '')">
                             <select id="vFormaPagamento"><option value="">Forma de Pagamento</option></select>
                             <input type="text" id="vHp" placeholder="HP">
                         </div>
