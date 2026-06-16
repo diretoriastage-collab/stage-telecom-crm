@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxKZochk5u9oJoJ14nZPnxumHRB8lwoyjyGiLnJoMnujNTch_dFiuPehkOpr0SMwdbP/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz-g9ADA126VErI29iAQlBuwXY-t_Jet1IFS_ErCZ8LjZn0ROhJB8Nhwz69aVzucCSyBA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -248,7 +248,7 @@ async function buscarPendentesDaNuvem() {
                 contrato: p.Contrato || '',
                 infoData: p.DataInstalacao || '',
                 infoPeriodo: p.PeriodoInstalacao || '',
-                createdAt: p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now() // 🔥 TIMESTAMP
+                createdAt: p.CreatedAt ? parseInt(p.CreatedAt) : (p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now())
             }));
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             const aprovadasLocais = DB.ativacoes.filter(a => a.status === 'Aprovado');
@@ -315,7 +315,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
                 instalacaoStatus: 'Aguardando',
-                createdAt: v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now() // 🔥 TIMESTAMP
+                createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now())
             }));
             aprovadasNuvem.forEach(v => {
                 const user = DB.usuarios.find(u => u.nome && u.nome.trim().toUpperCase() === (v.vendedorNome || '').trim().toUpperCase());
