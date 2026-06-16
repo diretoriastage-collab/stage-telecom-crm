@@ -447,6 +447,124 @@ function abrirModalAtivacao(id) {
     // Exibe o modal
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
+
+async function fecharModalAtivacao() {
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (a) {
+        const novoStatus = document.getElementById('editStatus')?.value || a.status;
+        a.observacao = document.getElementById('editObservacao')?.value || '';
+        a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
+        a.nomeMae = document.getElementById('editNomeMae')?.value || '';
+        a.dataNasc = document.getElementById('editDataNasc')?.value || '';
+        a.cpf = document.getElementById('editCpf')?.value || '';
+        a.rg = document.getElementById('editRg')?.value || '';
+        a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor')?.value || '';
+        a.dataExpedicao = document.getElementById('editDataExpedicao')?.value || '';
+        a.email = document.getElementById('editEmail')?.value || '';
+        a.telefone1 = document.getElementById('editTelefone1')?.value || '';
+        a.telefone2 = document.getElementById('editTelefone2')?.value || '';
+        a.cep = document.getElementById('editCep')?.value || '';
+        a.logradouro = document.getElementById('editLogradouro')?.value || '';
+        a.numero = document.getElementById('editNumero')?.value || '';
+        a.complemento = document.getElementById('editComplemento')?.value || '';
+        a.bairro = document.getElementById('editBairro')?.value || '';
+        a.uf = document.getElementById('editUf')?.value || '';
+        a.cidade = document.getElementById('editCidade')?.value || '';
+        a.pontoReferencia = document.getElementById('editPontoReferencia')?.value || '';
+        a.velocidade = document.getElementById('editVelocidade')?.value || '';
+        a.produto = document.getElementById('editProduto')?.value || '';
+        a.plano = a.produto;
+        a.valor = document.getElementById('editValor')?.value || '';
+        a.vencimento = document.getElementById('editVencimento')?.value || '';
+        a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
+        a.hp = document.getElementById('editHp')?.value || '';
+        a.viabilidade = document.getElementById('editViabilidade')?.value || '';
+        a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
+        a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
+        a.contrato = document.getElementById('infoContrato')?.value || '';
+        a.infoData = document.getElementById('infoData')?.value || '';
+        a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
+
+        if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
+            if (!a.contrato || !a.infoData || !a.infoPeriodo) {
+                alert('⚠️ Preencha Contrato, Data e Período de Instalação antes de aprovar.');
+                return;
+            }
+            if (confirm('Aprovar esta venda?')) {
+                const params = {
+                    uuid: a.id,
+                    status: 'APROVADO',
+                    cliente: a.nomeCompleto,
+                    cpf: a.cpf,
+                    dataNasc: a.dataNasc,
+                    nomeMae: a.nomeMae,
+                    rg: a.rg,
+                    orgaoExpeditor: a.orgaoExpeditor,
+                    dataExpedicao: a.dataExpedicao,
+                    email: a.email,
+                    telefone1: a.telefone1,
+                    telefone2: a.telefone2,
+                    cep: a.cep,
+                    logradouro: a.logradouro,
+                    numero: a.numero,
+                    complemento: a.complemento,
+                    bairro: a.bairro,
+                    uf: a.uf,
+                    cidade: a.cidade,
+                    pontoReferencia: a.pontoReferencia,
+                    plano: a.produto,
+                    velocidade: a.velocidade,
+                    valor: a.valor,
+                    vencimento: a.vencimento,
+                    formaPagamento: a.formaPagamento,
+                    hp: a.hp,
+                    viabilidade: a.viabilidade,
+                    planoTipo: a.planoTipo,
+                    tipoAprovacao: a.tipoAprovacao,
+                    contrato: a.contrato,
+                    infoData: a.infoData,
+                    infoPeriodo: a.infoPeriodo,
+                    vendedorNome: a.vendedorNome
+                };
+                const resp = await fetchFromGS('aprovarVenda', params);
+                if (resp && resp.ok === true) {
+                    alert('✅ Venda aprovada!');
+                    DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
+                    salvarDB();
+                    await buscarPendentesDaNuvem();
+                    await buscarVendasAprovadasDaNuvem();
+                } else {
+                    alert('❌ Erro ao aprovar: ' + (resp?.erro || 'Erro desconhecido'));
+                    a.status = 'Pendente';
+                    salvarDB();
+                }
+            } else {
+                a.status = 'Pendente';
+                salvarDB();
+            }
+        } else {
+            a.status = novoStatus;
+            salvarDB();
+        }
+
+        a.tratandoPor = null;
+        salvarDB();
+        postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+
+        if (novoStatus !== 'Aprovado') {
+            await buscarPendentesDaNuvem();
+            await buscarVendasAprovadasDaNuvem();
+        }
+    }
+
+    document.getElementById('modalAtivacao').style.display = 'none';
+    vendaSendoVisualizada = null;
+    carregarAtivacoes();
+    if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) {
+        carregarVendasAprovadas();
+    }
+    if (sessao.tipo === 'admin') carregarDashboard();
+}
 function abrirModalInfoAdicional() {
     if (!vendaSendoVisualizada) { alert('Nenhuma venda selecionada.'); return; }
     document.getElementById('modalInfoAdicional').style.display = 'flex';
