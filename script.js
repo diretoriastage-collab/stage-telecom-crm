@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxPnxNupCMReQGKEcOT-EM0OcBMjzw40y1EQm2ZCI10gKRPw2Xme5-nkf8vGz1e9DeEJg/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyO1lwYAbaucoN33D_ItxAvy3j1myt8t0Fhyt7UzHTt0lRXK9Cd3-eIAj8MU5lM1ri1QA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -333,6 +333,69 @@ async function buscarVendasAprovadasDaNuvem() {
         }
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
+
+async function buscarVendasDoVendedor() {
+    if (!sessao || sessao.tipo !== 'vendedor') return;
+    try {
+        const resp = await fetchFromGS('listarVendasDoVendedor', { vendedorNome: sessao.nome });
+        if (resp && resp.vendas && Array.isArray(resp.vendas)) {
+            const vendasVendedor = resp.vendas.map(v => ({
+                id: v.UUID || (v.Cliente + Date.now()),
+                nomeCompleto: v.Cliente || '',
+                cpf: v.CPF || '',
+                dataNasc: v['Data Nasc.'] || '',
+                nomeMae: v['Nome da Mãe'] || '',
+                rg: v.RG || '',
+                orgaoExpeditor: v['Órgão Exp.'] || '',
+                dataExpedicao: v['Data Exp.'] || '',
+                email: v.Email || '',
+                telefone1: v['Tel 1'] || '',
+                telefone2: v['Tel 2'] || '',
+                cep: v.CEP || '',
+                logradouro: v.Logradouro || '',
+                numero: v['N°'] || '',
+                complemento: v.Complemento || '',
+                bairro: v.Bairro || '',
+                uf: v.Estado || '',
+                cidade: v.Cidade || '',
+                pontoReferencia: v['Ponto Ref.'] || '',
+                produto: v.Plano || '',
+                plano: v.Plano || '',
+                velocidade: v.Velocidade || '',
+                valor: v['Valor (R$)'] || '0',
+                vencimento: v.Vencimento || '',
+                formaPagamento: v.Pagamento || '',
+                hp: v.HP || '',
+                viabilidade: v.Viabilidade || '',
+                planoTipo: v['Plano Tipo'] || '',
+                tipoAprovacao: v['Tipo Aprov.'] || '',
+                contrato: v.Contrato || '',
+                infoData: v['Data Inst.'] || '',
+                infoPeriodo: v['Período Inst.'] || '',
+                status: 'Aprovado',
+                vendedorNome: v.Vendedor || '',
+                vendedor_id: null,
+                data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
+                finalizada: true,
+                instalacaoStatus: v.InstalacaoStatus || 'Aguardando'
+            }));
+            
+            // Mantém as pendentes e mescla com as vendas do vendedor
+            const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
+            const aprovadasDeOutros = DB.ativacoes.filter(a => a.status === 'Aprovado' && a.vendedor_id !== sessao.id);
+            DB.ativacoes = [...pendentesLocais, ...aprovadasDeOutros, ...vendasVendedor];
+            salvarDB();
+            
+            // Atualiza as listas do vendedor
+            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                carregarInstalacoes();
+            }
+            if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
+                carregarControleVendas();
+            }
+        }
+    } catch (err) { console.warn('Erro ao buscar vendas do vendedor:', err); }
+}
 // ===== ATIVAÇÕES (TABELA - NUNCA MOSTRA UUID) =====
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
@@ -543,6 +606,7 @@ async function fecharModalAtivacao() {
                     infoData: a.infoData,
                     infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome
+                   
                 };
                 
                 const resp = await fetchFromGS('aprovarVenda', params);
@@ -896,7 +960,7 @@ function carregarControleVendas() {
         </tr>`;
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
 }
-function carregarInstalacoes() {
+ffunction carregarInstalacoes() {
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
         .reverse();
@@ -911,22 +975,40 @@ function carregarInstalacoes() {
             <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
             <td>
                 <select onchange="alterarStatusInstalacao('${a.id}', this.value)" 
-                        style="background:#2a1a1a !important;color:#ffffff !important;border:1px solid rgba(255,255,255,0.3) !important;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;min-width:130px;appearance:auto;-webkit-appearance:auto;">
+                        style="background:#2a1a1a;color:#ffffff;border:1px solid rgba(255,255,255,0.3);padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;min-width:130px;">
                     <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''} 
-                            style="background:#1a0a0a !important;color:#ffffff !important;padding:4px 8px;">Aguardando</option>
+                            style="background:#1a0a0a;color:#ffffff;">Aguardando</option>
                     <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''} 
-                            style="background:#1a0a0a !important;color:#ffffff !important;padding:4px 8px;">Instalado</option>
+                            style="background:#1a0a0a;color:#ffffff;">Instalado</option>
                     <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''} 
-                            style="background:#1a0a0a !important;color:#ffffff !important;padding:4px 8px;">Cancelado</option>
+                            style="background:#1a0a0a;color:#ffffff;">Cancelado</option>
                 </select>
             </td>
             <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
         </tr>`;
     }).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;">Nenhuma venda aprovada para instalação</td></tr>';
 }
-function alterarStatusInstalacao(id, novoStatus) {
+async function alterarStatusInstalacao(id, novoStatus) {
     const a = DB.ativacoes.find(x => x.id === id);
-    if (a) { a.instalacaoStatus = novoStatus; salvarDB(); }
+    if (a) {
+        // Atualiza localmente
+        a.instalacaoStatus = novoStatus;
+        salvarDB();
+        
+        // 🔥 Envia para o Google Sheets (atualiza na aba do vendedor)
+        await postParaGoogleSheets('atualizarStatusInstalacaoVendedor', {
+            uuid: a.id,
+            status: novoStatus,
+            vendedorNome: sessao.nome
+        });
+        
+        console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
+        
+        // Atualiza a lista de instalações
+        if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+            carregarInstalacoes();
+        }
+    }
 }
 function mostrarSecaoVendedor(e, secao) {
     document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
@@ -1701,6 +1783,7 @@ function mostrarVendedor() {
     verificarNotificacoesVendedor();
     iniciarChat();
     buscarPendentesDaNuvem();
+     buscarVendasDoVendedor();  // 🔥 NOVA
     buscarVendasAprovadasDaNuvem();
 }
 
