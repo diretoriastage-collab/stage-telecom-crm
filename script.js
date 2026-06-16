@@ -336,8 +336,9 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     let naoAprovadas = DB.ativacoes
         .filter(a => a.status !== 'Aprovado')
         .sort((a, b) => {
-            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
-            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            // Usa createdAt ou converte UUID para timestamp
+            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
             return timeB - timeA;
         });
 
@@ -605,8 +606,8 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
         .sort((a, b) => {
-            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
-            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
             return timeB - timeA;
         });
 
@@ -816,8 +817,8 @@ function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id)
         .sort((a, b) => {
-            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
-            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
             return timeB - timeA;
         });
 
@@ -840,8 +841,8 @@ function carregarInstalacoes() {
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
         .sort((a, b) => {
-            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
-            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
             return timeB - timeA;
         });
 
