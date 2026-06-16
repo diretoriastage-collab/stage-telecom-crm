@@ -87,7 +87,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz9eAsWoa7adBdXi3Q0VIMa-rmbMKavBMoGp_pWF18AcvhEQhENwWwNABWiI3bbAVyTxg/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzRBFUEvFSeOAQI52MXBaXebuG6FETT_EI3YjLU4tUhinlXfMEgBQ46zK2aTcy2pmvxEA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -417,18 +417,34 @@ function atualizarControlesPaginacao(idContainer, pagina, totalPaginas, totalIte
 function filtrarAtivacoes() { paginaAtualAtivacoes = 1; carregarAtivacoes(1); }
 
 // ===== MODAL ATIVAÇÃO (COM TRAVA E APROVAÇÃO) =====
-function abrirModalAtivacao(id) {
+async function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) { alert('Venda não encontrada'); return; }
-    if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
-        alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde.`);
-        return;
+
+    // 🔒 Verifica lock no Google Sheets (fonte única de verdade)
+    try {
+        const resp = await fetchFromGS('consultarTratando', { uuid: a.id });
+        const lockAtual = resp?.tratandoPor;
+        if (lockAtual && lockAtual !== sessao.nome) {
+            alert(`⚠️ Esta venda está sendo tratada por ${lockAtual}. Aguarde.`);
+            return;
+        }
+    } catch (e) {
+        console.warn('Erro ao verificar lock no GS, usando DB local', e);
+        // fallback para o DB local
+        if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
+            alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde.`);
+            return;
+        }
     }
+
+    // ✅ Adquire o lock
     vendaSendoVisualizada = a.id;
     a.tratandoPor = sessao.nome;
     salvarDB();
     postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome });
 
+    // Restante do código para montar o modal (mantenha exatamente igual ao que já está)
     const statusOptions = DB.statusFlags.map(f =>
         `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`
     ).join('');
@@ -473,7 +489,17 @@ function abrirModalAtivacao(id) {
     document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
-
+async function cancelarEdicaoAtivacao() {
+    const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
+    if (a) {
+        a.tratandoPor = null;
+        salvarDB();
+        postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+    }
+    document.getElementById('modalAtivacao').style.display = 'none';
+    vendaSendoVisualizada = null;
+    carregarAtivacoes();   // atualiza a tabela para limpar o nome
+}
 async function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (a) {
