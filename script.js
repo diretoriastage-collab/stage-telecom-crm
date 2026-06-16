@@ -447,10 +447,10 @@ function abrirModalAtivacao(id) {
     // Exibe o modal
     document.getElementById('modalAtivacao').style.display = 'flex';
 }
-function fecharModalAtivacao() {
+async function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (a) {
-        // Captura os valores do modal
+        // Captura os valores do modal (já existentes)
         const novoStatus = document.getElementById('editStatus')?.value || a.status;
         a.observacao = document.getElementById('editObservacao')?.value || '';
         a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
@@ -481,19 +481,15 @@ function fecharModalAtivacao() {
         a.viabilidade = document.getElementById('editViabilidade')?.value || '';
         a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
         a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
-
-        // Informações adicionais
         a.contrato = document.getElementById('infoContrato')?.value || '';
         a.infoData = document.getElementById('infoData')?.value || '';
         a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
 
-        // Verifica se foi aprovado
+        // Se for aprovado
         if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
             if (confirm('Deseja aprovar esta venda? Ela será movida para Vendas Aprovadas.')) {
-                a.status = 'Aprovado';
-                a.finalizada = true;
-                if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
-                postParaGoogleSheets('aprovarVenda', {
+                // Monta payload para enviar ao GS
+                const params = {
                     uuid: a.id,
                     status: 'APROVADO',
                     cliente: a.nomeCompleto,
@@ -527,19 +523,47 @@ function fecharModalAtivacao() {
                     infoData: a.infoData,
                     infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome
-                });
+                };
+
+                // Envia via JSONP (GET) para poder ler a resposta
+                const resp = await fetchFromGS('aprovarVenda', params);
+                console.log('Resposta do GS (aprovação):', resp);
+
+                if (resp && resp.ok === true) {
+                    alert('✅ Venda aprovada com sucesso!');
+                    // Remove localmente da lista de pendentes
+                    DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
+                    salvarDB();
+                    // Força sincronização
+                    await buscarPendentesDaNuvem();
+                    await buscarVendasAprovadasDaNuvem();
+                } else {
+                    alert('❌ Erro ao aprovar venda: ' + (resp?.erro || 'Erro desconhecido'));
+                    // Mantém o status anterior
+                    a.status = 'Pendente';
+                    a.finalizada = false;
+                    salvarDB();
+                }
+            } else {
+                // Cancelou a aprovação, mantém o status anterior
+                a.status = 'Pendente';
+                salvarDB();
             }
         } else {
+            // Outros status (não aprovado)
             a.status = novoStatus;
+            salvarDB();
         }
 
         a.tratandoPor = null;
         salvarDB();
         postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
 
-        if (novoStatus === 'Aprovado') {
-            buscarPendentesDaNuvem();
-            buscarVendasAprovadasDaNuvem();
+        // Se aprovou, já chamamos as funções de busca dentro do bloco de sucesso
+        // Se não aprovou, ainda assim atualiza as listas
+        if (novoStatus !== 'Aprovado') {
+            await buscarPendentesDaNuvem();
+            await buscarVendasAprovadasDaNuvem();
         }
     }
 
@@ -551,7 +575,6 @@ function fecharModalAtivacao() {
     }
     if (sessao.tipo === 'admin') carregarDashboard();
 }
-
 function abrirModalInfoAdicional() {
     if (!vendaSendoVisualizada) { alert('Nenhuma venda selecionada.'); return; }
     document.getElementById('modalInfoAdicional').style.display = 'flex';
