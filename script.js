@@ -451,10 +451,11 @@ async function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (!a) {
         document.getElementById('modalAtivacao').style.display = 'none';
+        vendaSendoVisualizada = null;
         return;
     }
 
-    // Captura os valores do modal (já existentes)
+    // 🔥 Captura TODOS os campos do modal (incluindo informações adicionais)
     const novoStatus = document.getElementById('editStatus')?.value || a.status;
     a.observacao = document.getElementById('editObservacao')?.value || '';
     a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
@@ -486,28 +487,21 @@ async function fecharModalAtivacao() {
     a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
     a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
 
-    // Informações adicionais (capturadas diretamente dos campos)
+    // 🔥 INFORMAÇÕES ADICIONAIS (capturadas do modal)
     a.contrato = document.getElementById('infoContrato')?.value || '';
     a.infoData = document.getElementById('infoData')?.value || '';
     a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
 
-    // Salva as alterações no DB local (independente do status)
-    salvarDB();
-
     // Se for aprovado
     if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
-        // VALIDAÇÃO: informações adicionais preenchidas?
+        // 🔥 VALIDAÇÃO: informações adicionais obrigatórias
         if (!a.contrato || !a.infoData || !a.infoPeriodo) {
-            alert('⚠️ Para aprovar esta venda, você deve preencher todas as informações adicionais: Contrato, Data de Instalação e Período.');
-            // Mantém o modal aberto e não altera o status
-            a.status = 'Pendente'; // garante que não fique como aprovado
-            salvarDB();
-            // Não fecha o modal
-            return;
+            alert('⚠️ Para aprovar esta venda, você deve preencher:\n- Contrato\n- Data de Instalação\n- Período de Instalação');
+            return; // Não fecha o modal
         }
 
         if (confirm('Deseja aprovar esta venda? Ela será movida para Vendas Aprovadas.')) {
-            // Monta payload para enviar ao GS
+            // 🔥 Monta payload com TODAS as informações, incluindo as adicionais
             const params = {
                 uuid: a.id,
                 status: 'APROVADO',
@@ -538,12 +532,14 @@ async function fecharModalAtivacao() {
                 viabilidade: a.viabilidade,
                 planoTipo: a.planoTipo,
                 tipoAprovacao: a.tipoAprovacao,
+                // 🔥 INFORMAÇÕES ADICIONAIS
                 contrato: a.contrato,
                 infoData: a.infoData,
                 infoPeriodo: a.infoPeriodo,
                 vendedorNome: a.vendedorNome
             };
 
+            // Envia via JSONP (GET) para poder ler a resposta
             const resp = await fetchFromGS('aprovarVenda', params);
             console.log('Resposta do GS (aprovação):', resp);
 
@@ -552,6 +548,7 @@ async function fecharModalAtivacao() {
                 // Remove localmente da lista de pendentes
                 DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
                 salvarDB();
+                // Força sincronização
                 await buscarPendentesDaNuvem();
                 await buscarVendasAprovadasDaNuvem();
             } else {
@@ -571,15 +568,12 @@ async function fecharModalAtivacao() {
         salvarDB();
     }
 
+    // Limpa o campo "tratando"
     a.tratandoPor = null;
     salvarDB();
     postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
 
-    if (novoStatus !== 'Aprovado') {
-        await buscarPendentesDaNuvem();
-        await buscarVendasAprovadasDaNuvem();
-    }
-
+    // Fecha o modal
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
