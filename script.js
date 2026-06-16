@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz-g9ADA126VErI29iAQlBuwXY-t_Jet1IFS_ErCZ8LjZn0ROhJB8Nhwz69aVzucCSyBA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwmEYa0MAQ1fJb9bNmfQz5c5J6eKkVGI9NkrM3W2N8HjNW6iCZRWEdhTflPBhu5iLhmDQ/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -336,13 +336,9 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     let naoAprovadas = DB.ativacoes
         .filter(a => a.status !== 'Aprovado')
         .sort((a, b) => {
-            const timeA = a.createdAt || 0;
-            const timeB = b.createdAt || 0;
-            if (timeA !== timeB) return timeB - timeA;
-            const dateA = a.data ? new Date(a.data).getTime() : 0;
-            const dateB = b.data ? new Date(b.data).getTime() : 0;
-            if (dateA !== dateB) return dateB - dateA;
-            return String(b.id).localeCompare(String(a.id));
+            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
+            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            return timeB - timeA;
         });
 
     const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
@@ -609,13 +605,9 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
         .sort((a, b) => {
-            const timeA = a.createdAt || 0;
-            const timeB = b.createdAt || 0;
-            if (timeA !== timeB) return timeB - timeA;
-            const dateA = a.data ? new Date(a.data).getTime() : 0;
-            const dateB = b.data ? new Date(b.data).getTime() : 0;
-            if (dateA !== dateB) return dateB - dateA;
-            return String(b.id).localeCompare(String(a.id));
+            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
+            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            return timeB - timeA;
         });
 
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
@@ -824,13 +816,9 @@ function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id)
         .sort((a, b) => {
-            const timeA = a.createdAt || 0;
-            const timeB = b.createdAt || 0;
-            if (timeA !== timeB) return timeB - timeA;
-            const dateA = a.data ? new Date(a.data).getTime() : 0;
-            const dateB = b.data ? new Date(b.data).getTime() : 0;
-            if (dateA !== dateB) return dateB - dateA;
-            return String(b.id).localeCompare(String(a.id));
+            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
+            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            return timeB - timeA;
         });
 
     const tabela = document.getElementById('tabelaControleVendas');
@@ -852,13 +840,9 @@ function carregarInstalacoes() {
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
         .sort((a, b) => {
-            const timeA = a.createdAt || 0;
-            const timeB = b.createdAt || 0;
-            if (timeA !== timeB) return timeB - timeA;
-            const dateA = a.data ? new Date(a.data).getTime() : 0;
-            const dateB = b.data ? new Date(b.data).getTime() : 0;
-            if (dateA !== dateB) return dateB - dateA;
-            return String(b.id).localeCompare(String(a.id));
+            const timeA = a.createdAt || (a.data ? new Date(a.data).getTime() : 0);
+            const timeB = b.createdAt || (b.data ? new Date(b.data).getTime() : 0);
+            return timeB - timeA;
         });
 
     const tabela = document.getElementById('tabelaInstalacoes');
