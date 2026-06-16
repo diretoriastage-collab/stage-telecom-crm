@@ -876,14 +876,11 @@ function enviarVenda() {
     }).catch(err => { console.error(err); alert('❌ Erro de comunicação.'); });
 }
 function carregarControleVendas() {
+    // 🔥 INVERTE A ORDEM: as mais recentes primeiro
     const minhasAtivacoes = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id)
-        .sort((a, b) => {
-            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
-            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
-            return timeB - timeA;
-        });
-
+        .reverse();
+    
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
@@ -900,14 +897,11 @@ function carregarControleVendas() {
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
 }
 function carregarInstalacoes() {
+    // 🔥 INVERTE A ORDEM: as mais recentes primeiro
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
-        .sort((a, b) => {
-            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
-            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
-            return timeB - timeA;
-        });
-
+        .reverse();
+    
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
     tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
