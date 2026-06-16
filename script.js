@@ -472,13 +472,14 @@ async function abrirModalAtivacao(id) {
             return;
         }
     } catch (e) {
-        console.warn('Erro ao verificar lock no GS, usando DB local', e);
-        // fallback para o DB local
-        if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
-            alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde.`);
-            return;
-        }
+    console.warn('Erro ao verificar lock no GS, usando DB local', e);
+    // Se a rede falhou, só confiamos no lock local se ele existir e NÃO for o admin atual
+    if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
+        alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde.`);
+        return;
     }
+    // Se o lock local está vazio ou é o próprio admin, permitimos
+}
 
     // ✅ Adquire o lock
     vendaSendoVisualizada = a.id;
@@ -1259,7 +1260,7 @@ function carregarUsuarios() {
     const tabela = document.getElementById('tabelaUsuarios');
     if (!tabela) return;
     tabela.innerHTML = usuarios.map(u => `<tr>
-        <td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
+        <td><strong>${u.nome}</strong><button onclick="abrirModalEditarPorUsuario('${u.usuario}')" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
         <td>@${u.usuario}</td>
         <td>${u.email}</td>
         <td><span class="badge-cat">${u.categoria === 'admin' ? '👑 Admin' : '💼 Vendedor'}</span></td>
@@ -1313,10 +1314,35 @@ function cadastrarUsuario() {
     carregarUsuarios();
     alert('✅ Usuário cadastrado com sucesso! (Sincronizando com a nuvem...)');
 }
-
+function abrirModalEditarPorUsuario(usuario) {
+    // Busca pelo nome de usuário (campo único)
+    const u = DB.usuarios.find(u => u.usuario === usuario && !u.deletedAt);
+    if (!u) {
+        alert('Usuário não encontrado. Recarregue a página e tente novamente.');
+        return;
+    }
+    abrirModalEditar(u.id); // chama a versão existente que agora é assíncrona
+}
 function toggleUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.ativo = !u.ativo; salvarDB(); carregarUsuarios(); } }
 function excluirUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (!u) return; if (confirm(`⚠️ Excluir "${u.nome}"? Ele irá para a lixeira e perderá o acesso.`)) { u.deletedAt = new Date().toISOString(); u.ativo = false; salvarDB(); carregarUsuarios(); } }
-function abrirModalEditar(id) { const u = DB.usuarios.find(u => u.id === id); if (!u) return; document.getElementById('editUsuarioId').value = u.id; document.getElementById('editNomeUsuario').value = u.nome; document.getElementById('editLoginUsuario').value = u.usuario; document.getElementById('editEmailUsuario').value = u.email; document.getElementById('editCategoriaUsuario').value = u.categoria || u.tipo; document.getElementById('editSenhaUsuario').value = ''; document.getElementById('editEquipeUsuario').value = u.equipe || ''; document.getElementById('modalEditarUsuario').style.display = 'flex'; }
+async function abrirModalEditar(id) {
+    // Garante que a lista de usuários esteja sincronizada com a planilha
+    await sincronizarUsuariosDaNuvem();
+
+    const u = DB.usuarios.find(u => u.id === id);
+    if (!u) {
+        alert('Usuário não encontrado no banco local. Tente recarregar a página.');
+        return;
+    }
+    document.getElementById('editUsuarioId').value = u.id;
+    document.getElementById('editNomeUsuario').value = u.nome;
+    document.getElementById('editLoginUsuario').value = u.usuario;
+    document.getElementById('editEmailUsuario').value = u.email;
+    document.getElementById('editCategoriaUsuario').value = u.categoria || u.tipo;
+    document.getElementById('editSenhaUsuario').value = '';
+    document.getElementById('editEquipeUsuario').value = u.equipe || '';
+    document.getElementById('modalEditarUsuario').style.display = 'flex';
+}
 function fecharModalEditar() { document.getElementById('modalEditarUsuario').style.display = 'none'; }
 function salvarEdicaoUsuario() {
     const id = parseInt(document.getElementById('editUsuarioId').value);
