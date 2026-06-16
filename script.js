@@ -449,122 +449,135 @@ function abrirModalAtivacao(id) {
 }
 async function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
-    if (a) {
-        // Captura os valores do modal (já existentes)
-        const novoStatus = document.getElementById('editStatus')?.value || a.status;
-        a.observacao = document.getElementById('editObservacao')?.value || '';
-        a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
-        a.nomeMae = document.getElementById('editNomeMae')?.value || '';
-        a.dataNasc = document.getElementById('editDataNasc')?.value || '';
-        a.cpf = document.getElementById('editCpf')?.value || '';
-        a.rg = document.getElementById('editRg')?.value || '';
-        a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor')?.value || '';
-        a.dataExpedicao = document.getElementById('editDataExpedicao')?.value || '';
-        a.email = document.getElementById('editEmail')?.value || '';
-        a.telefone1 = document.getElementById('editTelefone1')?.value || '';
-        a.telefone2 = document.getElementById('editTelefone2')?.value || '';
-        a.cep = document.getElementById('editCep')?.value || '';
-        a.logradouro = document.getElementById('editLogradouro')?.value || '';
-        a.numero = document.getElementById('editNumero')?.value || '';
-        a.complemento = document.getElementById('editComplemento')?.value || '';
-        a.bairro = document.getElementById('editBairro')?.value || '';
-        a.uf = document.getElementById('editUf')?.value || '';
-        a.cidade = document.getElementById('editCidade')?.value || '';
-        a.pontoReferencia = document.getElementById('editPontoReferencia')?.value || '';
-        a.velocidade = document.getElementById('editVelocidade')?.value || '';
-        a.produto = document.getElementById('editProduto')?.value || '';
-        a.plano = a.produto;
-        a.valor = document.getElementById('editValor')?.value || '';
-        a.vencimento = document.getElementById('editVencimento')?.value || '';
-        a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
-        a.hp = document.getElementById('editHp')?.value || '';
-        a.viabilidade = document.getElementById('editViabilidade')?.value || '';
-        a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
-        a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
-        a.contrato = document.getElementById('infoContrato')?.value || '';
-        a.infoData = document.getElementById('infoData')?.value || '';
-        a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
+    if (!a) {
+        document.getElementById('modalAtivacao').style.display = 'none';
+        return;
+    }
 
-        // Se for aprovado
-        if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
-            if (confirm('Deseja aprovar esta venda? Ela será movida para Vendas Aprovadas.')) {
-                // Monta payload para enviar ao GS
-                const params = {
-                    uuid: a.id,
-                    status: 'APROVADO',
-                    cliente: a.nomeCompleto,
-                    cpf: a.cpf,
-                    dataNasc: a.dataNasc,
-                    nomeMae: a.nomeMae,
-                    rg: a.rg,
-                    orgaoExpeditor: a.orgaoExpeditor,
-                    dataExpedicao: a.dataExpedicao,
-                    email: a.email,
-                    telefone1: a.telefone1,
-                    telefone2: a.telefone2,
-                    cep: a.cep,
-                    logradouro: a.logradouro,
-                    numero: a.numero,
-                    complemento: a.complemento,
-                    bairro: a.bairro,
-                    uf: a.uf,
-                    cidade: a.cidade,
-                    pontoReferencia: a.pontoReferencia,
-                    plano: a.produto,
-                    velocidade: a.velocidade,
-                    valor: a.valor,
-                    vencimento: a.vencimento,
-                    formaPagamento: a.formaPagamento,
-                    hp: a.hp,
-                    viabilidade: a.viabilidade,
-                    planoTipo: a.planoTipo,
-                    tipoAprovacao: a.tipoAprovacao,
-                    contrato: a.contrato,
-                    infoData: a.infoData,
-                    infoPeriodo: a.infoPeriodo,
-                    vendedorNome: a.vendedorNome
-                };
+    // Captura os valores do modal (já existentes)
+    const novoStatus = document.getElementById('editStatus')?.value || a.status;
+    a.observacao = document.getElementById('editObservacao')?.value || '';
+    a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
+    a.nomeMae = document.getElementById('editNomeMae')?.value || '';
+    a.dataNasc = document.getElementById('editDataNasc')?.value || '';
+    a.cpf = document.getElementById('editCpf')?.value || '';
+    a.rg = document.getElementById('editRg')?.value || '';
+    a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor')?.value || '';
+    a.dataExpedicao = document.getElementById('editDataExpedicao')?.value || '';
+    a.email = document.getElementById('editEmail')?.value || '';
+    a.telefone1 = document.getElementById('editTelefone1')?.value || '';
+    a.telefone2 = document.getElementById('editTelefone2')?.value || '';
+    a.cep = document.getElementById('editCep')?.value || '';
+    a.logradouro = document.getElementById('editLogradouro')?.value || '';
+    a.numero = document.getElementById('editNumero')?.value || '';
+    a.complemento = document.getElementById('editComplemento')?.value || '';
+    a.bairro = document.getElementById('editBairro')?.value || '';
+    a.uf = document.getElementById('editUf')?.value || '';
+    a.cidade = document.getElementById('editCidade')?.value || '';
+    a.pontoReferencia = document.getElementById('editPontoReferencia')?.value || '';
+    a.velocidade = document.getElementById('editVelocidade')?.value || '';
+    a.produto = document.getElementById('editProduto')?.value || '';
+    a.plano = a.produto;
+    a.valor = document.getElementById('editValor')?.value || '';
+    a.vencimento = document.getElementById('editVencimento')?.value || '';
+    a.formaPagamento = document.getElementById('editFormaPagamento')?.value || '';
+    a.hp = document.getElementById('editHp')?.value || '';
+    a.viabilidade = document.getElementById('editViabilidade')?.value || '';
+    a.planoTipo = document.getElementById('editPlanoTipo')?.value || '';
+    a.tipoAprovacao = document.getElementById('editTipoAprovacao')?.value || '';
 
-                // Envia via JSONP (GET) para poder ler a resposta
-                const resp = await fetchFromGS('aprovarVenda', params);
-                console.log('Resposta do GS (aprovação):', resp);
+    // Informações adicionais (capturadas diretamente dos campos)
+    a.contrato = document.getElementById('infoContrato')?.value || '';
+    a.infoData = document.getElementById('infoData')?.value || '';
+    a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
 
-                if (resp && resp.ok === true) {
-                    alert('✅ Venda aprovada com sucesso!');
-                    // Remove localmente da lista de pendentes
-                    DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
-                    salvarDB();
-                    // Força sincronização
-                    await buscarPendentesDaNuvem();
-                    await buscarVendasAprovadasDaNuvem();
-                } else {
-                    alert('❌ Erro ao aprovar venda: ' + (resp?.erro || 'Erro desconhecido'));
-                    // Mantém o status anterior
-                    a.status = 'Pendente';
-                    a.finalizada = false;
-                    salvarDB();
-                }
+    // Salva as alterações no DB local (independente do status)
+    salvarDB();
+
+    // Se for aprovado
+    if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
+        // VALIDAÇÃO: informações adicionais preenchidas?
+        if (!a.contrato || !a.infoData || !a.infoPeriodo) {
+            alert('⚠️ Para aprovar esta venda, você deve preencher todas as informações adicionais: Contrato, Data de Instalação e Período.');
+            // Mantém o modal aberto e não altera o status
+            a.status = 'Pendente'; // garante que não fique como aprovado
+            salvarDB();
+            // Não fecha o modal
+            return;
+        }
+
+        if (confirm('Deseja aprovar esta venda? Ela será movida para Vendas Aprovadas.')) {
+            // Monta payload para enviar ao GS
+            const params = {
+                uuid: a.id,
+                status: 'APROVADO',
+                cliente: a.nomeCompleto,
+                cpf: a.cpf,
+                dataNasc: a.dataNasc,
+                nomeMae: a.nomeMae,
+                rg: a.rg,
+                orgaoExpeditor: a.orgaoExpeditor,
+                dataExpedicao: a.dataExpedicao,
+                email: a.email,
+                telefone1: a.telefone1,
+                telefone2: a.telefone2,
+                cep: a.cep,
+                logradouro: a.logradouro,
+                numero: a.numero,
+                complemento: a.complemento,
+                bairro: a.bairro,
+                uf: a.uf,
+                cidade: a.cidade,
+                pontoReferencia: a.pontoReferencia,
+                plano: a.produto,
+                velocidade: a.velocidade,
+                valor: a.valor,
+                vencimento: a.vencimento,
+                formaPagamento: a.formaPagamento,
+                hp: a.hp,
+                viabilidade: a.viabilidade,
+                planoTipo: a.planoTipo,
+                tipoAprovacao: a.tipoAprovacao,
+                contrato: a.contrato,
+                infoData: a.infoData,
+                infoPeriodo: a.infoPeriodo,
+                vendedorNome: a.vendedorNome
+            };
+
+            const resp = await fetchFromGS('aprovarVenda', params);
+            console.log('Resposta do GS (aprovação):', resp);
+
+            if (resp && resp.ok === true) {
+                alert('✅ Venda aprovada com sucesso!');
+                // Remove localmente da lista de pendentes
+                DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
+                salvarDB();
+                await buscarPendentesDaNuvem();
+                await buscarVendasAprovadasDaNuvem();
             } else {
-                // Cancelou a aprovação, mantém o status anterior
+                alert('❌ Erro ao aprovar venda: ' + (resp?.erro || 'Erro desconhecido'));
                 a.status = 'Pendente';
+                a.finalizada = false;
                 salvarDB();
             }
         } else {
-            // Outros status (não aprovado)
-            a.status = novoStatus;
+            // Cancelou a aprovação
+            a.status = 'Pendente';
             salvarDB();
         }
-
-        a.tratandoPor = null;
+    } else {
+        // Outros status (não aprovado)
+        a.status = novoStatus;
         salvarDB();
-        postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+    }
 
-        // Se aprovou, já chamamos as funções de busca dentro do bloco de sucesso
-        // Se não aprovou, ainda assim atualiza as listas
-        if (novoStatus !== 'Aprovado') {
-            await buscarPendentesDaNuvem();
-            await buscarVendasAprovadasDaNuvem();
-        }
+    a.tratandoPor = null;
+    salvarDB();
+    postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+
+    if (novoStatus !== 'Aprovado') {
+        await buscarPendentesDaNuvem();
+        await buscarVendasAprovadasDaNuvem();
     }
 
     document.getElementById('modalAtivacao').style.display = 'none';
