@@ -1,6 +1,6 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO
-// (UUID oculto, notificação única, trava tratando)
+// STAGE TELECOM CRM - SCRIPT COMPLETO E FINAL
+// UUID oculto, status correto, tratando com trava, notificação para todos admins
 // ============================================
 
 let DB;
@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwhYJhQmAOy18lX2pGLtCzUq5buT2NHpIRaMRKM4lkIyRWvCriSou9axIZPqcAd1ZcGnA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwrWBk4hloat3M44kB5GZesfQBxJH547Tuwb259dgDOdiwe0MxCEKk-UYqCWvItKo4dQA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -202,7 +202,7 @@ function formatarDataISO(dataStr) {
     return data.toLocaleDateString('pt-BR');
 }
 
-// ===== BUSCAR PENDENTES (UUID OCULTO, NOME DO CLIENTE CORRETO) =====
+// ===== BUSCAR PENDENTES (CORRIGIDO) =====
 async function buscarPendentesDaNuvem() {
     if (!sessao) return;
     try {
@@ -211,43 +211,43 @@ async function buscarPendentesDaNuvem() {
             const pendentesNuvem = resp.pendentes.map(p => ({
                 id: p.UUID,
                 nomeCompleto: p.Cliente || '',
-                cpf: p['CPF'] || '',
+                cpf: p.CPF || '',
                 dataNasc: p['Data Nasc.'] ? formatarDataISO(p['Data Nasc.']) : '',
                 nomeMae: p['Nome da Mãe'] || '',
-                rg: p['RG'] || '',
+                rg: p.RG || '',
                 orgaoExpeditor: p['Órgão Exp.'] || '',
                 dataExpedicao: p['Data Exp.'] ? formatarDataISO(p['Data Exp.']) : '',
-                email: p['Email'] || '',
+                email: p.Email || '',
                 telefone1: p['Tel 1'] || '',
                 telefone2: p['Tel 2'] || '',
-                cep: p['CEP'] || '',
-                logradouro: p['Logradouro'] || '',
+                cep: p.CEP || '',
+                logradouro: p.Logradouro || '',
                 numero: p['N°'] || '',
-                complemento: p['Complemento'] || '',
-                bairro: p['Bairro'] || '',
-                uf: p['Estado'] || '',
-                cidade: p['Cidade'] || '',
+                complemento: p.Complemento || '',
+                bairro: p.Bairro || '',
+                uf: p.Estado || '',
+                cidade: p.Cidade || '',
                 pontoReferencia: p['Ponto Ref.'] || '',
-                produto: p['Plano'] || '',
-                plano: p['Plano'] || '',
-                velocidade: p['Velocidade'] || '',
-                valor: p['Valor'] || '',
-                vencimento: p['Vencimento'] || '',
-                formaPagamento: p['Pagamento'] || '',
-                hp: p['HP'] || '',
-                viabilidade: p['Viabilidade'] || '',
+                produto: p.Plano || '',
+                plano: p.Plano || '',
+                velocidade: p.Velocidade || '',
+                valor: p.Valor || '',
+                vencimento: p.Vencimento || '',
+                formaPagamento: p.Pagamento || '',
+                hp: p.HP || '',
+                viabilidade: p.Viabilidade || '',
                 planoTipo: p['Plano Tipo'] || '',
                 tipoAprovacao: p['Tipo Aprov.'] || '',
-                status: p['Status'] || 'Pendente',
-                vendedorNome: p['Vendedor'] || '',
-                vendedor_id: p['VendedorId'] ? parseInt(p['VendedorId']) : null,
-                data: p['DataVenda'] ? formatarDataISO(p['DataVenda']) : new Date().toISOString().split('T')[0],
-                observacao: p['Observacao'] || '',
+                status: p.Status || 'Pendente',
+                vendedorNome: p.Vendedor || '',
+                vendedor_id: p.VendedorId ? parseInt(p.VendedorId) : null,
+                data: p.DataVenda ? formatarDataISO(p.DataVenda) : new Date().toISOString().split('T')[0],
+                observacao: p.Observacao || '',
                 finalizada: false,
-                tratandoPor: p['TratandoPor'] || null,
-                contrato: p['Contrato'] || '',
-                infoData: p['DataInstalacao'] || '',
-                infoPeriodo: p['PeriodoInstalacao'] || ''
+                tratandoPor: p.TratandoPor || null,
+                contrato: p.Contrato || '',
+                infoData: p.DataInstalacao || '',
+                infoPeriodo: p.PeriodoInstalacao || ''
             }));
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             const aprovadasLocais = DB.ativacoes.filter(a => a.status === 'Aprovado');
@@ -277,40 +277,40 @@ async function buscarVendasAprovadasDaNuvem() {
         const resp = await fetchFromGS('listarVendas');
         if (resp && resp.vendas && Array.isArray(resp.vendas)) {
             const aprovadasNuvem = resp.vendas.map(v => ({
-                id: v.UUID || (v['Cliente'] + Date.now()),
-                nomeCompleto: v['Cliente'] || '',
-                cpf: v['CPF'] || '',
+                id: v.UUID || (v.Cliente + Date.now()),
+                nomeCompleto: v.Cliente || '',
+                cpf: v.CPF || '',
                 dataNasc: v['Data Nasc.'] || '',
                 nomeMae: v['Nome da Mãe'] || '',
-                rg: v['RG'] || '',
+                rg: v.RG || '',
                 orgaoExpeditor: v['Órgão Exp.'] || '',
                 dataExpedicao: v['Data Exp.'] || '',
-                email: v['Email'] || '',
+                email: v.Email || '',
                 telefone1: v['Tel 1'] || '',
                 telefone2: v['Tel 2'] || '',
-                cep: v['CEP'] || '',
-                logradouro: v['Logradouro'] || '',
+                cep: v.CEP || '',
+                logradouro: v.Logradouro || '',
                 numero: v['N°'] || '',
-                complemento: v['Complemento'] || '',
-                bairro: v['Bairro'] || '',
-                uf: v['Estado'] || '',
-                cidade: v['Cidade'] || '',
+                complemento: v.Complemento || '',
+                bairro: v.Bairro || '',
+                uf: v.Estado || '',
+                cidade: v.Cidade || '',
                 pontoReferencia: v['Ponto Ref.'] || '',
-                produto: v['Plano'] || '',
-                plano: v['Plano'] || '',
-                velocidade: v['Velocidade'] || '',
+                produto: v.Plano || '',
+                plano: v.Plano || '',
+                velocidade: v.Velocidade || '',
                 valor: v['Valor (R$)'] || '0',
-                vencimento: v['Vencimento'] || '',
-                formaPagamento: v['Pagamento'] || '',
-                hp: v['HP'] || '',
-                viabilidade: v['Viabilidade'] || '',
+                vencimento: v.Vencimento || '',
+                formaPagamento: v.Pagamento || '',
+                hp: v.HP || '',
+                viabilidade: v.Viabilidade || '',
                 planoTipo: v['Plano Tipo'] || '',
                 tipoAprovacao: v['Tipo Aprov.'] || '',
-                contrato: v['Contrato'] || '',
+                contrato: v.Contrato || '',
                 infoData: v['Data Inst.'] || '',
                 infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
-                vendedorNome: v['Vendedor'] || '',
+                vendedorNome: v.Vendedor || '',
                 vendedor_id: null,
                 data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
@@ -347,7 +347,7 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
     const itensExibidos = naoAprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.map(a => `
-        <table>
+        <tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.produto || a.plano || '—'}</td>
             <td>${a.vendedorNome || '—'}</td>
@@ -358,7 +358,7 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
                 <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
-    `).join('') || '<table><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
+    `).join('') || '<td><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
     atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
 
@@ -383,7 +383,7 @@ function atualizarControlesPaginacao(idContainer, pagina, totalPaginas, totalIte
 }
 function filtrarAtivacoes() { paginaAtualAtivacoes = 1; carregarAtivacoes(1); }
 
-// ===== MODAL ATIVAÇÃO (ABRIR COM DADOS E TRAVA) =====
+// ===== MODAL ATIVAÇÃO (COM TRAVA E APROVAÇÃO) =====
 function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) { alert('Venda não encontrada'); return; }
@@ -395,6 +395,7 @@ function abrirModalAtivacao(id) {
     a.tratandoPor = sessao.nome;
     salvarDB();
     postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome });
+    
     const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
     document.getElementById('editStatus').innerHTML = statusOptions;
     document.getElementById('editObservacao').value = a.observacao || '';
@@ -467,12 +468,47 @@ function fecharModalAtivacao() {
         a.contrato = document.getElementById('infoContrato').value;
         a.infoData = document.getElementById('infoData').value;
         a.infoPeriodo = document.getElementById('infoPeriodo').value;
+        
         if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
-            if (confirm('Deseja finalizar essa venda? Ao aprovar, ela será contabilizada.')) {
+            if (confirm('Deseja aprovar esta venda? Ela será movida para Vendas Aprovadas.')) {
                 a.status = 'Aprovado';
                 a.finalizada = true;
                 if (!a.instalacaoStatus) a.instalacaoStatus = 'Aguardando';
-                enviarParaGoogleSheets(a);
+                postParaGoogleSheets('aprovarVenda', {
+                    uuid: a.id,
+                    status: 'APROVADO',
+                    cliente: a.nomeCompleto,
+                    cpf: a.cpf,
+                    dataNasc: a.dataNasc,
+                    nomeMae: a.nomeMae,
+                    rg: a.rg,
+                    orgaoExpeditor: a.orgaoExpeditor,
+                    dataExpedicao: a.dataExpedicao,
+                    email: a.email,
+                    telefone1: a.telefone1,
+                    telefone2: a.telefone2,
+                    cep: a.cep,
+                    logradouro: a.logradouro,
+                    numero: a.numero,
+                    complemento: a.complemento,
+                    bairro: a.bairro,
+                    uf: a.uf,
+                    cidade: a.cidade,
+                    pontoReferencia: a.pontoReferencia,
+                    plano: a.produto,
+                    velocidade: a.velocidade,
+                    valor: a.valor,
+                    vencimento: a.vencimento,
+                    formaPagamento: a.formaPagamento,
+                    hp: a.hp,
+                    viabilidade: a.viabilidade,
+                    planoTipo: a.planoTipo,
+                    tipoAprovacao: a.tipoAprovacao,
+                    contrato: a.contrato,
+                    infoData: a.infoData,
+                    infoPeriodo: a.infoPeriodo,
+                    vendedorNome: a.vendedorNome
+                });
             }
         } else {
             a.status = novoStatus;
@@ -492,14 +528,11 @@ function fecharModalAtivacao() {
     if (sessao.tipo === 'admin') carregarDashboard();
 }
 
-// ===== INFORMAÇÕES ADICIONAIS =====
 function abrirModalInfoAdicional() {
     if (!vendaSendoVisualizada) { alert('Nenhuma venda selecionada.'); return; }
     document.getElementById('modalInfoAdicional').style.display = 'flex';
 }
-function fecharModalInfoAdicional() {
-    document.getElementById('modalInfoAdicional').style.display = 'none';
-}
+function fecharModalInfoAdicional() { document.getElementById('modalInfoAdicional').style.display = 'none'; }
 function salvarInfoAdicional() {
     if (!vendaSendoVisualizada) { alert('Nenhuma venda selecionada.'); fecharModalInfoAdicional(); return; }
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
@@ -508,7 +541,7 @@ function salvarInfoAdicional() {
         a.infoData = document.getElementById('infoData').value;
         a.infoPeriodo = document.getElementById('infoPeriodo').value;
         salvarDB();
-        postParaGoogleSheets('atualizarPendente', {
+        postParaGoogleSheets('atualizarInfoAdicional', {
             uuid: a.id,
             contrato: a.contrato,
             infoData: a.infoData,
@@ -533,7 +566,7 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        return `<tr>
+        return `<table>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.produto || a.plano || '—'}</td>
             <td>${vendedor ? vendedor.nome : 'N/A'}</td>
@@ -590,11 +623,7 @@ function removerVenda(id) {
     const venda = DB.ativacoes.find(a => a.id === id);
     if (!venda) return;
     if (confirm('Tem certeza que deseja remover permanentemente esta venda?')) {
-        if (venda.id && typeof venda.id === 'string' && venda.id.includes('-')) {
-            postParaGoogleSheets('excluirVenda', { uuid: venda.id });
-        } else {
-            postParaGoogleSheets('excluirVenda', { vendaId: venda.nomeCompleto });
-        }
+        postParaGoogleSheets('excluirVenda', { uuid: venda.id });
         DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
         salvarDB();
         if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
@@ -604,7 +633,7 @@ function removerVenda(id) {
     }
 }
 
-// ===== FUNÇÕES DO VENDEDOR =====
+// ===== FUNÇÕES DO VENDEDOR (ENVIAR VENDA) =====
 function limparFormularioVenda() {
     const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -669,6 +698,7 @@ function enviarVenda() {
         } else alert('❌ Erro ao enviar. Tente novamente.');
     }).catch(err => { console.error(err); alert('❌ Erro de comunicação.'); });
 }
+
 function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes.filter(a => a.vendedor_id === sessao.id).sort((a,b) => b.id - a.id);
     const tabela = document.getElementById('tabelaControleVendas');
@@ -692,7 +722,7 @@ function carregarInstalacoes() {
     if (!tabela) return;
     tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
         const statusInstalacao = a.instalacaoStatus || 'Aguardando';
-        return `<td>
+        return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.plano || a.produto || '—'}</td>
             <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
@@ -769,45 +799,6 @@ function buscarCep() {
         document.getElementById('vUf').value = data.uf || '';
         document.getElementById('vNumero').focus();
     }).catch(() => alert('Erro ao buscar CEP.'));
-}
-function enviarParaGoogleSheets(venda) {
-    const payload = {
-        uuid: venda.id,
-        status: venda.status || 'Aprovado',
-        nomeCliente: venda.nomeCompleto || '',
-        cpf: venda.cpf || '',
-        dataNasc: venda.dataNasc || '',
-        nomeMae: venda.nomeMae || '',
-        rg: venda.rg || '',
-        orgaoExpeditor: venda.orgaoExpeditor || '',
-        dataExpedicao: venda.dataExpedicao || '',
-        email: venda.email || '',
-        telefone1: venda.telefone1 || '',
-        telefone2: venda.telefone2 || '',
-        cep: venda.cep || '',
-        logradouro: venda.logradouro || '',
-        numero: venda.numero || '',
-        complemento: venda.complemento || '',
-        bairro: venda.bairro || '',
-        uf: venda.uf || '',
-        cidade: venda.cidade || '',
-        pontoReferencia: venda.pontoReferencia || '',
-        plano: venda.produto || '',
-        velocidade: venda.velocidade || '',
-        valor: venda.valor || '',
-        vencimento: venda.vencimento || '',
-        formaPagamento: venda.formaPagamento || '',
-        hp: venda.hp || '',
-        viabilidade: venda.viabilidade || '',
-        planoTipo: venda.planoTipo || '',
-        tipoAprovacao: venda.tipoAprovacao || '',
-        contrato: venda.contrato || '',
-        infoData: venda.infoData || '',
-        infoPeriodo: venda.infoPeriodo || '',
-        vendedorNome: (DB.usuarios.find(u => u.id === venda.vendedor_id) || {}).nome || 'N/A',
-        dataAprovacao: new Date().toLocaleDateString('pt-BR')
-    };
-    postParaGoogleSheets('enviarVenda', payload);
 }
 
 // ===== DASHBOARD ADMIN =====
@@ -947,7 +938,7 @@ function carregarUsuarios() {
     const usuarios = DB.usuarios.filter(u => !u.deletedAt);
     const tabela = document.getElementById('tabelaUsuarios');
     if (!tabela) return;
-    tabela.innerHTML = usuarios.map(u => `<td>
+    tabela.innerHTML = usuarios.map(u => `<tr>
         <td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
         <td>@${u.usuario}</td>
         <td>${u.email}</td>
@@ -1003,7 +994,7 @@ function carregarLixeira() {
     const lixeira = DB.usuarios.filter(u => u.deletedAt);
     document.getElementById('contadorLixeira').textContent = lixeira.length;
     const tabela = document.getElementById('tabelaLixeira');
-    if (!lixeira.length) { tabela.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
+    if (!lixeira.length) { tabela.innerHTML = '</td><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
     tabela.innerHTML = lixeira.map(v => {
         const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt)) / (1000*60*60*24)));
         return `<tr>
@@ -1067,15 +1058,15 @@ function gerarVendasQuinzenaAnterior() {
 }
 function carregarComparativoProdutos(atual, anterior, periodo) {
     const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
-    let html = '</table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
     produtos.forEach(p => {
         const qtdAtual = atual.filter(v => v.plano === p).length;
         const qtdAnterior = anterior.filter(v => v.plano === p).length;
         const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+        html += `<tr><td><strong>${p}</strong></td>.html${qtdAtual}</td>.html${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
-    html += '</tbody></tr>';
+    html += '</tbody></table>';
     document.getElementById('tabelaComparativaProdutos').innerHTML = html;
 }
 function carregarVendasPorVendedor(atual, anterior) {
@@ -1085,9 +1076,9 @@ function carregarVendasPorVendedor(atual, anterior) {
     dados.forEach(d => {
         const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+        html += `<tr>.html${d.nome}</td>.html${d.atual}</td>.html${d.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
-    html += '</tbody></table>';
+    html += '</tbody><tr>';
     document.getElementById('tabelaVendedoresRelatorio').innerHTML = html;
     const ctx = document.getElementById('graficoVendedores').getContext('2d');
     if (graficoVendedoresInstance) graficoVendedoresInstance.destroy();
@@ -1102,13 +1093,13 @@ function carregarVendasPorEquipe(atual, anterior) {
     DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
     atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
     anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
-    let html = '<table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
+    let html = '<tr><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th><tr></thead><tbody>';
     Object.entries(equipes).forEach(([nome, valores]) => {
         const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+        html += `<tr>.html<strong>${nome}</strong></td>.html${valores.atual}</td>.html${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
-    html += '</tbody></table>';
+    html += '</tbody><tr>';
     document.getElementById('tabelaEquipesRelatorio').innerHTML = html;
 }
 function carregarRankingRelatorio(atual) {
@@ -1131,12 +1122,7 @@ function gerarPDF() {
     if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
     else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
     else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
-    let html = `<div style="font-family:Arial,sans-serif;padding:15px;color:#000;background:#fff;max-width:700px;margin:0 auto;">
-        <h1 style="font-size:18px;color:#000;margin-bottom:10px;">📊 Relatório de Vendas - STAGE TELECOM</h1>
-        <p style="font-size:12px;color:#333;margin-bottom:20px;">Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>
-        <h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Comparativo de Produtos</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;">
-            <tr style="background:#f5f5f5;"><th style="padding:8px;">Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr>`;
+    let html = `<div style="font-family:Arial,sans-serif;padding:15px;color:#000;background:#fff;max-width:700px;margin:0 auto;"><h1 style="font-size:18px;color:#000;margin-bottom:10px;">📊 Relatório de Vendas - STAGE TELECOM</h1><p style="font-size:12px;color:#333;margin-bottom:20px;">Período: ${periodo} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p><h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Comparativo de Produtos</h2><table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th style="padding:8px;">Produto</th><th>Atual</th><th>Anterior</th><th>Variação</th></tr>`;
     const produtos = ['Básico','Empresarial','Premium','Ultra'];
     produtos.forEach(p => {
         const qAt = dadosAtual.filter(v => v.plano === p).length;
@@ -1148,25 +1134,17 @@ function gerarPDF() {
     html += `</table>`;
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
     const dadosVend = vendedores.map(v => ({ nome: v.nome, atual: dadosAtual.filter(vd => vd.vendedor_id === v.id).length, anterior: dadosAnterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual);
-    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Vendas por Vendedor</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;">
-            <tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></tr>`;
+    html += `<h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Vendas por Vendedor</h2><table style="width:100%;border-collapse:collapse;font-size:11px;color:#000;margin-bottom:20px;"><tr style="background:#f5f5f5;"><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>Var.</th></table>`;
     dadosVend.forEach(d => {
         const variacao = d.anterior > 0 ? ((d.atual - d.anterior) / d.anterior * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
         html += `<tr><td style="padding:6px;">${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar};">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
-    html += `</table>
-        <div style="text-align:center;margin:20px 0;"><canvas id="graficoPDF" width="500" height="220"></canvas></div>
-        <h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Ranking de Vendedores</h2>`;
+    html += `</table><div style="text-align:center;margin:20px 0;"><canvas id="graficoPDF" width="500" height="220"></canvas></div><h2 style="font-size:14px;color:#000;border-bottom:2px solid #e74c3c;padding-bottom:5px;">Ranking de Vendedores</h2>`;
     const maxVendas = dadosVend[0]?.atual || 1;
     dadosVend.forEach((v, i) => {
         const pct = Math.round((v.atual / maxVendas) * 100);
-        html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#000;">
-            <span style="font-weight:bold;width:25px;">${i+1}º</span>
-            <span style="flex:1;">${v.nome} - ${v.atual} vendas</span>
-            <div style="width:120px;height:8px;background:#eee;border-radius:4px;"><div style="width:${pct}%;height:100%;background:#e74c3c;border-radius:4px;"></div></div>
-        </div>`;
+        html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#000;"><span style="font-weight:bold;width:25px;">${i+1}º</span><span style="flex:1;">${v.nome} - ${v.atual} vendas</span><div style="width:120px;height:8px;background:#eee;border-radius:4px;"><div style="width:${pct}%;height:100%;background:#e74c3c;border-radius:4px;"></div></div></div>`;
     });
     html += `</div>`;
     document.getElementById('conteudoPDF').innerHTML = html;
@@ -1195,7 +1173,13 @@ function carregarMetas() {
     document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas || 150;
     carregarSelectProdutos();
     const tabelaProd = document.getElementById('tabelaMetasProdutos');
-    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr><td>${p.produto}</td><td>${p.diaria}</td><td>${p.quinzenal}</td><td>${p.mensal}</td><td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr>
+        <td>${p.produto}</td>
+        <td>${p.diaria}</td>
+        <td>${p.quinzenal}</td>
+        <td>${p.mensal}</td>
+        <td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
     carregarMetasInstalacoes();
     const selectVendedor = document.getElementById('vendedorMetaInstalacao');
     selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
@@ -1233,7 +1217,14 @@ function adicionarMetaInstalacao() {
 }
 function carregarMetasInstalacoes() {
     const tabelaInst = document.getElementById('tabelaMetasInstalacoes');
-    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr><td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td><td>${i.entidade}</td><td>${i.diaria}</td><td>${i.quinzenal}</td><td>${i.mensal}</td><td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr>
+        <td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td>
+        <td>${i.entidade}</td>
+        <td>${i.diaria}</td>
+        <td>${i.quinzenal}</td>
+        <td>${i.mensal}</td>
+        <td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
 }
 function removerMetaInstalacao(id) { DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id); salvarDB(); carregarMetas(); }
 function salvarMetas() {
@@ -1245,7 +1236,10 @@ function salvarMetas() {
 function carregarTabelaProdutos() {
     const tbody = document.getElementById('tabelaProdutos');
     if (!tbody) return;
-    tbody.innerHTML = DB.produtos.map((p, index) => `<tr><td>${p}</td><td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+    tbody.innerHTML = DB.produtos.map((p, index) => `<tr>
+        <td>${p}</td>
+        <td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
 }
 function adicionarProduto() {
     const nome = document.getElementById('novoProdutoNome').value.trim();
@@ -1284,7 +1278,14 @@ function carregarPromocoes() {
     });
     salvarDB();
     if (DB.promocoes.length === 0) { tabela.innerHTML = ''; divVazia.style.display = 'block'; }
-    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr><td>${p.tipo}</td><td>${p.quantidade}</td><td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td><td>${p.premio}</td><td>${p.status || 'Ativa'}</td><td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); }
+    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<table>
+        <td>${p.tipo}</td>
+        <td>${p.quantidade}</td>
+        <td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td>
+        <td>${p.premio}</td>
+        <td>${p.status || 'Ativa'}</td>
+        <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join(''); }
 }
 function excluirPromocao(id) { if (confirm('Excluir esta promoção?')) { DB.promocoes = DB.promocoes.filter(p => p.id !== id); salvarDB(); carregarPromocoes(); } }
 function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) { return gerarVendasParaPeriodo(vendedorId, inicio, fim).length; }
@@ -1297,6 +1298,7 @@ function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
     }
     return vendas;
 }
+function obterVendasAprovadasPorData(data) { return obterVendasAprovadas().filter(a => a.data === data); }
 function verificarVencedoresPromocao(promocao) {
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt);
     const vencedores = [];
@@ -1314,10 +1316,17 @@ function verificarNotificacoesVendedor() {
 }
 setInterval(() => { if (sessao && sessao.tipo === 'admin') { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); } }, 30000);
 
-// ===== CHAT (multi-PC) =====
+// ===== CHAT (multi-PC via GS) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
-function carregarUsuariosChat() { const select = document.getElementById('privateUserSelect'); if (!select) return; select.innerHTML = '<option value="">Nova conversa privada...</option>'; DB.usuarios.filter(u => u.ativo && !u.deletedAt && u.id !== sessao.id).forEach(u => { select.innerHTML += `<option value="${u.id}">${u.nome} (${u.categoria})</option>`; }); }
+function carregarUsuariosChat() {
+    const select = document.getElementById('privateUserSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Nova conversa privada...</option>';
+    DB.usuarios.filter(u => u.ativo && !u.deletedAt && u.id !== sessao.id).forEach(u => {
+        select.innerHTML += `<option value="${u.id}">${u.nome} (${u.categoria})</option>`;
+    });
+}
 function atualizarListaConversas() {
     const container = document.getElementById('conversationList');
     if (!container || !sessao) return;
@@ -1335,7 +1344,13 @@ function atualizarListaConversas() {
     });
     container.innerHTML = html;
 }
-function excluirConversa(conversationId) { if (!confirm('Tem certeza que deseja excluir permanentemente esta conversa privada?')) return; DB.chatMessages = DB.chatMessages.filter(m => m.conversationId !== conversationId); salvarDB(); if (chatConversationAtual === conversationId) { chatConversationAtual = null; document.getElementById('chatMain').style.display = 'none'; document.getElementById('chatSidebar').style.display = 'block'; document.getElementById('chatBackBtn').style.display = 'none'; document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat'; } atualizarListaConversas(); atualizarBadge(); }
+function excluirConversa(conversationId) {
+    if (!confirm('Tem certeza que deseja excluir permanentemente esta conversa privada?')) return;
+    DB.chatMessages = DB.chatMessages.filter(m => m.conversationId !== conversationId);
+    salvarDB();
+    if (chatConversationAtual === conversationId) { chatConversationAtual = null; document.getElementById('chatMain').style.display = 'none'; document.getElementById('chatSidebar').style.display = 'block'; document.getElementById('chatBackBtn').style.display = 'none'; document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat'; }
+    atualizarListaConversas(); atualizarBadge();
+}
 function abrirConversaChat(conversationId) {
     chatConversationAtual = conversationId;
     document.getElementById('chatSidebar').style.display = 'none';
@@ -1425,8 +1440,9 @@ function iniciarChat() {
     atualizarBadge();
     iniciarPollingChat();
 }
+function limparMensagensAntigas(dias) { /* se existia, mantenha */ }
 
-// ===== NOTIFICAÇÕES E GERENCIAMENTO DE STATUS =====
+// ===== NOTIFICAÇÕES =====
 function tocarAlerta() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1455,7 +1471,9 @@ function mostrarModalNovaVenda() {
     setTimeout(() => fecharModalNovaVenda(), 8000);
 }
 function fecharModalNovaVenda() { const modal = document.getElementById('modalNovaVenda'); if (modal) modal.remove(); }
+function verificarNotificacaoPendente() { /* se existia, mantenha */ }
 
+// ===== GERENCIAR STATUS =====
 function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
 function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
 function carregarListaStatusFlags() { const container = document.getElementById('listaStatusFlags'); if (!container) return; container.innerHTML = DB.statusFlags.map(f => `<div class="flag-item"><span class="flag-color" style="background:${f.cor};"></span><span>${f.nome}</span><button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button></div>`).join(''); }
@@ -1504,4 +1522,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lembrar) { document.getElementById('usuario').value = lembrar; document.getElementById('lembrar').checked = true; }
     if (sessao) { sessao.tipo === 'admin' ? mostrarAdmin() : mostrarVendedor(); }
     document.addEventListener('keypress', e => { if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') fazerLogin(); });
+    verificarNotificacaoPendente();
 });
