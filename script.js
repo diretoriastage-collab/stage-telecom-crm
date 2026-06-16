@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwrWBk4hloat3M44kB5GZesfQBxJH547Tuwb259dgDOdiwe0MxCEKk-UYqCWvItKo4dQA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzVcO7w1eN2VaoVNV-XOLQii-3mdMnbEGeZwvlSVKquOp1rpjxcT7tw9bJvw1sc4U92Qg/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
