@@ -335,7 +335,15 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     if (!tabela) return;
     let naoAprovadas = DB.ativacoes
         .filter(a => a.status !== 'Aprovado')
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
+        .sort((a, b) => {
+            const timeA = a.createdAt || 0;
+            const timeB = b.createdAt || 0;
+            if (timeA !== timeB) return timeB - timeA;
+            const dateA = a.data ? new Date(a.data).getTime() : 0;
+            const dateB = b.data ? new Date(b.data).getTime() : 0;
+            if (dateA !== dateB) return dateB - dateA;
+            return String(b.id).localeCompare(String(a.id));
+        });
 
     const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
     if (termo) {
@@ -600,7 +608,15 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     if (!tabela) return;
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
+        .sort((a, b) => {
+            const timeA = a.createdAt || 0;
+            const timeB = b.createdAt || 0;
+            if (timeA !== timeB) return timeB - timeA;
+            const dateA = a.data ? new Date(a.data).getTime() : 0;
+            const dateB = b.data ? new Date(b.data).getTime() : 0;
+            if (dateA !== dateB) return dateB - dateA;
+            return String(b.id).localeCompare(String(a.id));
+        });
 
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
     if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
@@ -807,7 +823,15 @@ function enviarVenda() {
 function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
+        .sort((a, b) => {
+            const timeA = a.createdAt || 0;
+            const timeB = b.createdAt || 0;
+            if (timeA !== timeB) return timeB - timeA;
+            const dateA = a.data ? new Date(a.data).getTime() : 0;
+            const dateB = b.data ? new Date(b.data).getTime() : 0;
+            if (dateA !== dateB) return dateB - dateA;
+            return String(b.id).localeCompare(String(a.id));
+        });
 
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
@@ -827,7 +851,15 @@ function carregarControleVendas() {
 function carregarInstalacoes() {
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
+        .sort((a, b) => {
+            const timeA = a.createdAt || 0;
+            const timeB = b.createdAt || 0;
+            if (timeA !== timeB) return timeB - timeA;
+            const dateA = a.data ? new Date(a.data).getTime() : 0;
+            const dateB = b.data ? new Date(b.data).getTime() : 0;
+            if (dateA !== dateB) return dateB - dateA;
+            return String(b.id).localeCompare(String(a.id));
+        });
 
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
