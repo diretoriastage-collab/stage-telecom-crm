@@ -211,6 +211,48 @@ function fetchFromGS(acao, params = {}) {
     });
 }
 
+async function sincronizarUsuariosDaNuvem() {
+  try {
+    const resp = await fetchFromGS('listarUsuarios');
+    if (resp && resp.usuarios && Array.isArray(resp.usuarios)) {
+      const idsExistentes = DB.usuarios
+        .filter(u => !u.deletedAt)
+        .map(u => u.usuario.toUpperCase());
+      
+      resp.usuarios.forEach(uSheet => {
+        const login = uSheet.usuario.toUpperCase();
+        if (!idsExistentes.includes(login)) {
+          DB.usuarios.push({
+            id: Date.now() + Math.random(),
+            nome: uSheet.nome,
+            usuario: uSheet.usuario,
+            senha: '',   // não conhecemos, mas para exibição não importa
+            email: uSheet.email,
+            categoria: uSheet.categoria || 'vendedor',
+            tipo: uSheet.categoria || 'vendedor',
+            ativo: uSheet.status === 'LIBERADO',
+            deletedAt: null,
+            equipe: uSheet.equipe || 'Geral'
+          });
+        } else {
+          // Atualiza dados caso tenha mudado (exceto senha)
+          const existente = DB.usuarios.find(u => u.usuario.toUpperCase() === login && !u.deletedAt);
+          if (existente) {
+            existente.nome = uSheet.nome;
+            existente.email = uSheet.email;
+            existente.categoria = uSheet.categoria || existente.categoria;
+            existente.tipo = uSheet.categoria || existente.tipo;
+            existente.ativo = uSheet.status === 'LIBERADO';
+            existente.equipe = uSheet.equipe || existente.equipe;
+          }
+        }
+      });
+      salvarDB();
+      console.log('✅ Usuários sincronizados da nuvem');
+    }
+  } catch (e) { console.warn('Erro ao sincronizar usuários da nuvem:', e); }
+}
+
 async function postParaGoogleSheets(acao, dados = {}) {
     try {
         const formData = new URLSearchParams();
@@ -1048,7 +1090,13 @@ function gerarDadosVendas() {
     }));
 }
 
-function carregarDashboard() {
+async function carregarDashboard() {
+    // Aguarda a sincronização completa das vendas com a planilha
+    await Promise.all([
+        buscarPendentesDaNuvem(),
+        buscarVendasAprovadasDaNuvem()
+    ]);
+
     const vendasMes = obterVendasAprovadasMesAtual();
     const realizado = vendasMes.length;
     const metaMensal = DB.metas.mensalVendas || 150;
@@ -1061,7 +1109,6 @@ function carregarDashboard() {
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
 }
-
 function carregarVendasDiarias() {
     const hoje = new Date();
     document.getElementById('dataVendasDiarias').textContent = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1188,10 +1235,17 @@ function mostrarSecao(secao) {
     document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
     const nav = document.querySelector(`[data-section="${secao}"]`); if (nav) nav.classList.add('active');
     document.getElementById('tituloSecao').innerHTML = { dashboard: '📊 Dashboard', cadastro: '👥 Cadastro', ativacoes: '⚡ Ativações', vendasAprovadas: '✅ Vendas Aprovadas', relatorios: '📈 Relatórios', metas: '🎯 Metas', promocoes: '🏆 Promoções' }[secao] || secao;
-    if (secao === 'cadastro') carregarUsuarios();
+    if (secao === 'cadastro') {
+  sincronizarUsuariosDaNuvem().then(() => carregarUsuarios());
+}
     if (secao === 'ativacoes') { paginaAtualAtivacoes = 1; buscarPendentesDaNuvem(); carregarAtivacoes(); }
-    if (secao === 'vendasAprovadas') { paginaAtualVendasAprovadas = 1; buscarVendasAprovadasDaNuvem(); carregarVendasAprovadas(); }
-    if (secao === 'relatorios') carregarRelatorios();
+    if (secao === 'vendasAprovadas') {
+  paginaAtualVendasAprovadas = 1;
+  buscarVendasAprovadasDaNuvem().then(() => carregarVendasAprovadas());
+}
+if (secao === 'relatorios') {
+  Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]).then(() => carregarRelatorios());
+}
     if (secao === 'metas') carregarMetas();
     if (secao === 'promocoes') carregarPromocoes();
 }
