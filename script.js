@@ -655,21 +655,78 @@ function abrirModalVisualizacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) return;
     const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-    let html = `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;"><span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Status:</strong> <span style="color:${flag.cor}">${a.status}</span></span><span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Plano:</strong> ${a.plano || a.produto}</span><span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ${parseFloat(a.valor).toFixed(2)}</span></div>`;
+    
+    // Formata as datas para exibição
+    const dataNascFormatada = a.dataNasc ? formatarDataISO(a.dataNasc) : '';
+    const dataExpedicaoFormatada = a.dataExpedicao ? formatarDataISO(a.dataExpedicao) : '';
+    const dataInstalacaoFormatada = a.infoData ? formatarDataISO(a.infoData) : '';
+    
+    let html = `
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;">
+            <span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;">
+                <strong>Status:</strong> <span style="color:${flag.cor}">${a.status}</span>
+            </span>
+            <span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;">
+                <strong>Plano:</strong> ${a.plano || a.produto}
+            </span>
+            <span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;">
+                <strong>Valor:</strong> R$ ${parseFloat(a.valor).toFixed(2)}
+            </span>
+        </div>
+    `;
+
+    // 🔥 INFORMAÇÕES ADICIONAIS (Contrato, Data Inst., Período Inst.)
     if (a.contrato || a.infoData || a.infoPeriodo) {
-        html += `<div style="background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.3);border-radius:12px;padding:12px 15px;margin-bottom:20px;"><h4 style="color:#2ed573;margin:0 0 10px 0;font-size:14px;">📋 Informações de Instalação</h4><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;"><div><strong style="color:var(--text-secondary);font-size:11px;">Contrato</strong><br><span style="color:#fff;">${a.contrato || '—'}</span></div><div><strong style="color:var(--text-secondary);font-size:11px;">Data</strong><br><span style="color:#fff;">${a.infoData ? formatarDataISO(a.infoData) : '—'}</span></div><div><strong style="color:var(--text-secondary);font-size:11px;">Período</strong><br><span style="color:#fff;">${a.infoPeriodo || '—'}</span></div></div></div>`;
+        html += `
+            <div style="background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.3);border-radius:12px;padding:12px 15px;margin-bottom:20px;">
+                <h4 style="color:#2ed573;margin:0 0 10px 0;font-size:14px;">📋 Informações de Instalação</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;">
+                    <div>
+                        <strong style="color:var(--text-secondary);font-size:11px;">Contrato</strong><br>
+                        <span style="color:#fff;">${a.contrato || '—'}</span>
+                    </div>
+                    <div>
+                        <strong style="color:var(--text-secondary);font-size:11px;">Data Instalação</strong><br>
+                        <span style="color:#fff;">${dataInstalacaoFormatada || '—'}</span>
+                    </div>
+                    <div>
+                        <strong style="color:var(--text-secondary);font-size:11px;">Período</strong><br>
+                        <span style="color:#fff;">${a.infoPeriodo || '—'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
     }
+
     html += `<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:8px;">`;
     const campos = [
-        ['Nome Completo', a.nomeCompleto], ['CPF', a.cpf], ['Data Nasc.', a.dataNasc],
-        ['Órgão Exp.', a.orgaoExpeditor], ['Nome da Mãe', a.nomeMae], ['RG', a.rg],
-        ['Data Exp.', a.dataExpedicao], ['Email', a.email], ['Tel 1', a.telefone1],
-        ['Tel 2', a.telefone2], ['CEP', a.cep], ['Logradouro', a.logradouro],
-        ['N°', a.numero], ['Complemento', a.complemento], ['Bairro', a.bairro],
-        ['Estado', a.uf], ['Cidade', a.cidade], ['Ponto Ref.', a.pontoReferencia],
-        ['Velocidade', a.velocidade], ['Produto', a.produto || a.plano], ['Valor', a.valor],
-        ['Vencimento', a.vencimento], ['Pagamento', a.formaPagamento], ['HP', a.hp],
-        ['Viabilidade', a.viabilidade], ['Plano Tipo', a.planoTipo], ['Tipo Aprov.', a.tipoAprovacao]
+        ['Nome Completo', a.nomeCompleto],
+        ['CPF', a.cpf],
+        ['Data Nasc.', dataNascFormatada],
+        ['Órgão Exp.', a.orgaoExpeditor],
+        ['Nome da Mãe', a.nomeMae],
+        ['RG', a.rg],
+        ['Data Exp.', dataExpedicaoFormatada],
+        ['Email', a.email],
+        ['Tel 1', a.telefone1],
+        ['Tel 2', a.telefone2],
+        ['CEP', a.cep],
+        ['Logradouro', a.logradouro],
+        ['N°', a.numero],
+        ['Complemento', a.complemento],
+        ['Bairro', a.bairro],
+        ['Estado', a.uf],
+        ['Cidade', a.cidade],
+        ['Ponto Ref.', a.pontoReferencia],
+        ['Velocidade', a.velocidade],
+        ['Produto', a.produto || a.plano],
+        ['Valor', a.valor],
+        ['Vencimento', a.vencimento],
+        ['Pagamento', a.formaPagamento],
+        ['HP', a.hp],
+        ['Viabilidade', a.viabilidade],
+        ['Plano Tipo', a.planoTipo],
+        ['Tipo Aprov.', a.tipoAprovacao]
     ];
     campos.forEach(([label, valor]) => {
         html += `<div class="input-group"><label>${label}</label><input value="${valor || ''}" readonly style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);"></div>`;
