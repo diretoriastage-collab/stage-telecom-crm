@@ -87,7 +87,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzsKMFKqYm08LGbU9Yb6GsmZcJB7VdjpEv7CYrKzeYTjYAVoj_3C6ukbr3kAxnsMLrMYQ/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzuLAFhqjZlrceLcLP0NneU4tMzFDZcm3A79zsAUPBLJ_islSVh5cO67ZHxhoFNm21trA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
