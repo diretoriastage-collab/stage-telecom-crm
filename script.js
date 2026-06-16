@@ -248,11 +248,13 @@ async function buscarPendentesDaNuvem() {
                 contrato: p.Contrato || '',
                 infoData: p.DataInstalacao || '',
                 infoPeriodo: p.PeriodoInstalacao || '',
+                dataCriacao: p.DataCriacao || '',   // 🔥 ADICIONE ESTA LINHA
                 createdAt: p.CreatedAt ? parseInt(p.CreatedAt) : (p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now())
             }));
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             const aprovadasLocais = DB.ativacoes.filter(a => a.status === 'Aprovado');
             DB.ativacoes = [...pendentesNuvem, ...aprovadasLocais];
+            DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 ADICIONE ESTA LINHA
             salvarDB();
 
             if (sessao.tipo === 'admin') {
@@ -315,6 +317,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
                 instalacaoStatus: 'Aguardando',
+                 dataCriacao: v.DataCriacao || '',   // 🔥 ADICIONE ESTA LINHA
                 createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now())
             }));
             aprovadasNuvem.forEach(v => {
@@ -323,6 +326,7 @@ async function buscarVendasAprovadasDaNuvem() {
             });
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
+            DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 ADICIONE ESTA LINHA
             salvarDB();
             if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
             if (sessao.tipo === 'admin') carregarDashboard();
@@ -336,9 +340,9 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     let naoAprovadas = DB.ativacoes
         .filter(a => a.status !== 'Aprovado')
         .sort((a, b) => {
-            // Usa createdAt ou converte UUID para timestamp
-            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
-            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            // Prioridade: createdAt (timestamp) > dataCriacao (string ISO) > data (string)
+            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
+            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
             return timeB - timeA;
         });
 
@@ -606,8 +610,8 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
         .sort((a, b) => {
-            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
-            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
+            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
             return timeB - timeA;
         });
 
@@ -839,7 +843,7 @@ function enviarVenda() {
         if (resp && resp.ok === true) {
             alert('✅ Venda enviada com sucesso!');
             limparFormularioVenda();
-            DB.ativacoes.push({ ...novaAtivacao, id: resp.id });
+           DB.ativacoes.unshift({ ...novaAtivacao, id: resp.id });
             salvarDB();
             if (sessao.tipo === 'vendedor' && document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
                 carregarControleVendas();
@@ -851,8 +855,8 @@ function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id)
         .sort((a, b) => {
-            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
-            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
+            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
             return timeB - timeA;
         });
 
@@ -875,8 +879,8 @@ function carregarInstalacoes() {
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
         .sort((a, b) => {
-            const timeA = a.createdAt || parseInt(String(a.id).replace(/\D/g, '').slice(0, 12)) || 0;
-            const timeB = b.createdAt || parseInt(String(b.id).replace(/\D/g, '').slice(0, 12)) || 0;
+            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
+            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
             return timeB - timeA;
         });
 
