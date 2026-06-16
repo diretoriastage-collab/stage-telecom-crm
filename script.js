@@ -955,7 +955,6 @@ async function alterarStatusInstalacao(id, novoStatus) {
     salvarDB();
 
     try {
-        // 🔥 Envia para o GS via JSONP (GET)
         const resp = await fetchFromGS('atualizarInstalacao', {
             uuid: a.id,
             status: novoStatus
