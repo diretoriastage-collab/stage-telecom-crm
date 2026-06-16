@@ -465,6 +465,7 @@ function abrirModalAtivacao(id) {
 async function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
     if (a) {
+        // Captura todos os valores do modal
         const novoStatus = document.getElementById('editStatus')?.value || a.status;
         a.observacao = document.getElementById('editObservacao')?.value || '';
         a.nomeCompleto = document.getElementById('editNomeCompleto')?.value || '';
@@ -499,11 +500,14 @@ async function fecharModalAtivacao() {
         a.infoData = document.getElementById('infoData')?.value || '';
         a.infoPeriodo = document.getElementById('infoPeriodo')?.value || '';
 
+        // Verifica se foi aprovado
         if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
+            // Valida informações adicionais
             if (!a.contrato || !a.infoData || !a.infoPeriodo) {
                 alert('⚠️ Preencha Contrato, Data e Período de Instalação antes de aprovar.');
                 return;
             }
+            
             if (confirm('Aprovar esta venda?')) {
                 const params = {
                     uuid: a.id,
@@ -540,37 +544,56 @@ async function fecharModalAtivacao() {
                     infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome
                 };
+                
                 const resp = await fetchFromGS('aprovarVenda', params);
+                
                 if (resp && resp.ok === true) {
                     alert('✅ Venda aprovada!');
+                    
+                    // 🔥 REMOVE DA LISTA DE PENDENTES
                     DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
+                    
+                    // 🔥 ATUALIZA O OBJETO PARA APROVADO E INSERE NO TOPO
+                    a.status = 'Aprovado';
+                    a.finalizada = true;
+                    a.instalacaoStatus = 'Aguardando';
+                    DB.ativacoes.unshift(a); // 🔥 INSERE NO TOPO
+                    
                     salvarDB();
+                    
+                    // Sincroniza com a nuvem
                     await buscarPendentesDaNuvem();
                     await buscarVendasAprovadasDaNuvem();
+                    
                 } else {
                     alert('❌ Erro ao aprovar: ' + (resp?.erro || 'Erro desconhecido'));
                     a.status = 'Pendente';
                     salvarDB();
                 }
             } else {
+                // Cancelou a aprovação
                 a.status = 'Pendente';
                 salvarDB();
             }
         } else {
+            // Outros status (não aprovado)
             a.status = novoStatus;
             salvarDB();
         }
 
+        // Limpa o tratando
         a.tratandoPor = null;
         salvarDB();
         postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
 
+        // Atualiza listas
         if (novoStatus !== 'Aprovado') {
             await buscarPendentesDaNuvem();
             await buscarVendasAprovadasDaNuvem();
         }
     }
 
+    // Fecha o modal e recarrega as telas
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
