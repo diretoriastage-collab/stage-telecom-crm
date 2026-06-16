@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyzweyGm4TyTkxFvIhVzNiVRE8q3YYvzvMGiM1UhvT3l5v2MADpJEHSv-gJCirqnZ5uZA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbx5grz34nk1HMyQY5NxEp6rBA9f_uDmc20wYkgtS1SRYHbdoWH3MyZQcQAsUeaCJahtDg/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -1003,11 +1003,12 @@ async function alterarStatusInstalacao(id, novoStatus) {
     a.instalacaoStatus = novoStatus;
     salvarDB();
 
+    // 🔥 ENVIA A VENDA COMPLETA
     await postParaGoogleSheets('atualizarStatusInstalacaoVendedor', {
         uuid: a.id,
         status: novoStatus,
         vendedorNome: sessao.nome,
-        venda: JSON.stringify(a)
+        venda: JSON.stringify(a)  // Envia a venda completa
     });
 
     console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
