@@ -1,9 +1,8 @@
 // ============================================
 // STAGE TELECOM CRM - SCRIPT COMPLETO FINAL
-// Inclui: vendas, notificações únicas, chat multi-PC, sincronização total
+// UUID oculto, Tratando com trava, datas formatadas
 // ============================================
 
-// ===== INICIALIZAÇÃO DO BANCO LOCAL =====
 let DB;
 try {
     const dbRaw = localStorage.getItem('stage_db');
@@ -16,26 +15,14 @@ try {
 if (!DB) {
     DB = {
         usuarios: [
-            { 
-                id: 1, 
-                usuario: "admin", 
-                senha: "", 
-                nome: "Master Admin", 
-                email: "admin@stagetelecom.com.br", 
-                tipo: "admin", 
-                ativo: true, 
-                deletedAt: null, 
-                equipe: "Gestão", 
-                categoria: "admin" 
-            }
+            { id: 1, usuario: "admin", senha: "", nome: "Master Admin", email: "admin@stagetelecom.com.br", tipo: "admin", ativo: true, deletedAt: null, equipe: "Gestão", categoria: "admin" }
         ],
         clientes: [],
         config: { metaDiaria: 10, metaMensal: 50 },
         statusFlags: [
-            { id: 1, nome: "Ativo", cor: "#2ed573" },
-            { id: 2, nome: "Pendente", cor: "#ffa502" },
-            { id: 3, nome: "Cancelado", cor: "#ff4757" },
-            { id: 4, nome: "Aprovado", cor: "#2ed573" }
+            { id: 1, nome: "Pendente", cor: "#ffa502" },
+            { id: 2, nome: "Aprovado", cor: "#2ed573" },
+            { id: 3, nome: "Cancelado", cor: "#ff4757" }
         ],
         ativacoes: [],
         metas: { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150, produtos: [], instalacoes: [] },
@@ -60,20 +47,18 @@ DB.metas.instalacoes = DB.metas.instalacoes || [];
 DB.chatMessages = DB.chatMessages || [];
 DB.produtos = DB.produtos || ["Básico", "Empresarial", "Premium", "Ultra"];
 DB.opcoesVenda = DB.opcoesVenda || { velocidades: [], formasPagamento: [], valores: [] };
-if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
-    DB.statusFlags.push({ id: Date.now(), nome: 'Aprovado', cor: '#2ed573' });
+if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
+    DB.statusFlags.unshift({ id: Date.now(), nome: 'Pendente', cor: '#ffa502' });
 }
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
-// ===== CONFIGURAÇÕES GLOBAIS =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwfZhBPQngoe2VgE43cHrjPLjKUWXawRXblwsYaIKj181iUujaW587Fl9Qw_QyzXsHT2Q/exec'; // ATUALIZE COM SUA URL
+// ===== CONFIGURAÇÕES =====
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbw24L9rIuu_04oL_Z39q-qPfvf9cCryeoFk0fiTQW5BvlpjZ_hMnSSi25xtF9OzAjBEdg/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
 let vendaSendoVisualizada = null;
-let novasVendas = true;
-let ultimoIdAtivacao = DB.ativacoes.length ? Math.max(...DB.ativacoes.map(a => a.id)) : 0;
 let paginaAtualAtivacoes = 1;
 let paginaAtualVendasAprovadas = 1;
 const itensPorPagina = 15;
@@ -162,7 +147,7 @@ async function fazerLogin() {
     }
 }
 
-// ===== FUNÇÕES DE REDE E SINCRONIZAÇÃO =====
+// ===== FUNÇÕES DE REDE E UTILITÁRIOS =====
 function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
 
 function fetchFromGS(acao, params = {}) {
@@ -197,37 +182,27 @@ async function postParaGoogleSheets(acao, dados = {}) {
         const formData = new URLSearchParams();
         formData.append('acao', acao);
         for (let key in dados) {
-            if (dados.hasOwnProperty(key)) {
-                formData.append(key, dados[key]);
-            }
+            if (dados.hasOwnProperty(key)) formData.append(key, dados[key]);
         }
-        await fetch(GOOGLE_SHEET_VENDAS_URL, {
-            method: 'POST',
-            body: formData,
-            mode: 'no-cors'
-        });
-        console.log(`✅ POST '${acao}' enviado com sucesso`, dados);
-    } catch (e) {
-        console.warn(`⚠️ Falha no POST '${acao}':`, e);
-    }
+        await fetch(GOOGLE_SHEET_VENDAS_URL, { method: 'POST', body: formData, mode: 'no-cors' });
+        console.log(`✅ POST '${acao}' enviado`);
+    } catch (e) { console.warn(`⚠️ Falha no POST '${acao}':`, e); }
 }
 
-function converterDataParaISO(dataStr) {
-    if (!dataStr || typeof dataStr !== 'string') return '';
-    dataStr = dataStr.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) return dataStr;
-    const partes = dataStr.split('/');
-    if (partes.length === 3) {
-        let dia = partes[0].padStart(2, '0');
-        let mes = partes[1].padStart(2, '0');
-        let ano = partes[2];
-        if (ano.length === 2) ano = '20' + ano;
-        return `${ano}-${mes}-${dia}`;
+function formatarDataISO(dataStr) {
+    if (!dataStr) return '';
+    let data = new Date(dataStr);
+    if (isNaN(data.getTime())) {
+        const partes = dataStr.split('/');
+        if (partes.length === 3) {
+            data = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+        }
     }
-    return dataStr;
+    if (isNaN(data.getTime())) return dataStr;
+    return data.toLocaleDateString('pt-BR');
 }
 
-// ===== VENDAS PENDENTES (NOTIFICAÇÃO ÚNICA) =====
+// ===== BUSCAR PENDENTES (COM UUID OCULTO) =====
 async function buscarPendentesDaNuvem() {
     if (!sessao) return;
     try {
@@ -237,11 +212,11 @@ async function buscarPendentesDaNuvem() {
                 id: p.UUID,
                 nomeCompleto: p.Cliente || '',
                 cpf: p['CPF'] || '',
-                dataNasc: p['Data Nasc.'] || '',
+                dataNasc: p['Data Nasc.'] ? formatarDataISO(p['Data Nasc.']) : '',
                 nomeMae: p['Nome da Mãe'] || '',
                 rg: p['RG'] || '',
                 orgaoExpeditor: p['Órgão Exp.'] || '',
-                dataExpedicao: p['Data Exp.'] || '',
+                dataExpedicao: p['Data Exp.'] ? formatarDataISO(p['Data Exp.']) : '',
                 email: p['Email'] || '',
                 telefone1: p['Tel 1'] || '',
                 telefone2: p['Tel 2'] || '',
@@ -266,10 +241,10 @@ async function buscarPendentesDaNuvem() {
                 status: p['Status'] || 'Pendente',
                 vendedorNome: p['Vendedor'] || '',
                 vendedor_id: p['VendedorId'] ? parseInt(p['VendedorId']) : null,
-                data: p['DataVenda'] || new Date().toISOString().split('T')[0],
+                data: p['DataVenda'] ? formatarDataISO(p['DataVenda']) : new Date().toISOString().split('T')[0],
                 observacao: p['Observacao'] || '',
                 finalizada: false,
-                tratandoPor: null
+                tratandoPor: p['TratandoPor'] || null
             }));
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             const aprovadasLocais = DB.ativacoes.filter(a => a.status === 'Aprovado');
@@ -287,13 +262,9 @@ async function buscarPendentesDaNuvem() {
                     sessionStorage.setItem('stage_notificados_pendentes', JSON.stringify(idsNotificados));
                 }
             }
-            if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) {
-                carregarAtivacoes();
-            }
+            if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
         }
-    } catch (err) {
-        console.warn('Erro ao buscar pendentes:', err);
-    }
+    } catch (err) { console.warn('Erro ao buscar pendentes:', err); }
 }
 
 async function buscarVendasAprovadasDaNuvem() {
@@ -306,11 +277,11 @@ async function buscarVendasAprovadasDaNuvem() {
                 uuid: v['UUID'] || null,
                 nomeCompleto: v['Cliente'] || '',
                 cpf: v['CPF'] || '',
-                dataNasc: v['Data Nasc.'] || '',
+                dataNasc: v['Data Nasc.'] ? formatarDataISO(v['Data Nasc.']) : '',
                 nomeMae: v['Nome da Mãe'] || '',
                 rg: v['RG'] || '',
                 orgaoExpeditor: v['Órgão Exp.'] || '',
-                dataExpedicao: v['Data Exp.'] || '',
+                dataExpedicao: v['Data Exp.'] ? formatarDataISO(v['Data Exp.']) : '',
                 email: v['Email'] || '',
                 telefone1: v['Tel 1'] || '',
                 telefone2: v['Tel 2'] || '',
@@ -333,12 +304,12 @@ async function buscarVendasAprovadasDaNuvem() {
                 planoTipo: v['Plano Tipo'] || '',
                 tipoAprovacao: v['Tipo Aprov.'] || '',
                 contrato: v['Contrato'] || '',
-                infoData: v['Data Inst.'] || '',
+                infoData: v['Data Inst.'] ? formatarDataISO(v['Data Inst.']) : '',
                 infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
                 vendedorNome: v['Vendedor'] || '',
                 vendedor_id: null,
-                data: v['Data Aprovação'] ? converterDataParaISO(v['Data Aprovação']) : new Date().toISOString().split('T')[0],
+                data: v['Data Aprovação'] ? formatarDataISO(v['Data Aprovação']) : new Date().toISOString().split('T')[0],
                 finalizada: true,
                 instalacaoStatus: 'Aguardando',
                 observacao: v['Observação'] || ''
@@ -357,168 +328,62 @@ async function buscarVendasAprovadasDaNuvem() {
                 if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) carregarInstalacoes();
             }
         }
-    } catch (err) {
-        console.warn('Erro ao buscar vendas aprovadas:', err);
-    }
+    } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
 
-function removerVenda(id) {
-    const venda = DB.ativacoes.find(a => a.id === id);
-    if (!venda) {
-        alert('Venda não encontrada!');
-        return;
+// ===== ATIVAÇÕES (TABELA E MODAL COM TRAVA) =====
+function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
+    const tabela = document.getElementById('tabelaAtivacoes');
+    if (!tabela) return;
+    let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => b.id - a.id);
+    const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
+    if (termo) {
+        naoAprovadas = naoAprovadas.filter(a => {
+            const texto = `${a.nomeCompleto} ${a.produto} ${a.vendedorNome} ${a.status} ${a.tratandoPor || ''}`.toLowerCase();
+            return texto.includes(termo);
+        });
     }
-    const nomeCliente = venda.nomeCompleto || venda.nomeCliente;
-    const uuid = venda.id;
-    if (!nomeCliente && !uuid) {
-        alert('Não foi possível identificar a venda para exclusão.');
-        return;
-    }
-    if (confirm(`Tem certeza que deseja remover permanentemente a venda de "${nomeCliente || uuid}"?`)) {
-        if (uuid && typeof uuid === 'string' && uuid.includes('-')) {
-            postParaGoogleSheets('excluirVenda', { uuid: uuid });
-        } else if (nomeCliente) {
-            postParaGoogleSheets('excluirVenda', { vendaId: nomeCliente });
-        } else {
-            alert('Dados insuficientes para exclusão na planilha.');
-        }
-        DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
-        salvarDB();
-        if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
-        if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
-        if (sessao.tipo === 'admin') carregarDashboard();
-        else if (sessao.tipo === 'vendedor') {
-            if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) carregarControleVendas();
-            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) carregarInstalacoes();
-        }
-        alert('✅ Venda removida com sucesso!');
-    }
+    const total = naoAprovadas.length;
+    const totalPaginas = Math.ceil(total / itensPorPagina);
+    paginaAtualAtivacoes = Math.min(pagina, totalPaginas || 1);
+    const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
+    const itensExibidos = naoAprovadas.slice(inicio, inicio + itensPorPagina);
+    tabela.innerHTML = itensExibidos.map(a => `
+        <table>
+            <td><strong>${a.nomeCompleto || '—'}</strong></td>
+            <td>${a.produto || a.plano || '—'}</td>
+            <td>${a.vendedorNome || '—'}</td>
+            <td><span style="color:#ffa502;font-weight:600;">● ${a.status}</span></td>
+            <td><span style="font-size:12px;">${a.tratandoPor || '—'}</span></td>
+            <td>
+                <button onclick="abrirModalAtivacao('${a.id}')" class="btn-glass-sm" style="margin-right:4px;"><i class="fas fa-search"></i></button>
+                <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
+    atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
 
-// ===== ENVIO DE VENDA PELO VENDEDOR =====
-function limparFormularioVenda() {
-    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimiento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
-    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-}
-
-function enviarVenda() {
-    if (!sessao) { alert('Sessão expirada. Faça login novamente.'); return; }
-    const campos = {
-        viabilidade: document.getElementById('vViabilidade')?.value || '',
-        planoTipo: document.getElementById('vPlanoTipo')?.value || '',
-        tipoAprovacao: document.getElementById('vTipoAprovacao')?.value || '',
-        nomeCompleto: document.getElementById('vNomeCompleto')?.value.trim() || '',
-        cpf: document.getElementById('vCpf')?.value.trim() || '',
-        dataNasc: document.getElementById('vDataNasc')?.value || '',
-        orgaoExpeditor: document.getElementById('vOrgaoExpeditor')?.value.trim() || '',
-        nomeMae: document.getElementById('vNomeMae')?.value.trim() || '',
-        rg: document.getElementById('vRg')?.value.trim() || '',
-        dataExpedicao: document.getElementById('vDataExpedicao')?.value || '',
-        email: document.getElementById('vEmail')?.value.trim() || '',
-        telefone1: document.getElementById('vTelefone1')?.value.trim() || '',
-        telefone2: document.getElementById('vTelefone2')?.value.trim() || '',
-        cep: document.getElementById('vCep')?.value.trim() || '',
-        logradouro: document.getElementById('vLogradouro')?.value.trim() || '',
-        numero: document.getElementById('vNumero')?.value.trim() || '',
-        complemento: document.getElementById('vComplemento')?.value.trim() || '',
-        bairro: document.getElementById('vBairro')?.value.trim() || '',
-        uf: document.getElementById('vUf')?.value.trim() || '',
-        cidade: document.getElementById('vCidade')?.value.trim() || '',
-        pontoReferencia: document.getElementById('vPontoReferencia')?.value.trim() || '',
-        velocidade: document.getElementById('vVelocidade')?.value || '',
-        produto: document.getElementById('vPlano')?.value || '',
-        plano: document.getElementById('vPlano')?.value || '',
-        valor: document.getElementById('vValor')?.value || '',
-        vencimento: document.getElementById('vVencimento')?.value || '',
-        formaPagamento: document.getElementById('vFormaPagamento')?.value || '',
-        hp: document.getElementById('vHp')?.value.trim() || ''
-    };
-    const obrigatorios = ['nomeCompleto', 'cpf', 'dataNasc', 'email', 'telefone1', 'cep', 'logradouro', 'numero', 'bairro', 'uf', 'cidade', 'velocidade', 'produto', 'valor', 'vencimento', 'formaPagamento'];
-    for (let campo of obrigatorios) {
-        if (!campos[campo]) {
-            alert(`Preencha o campo "${campo.replace(/([A-Z])/g, ' $1').toLowerCase()}"`);
-            return;
-        }
+function mudarPaginaAtivacoes(direcao) {
+    if (direcao === 'anterior' && paginaAtualAtivacoes > 1) carregarAtivacoes(paginaAtualAtivacoes - 1);
+    else if (direcao === 'proximo') {
+        let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
+        const totalPaginas = Math.ceil(naoAprovadas.length / itensPorPagina);
+        if (paginaAtualAtivacoes < totalPaginas) carregarAtivacoes(paginaAtualAtivacoes + 1);
     }
-    const novaAtivacao = {
-        id: Date.now(),
-        nomeCompleto: campos.nomeCompleto,
-        vendedor_id: sessao.id,
-        vendedorNome: sessao.nome,
-        status: "Pendente",
-        data: new Date().toISOString().split('T')[0],
-        finalizada: false,
-        ...campos
-    };
-    fetchFromGS('adicionarPendente', { venda: JSON.stringify(novaAtivacao) }).then(resp => {
-        const success = resp && resp.ok === true;
-        if (success) {
-            alert('✅ Venda enviada com sucesso!');
-            limparFormularioVenda();
-            DB.ativacoes.push(novaAtivacao);
-            salvarDB();
-            if (sessao.tipo === 'vendedor' && document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
-                carregarControleVendas();
-            }
-        } else {
-            alert('❌ Erro ao enviar. Tente novamente.');
-        }
-    }).catch(err => {
-        console.error('Erro:', err);
-        alert('❌ Erro de comunicação.');
-    });
-}
-
-// ===== FUNÇÕES DE APROVAÇÃO (ADMIN) =====
-function enviarParaGoogleSheets(venda) {
-    const payload = {
-        uuid: venda.id,
-        status: venda.status || 'Aprovado',
-        nomeCliente: venda.nomeCompleto || venda.nomeCliente || '',
-        cpf: venda.cpf || '',
-        dataNasc: venda.dataNasc ? new Date(venda.dataNasc + 'T00:00:00').toLocaleDateString('pt-BR') : '',
-        nomeMae: venda.nomeMae || '',
-        rg: venda.rg || '',
-        orgaoExpeditor: venda.orgaoExpeditor || '',
-        dataExpedicao: venda.dataExpedicao ? new Date(venda.dataExpedicao + 'T00:00:00').toLocaleDateString('pt-BR') : '',
-        email: venda.email || '',
-        telefone1: venda.telefone1 || '',
-        telefone2: venda.telefone2 || '',
-        cep: venda.cep || '',
-        logradouro: venda.logradouro || '',
-        numero: venda.numero || '',
-        complemento: venda.complemento || '',
-        bairro: venda.bairro || '',
-        uf: venda.uf || '',
-        cidade: venda.cidade || '',
-        pontoReferencia: venda.pontoReferencia || '',
-        plano: venda.produto || venda.plano || '',
-        velocidade: venda.velocidade || '',
-        valor: venda.valor || '',
-        vencimento: venda.vencimento ? new Date(venda.vencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '',
-        formaPagamento: venda.formaPagamento || '',
-        hp: venda.hp || '',
-        viabilidade: venda.viabilidade || '',
-        planoTipo: venda.planoTipo || '',
-        tipoAprovacao: venda.tipoAprovacao || '',
-        contrato: venda.contrato || '',
-        infoData: venda.infoData ? new Date(venda.infoData + 'T00:00:00').toLocaleDateString('pt-BR') : '',
-        infoPeriodo: venda.infoPeriodo || '',
-        vendedorNome: (DB.usuarios.find(u => u.id === venda.vendedor_id) || {}).nome || 'N/A',
-        dataAprovacao: venda.data ? new Date(venda.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''
-    };
-    postParaGoogleSheets('enviarVenda', payload);
 }
 
 function abrirModalAtivacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
-    if (!a) {
-        console.error('Venda não encontrada:', id);
+    if (!a) { console.error('Venda não encontrada'); return; }
+    if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
+        alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde ou entre em contato.`);
         return;
     }
     vendaSendoVisualizada = id;
     a.tratandoPor = sessao.nome;
     salvarDB();
+    postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome });
     const statusOptions = DB.statusFlags.map(f => `<option value="${f.nome}" ${a.status === f.nome ? 'selected' : ''}>${f.nome}</option>`).join('');
     const html = `
         <div class="form-grid">
@@ -606,6 +471,7 @@ function fecharModalAtivacao() {
         }
         a.tratandoPor = null;
         salvarDB();
+        postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
         if (novoStatus === 'Aprovado') {
             buscarPendentesDaNuvem();
             buscarVendasAprovadasDaNuvem();
@@ -618,249 +484,13 @@ function fecharModalAtivacao() {
     if (sessao.tipo === 'admin') carregarDashboard();
 }
 
-// ===== CHAT MULTI-PC (SINCRONIZADO VIA GS) =====
-let chatConversationAtual = null;
-let chatPollingInterval = null;
-
-async function buscarMensagensChat() {
-    if (!sessao) return;
-    try {
-        const resp = await fetchFromGS('listarMensagensChat', { usuarioId: sessao.id });
-        if (resp && resp.mensagens && Array.isArray(resp.mensagens)) {
-            DB.chatMessages = resp.mensagens;
-            salvarDB();
-            atualizarBadge();
-            if (document.getElementById('chatSidebar')?.style.display !== 'none') {
-                atualizarListaConversas();
-            }
-            if (chatConversationAtual && document.getElementById('chatMain')?.style.display === 'flex') {
-                renderizarMensagensChat();
-            }
-        }
-    } catch (err) {
-        console.warn('Erro ao buscar mensagens do chat:', err);
-    }
-}
-
-async function enviarMensagemChat() {
-    const input = document.getElementById('chatInput');
-    const texto = input.value.trim();
-    if (!texto || !chatConversationAtual) return;
-    const mensagem = {
-        id: Date.now() + Math.random().toString(36),
-        conversationId: chatConversationAtual,
-        senderId: sessao.id,
-        senderName: sessao.nome,
-        text: texto,
-        timestamp: Date.now(),
-        readBy: [sessao.id]
-    };
-    await postParaGoogleSheets('enviarMensagemChat', { mensagem: JSON.stringify(mensagem) });
-    DB.chatMessages.push(mensagem);
-    salvarDB();
-    input.value = '';
-    renderizarMensagensChat();
-    setTimeout(() => buscarMensagensChat(), 500);
-}
-
-function renderizarMensagensChat() {
-    const container = document.getElementById('chatMessages');
-    if (!container || !chatConversationAtual) return;
-    const mensagens = DB.chatMessages.filter(m => m.conversationId === chatConversationAtual).sort((a,b) => a.timestamp - b.timestamp);
-    container.innerHTML = mensagens.map(m => {
-        const isOwn = m.senderId === sessao.id;
-        const hora = new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-        return `<div class="chat-msg ${isOwn ? 'own' : 'other'}">${!isOwn ? `<span class="msg-sender">${m.senderName}</span>` : ''}<div class="msg-bubble">${m.text}</div><span class="msg-time">${hora}</span></div>`;
-    }).join('');
-    container.scrollTop = container.scrollHeight;
-    const mensagensNaoLidas = DB.chatMessages.filter(m => m.conversationId === chatConversationAtual && (!m.readBy || !m.readBy.includes(sessao.id)));
-    if (mensagensNaoLidas.length) {
-        mensagensNaoLidas.forEach(m => {
-            if (!m.readBy) m.readBy = [];
-            if (!m.readBy.includes(sessao.id)) m.readBy.push(sessao.id);
-        });
-        salvarDB();
-        postParaGoogleSheets('marcarLidas', { conversationId: chatConversationAtual, usuarioId: sessao.id });
-    }
-    atualizarBadge();
-}
-
-function atualizarListaConversas() {
-    const container = document.getElementById('conversationList');
-    if (!container || !sessao) return;
-    const conversas = new Map();
-    DB.chatMessages.forEach(m => {
-        if (!m.conversationId) return;
-        if (!conversas.has(m.conversationId)) {
-            conversas.set(m.conversationId, { ultimoTimestamp: m.timestamp, naoLidas: 0 });
-        }
-        if (!m.readBy || !m.readBy.includes(sessao.id)) {
-            conversas.get(m.conversationId).naoLidas++;
-        }
-        if (m.timestamp > conversas.get(m.conversationId).ultimoTimestamp) {
-            conversas.get(m.conversationId).ultimoTimestamp = m.timestamp;
-        }
-    });
-    const conversasOrdenadas = Array.from(conversas.entries()).sort((a,b) => b[1].ultimoTimestamp - a[1].ultimoTimestamp);
-    let html = '';
-    for (let [convId, dados] of conversasOrdenadas) {
-        let nome = convId === 'group' ? 'Geral (todos)' : '';
-        if (convId !== 'group') {
-            const ids = convId.split('-').map(Number);
-            const outroId = ids.find(id => id !== sessao.id);
-            const outroUser = DB.usuarios.find(u => u.id === outroId);
-            nome = outroUser ? `${outroUser.nome} (${outroUser.categoria})` : 'Privado';
-        }
-        html += `<div class="chat-conv-item" onclick="abrirConversaChat('${convId}')" style="display:flex;justify-content:space-between;align-items:center;">
-                    <span><i class="fas ${convId === 'group' ? 'fa-users' : 'fa-user'} conv-icon"></i> ${nome}</span>
-                    ${dados.naoLidas > 0 ? `<span class="conv-badge">${dados.naoLidas}</span>` : ''}
-                 </div>`;
-    }
-    if (html === '') html = '<div style="padding: 15px; text-align:center; color:rgba(255,255,255,0.4);">Nenhuma conversa</div>';
-    container.innerHTML = html;
-}
-
-function abrirConversaChat(conversationId) {
-    chatConversationAtual = conversationId;
-    document.getElementById('chatSidebar').style.display = 'none';
-    document.getElementById('chatMain').style.display = 'flex';
-    document.getElementById('chatBackBtn').style.display = 'inline-block';
-    let titulo = '';
-    if (conversationId === 'group') titulo = '<i class="fas fa-users"></i> Geral';
-    else {
-        const ids = conversationId.split('-').map(Number);
-        const outroId = ids.find(id => id !== sessao.id);
-        const outroUser = DB.usuarios.find(u => u.id === outroId);
-        titulo = `<i class="fas fa-user"></i> ${outroUser ? outroUser.nome : 'Privado'}`;
-    }
-    document.getElementById('chatTitle').innerHTML = titulo;
-    renderizarMensagensChat();
-}
-
-function voltarParaListaConversas() {
-    chatConversationAtual = null;
-    document.getElementById('chatMain').style.display = 'none';
-    document.getElementById('chatSidebar').style.display = 'block';
-    document.getElementById('chatBackBtn').style.display = 'none';
-    document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat';
-    atualizarListaConversas();
-}
-
-function iniciarConversaPrivada() {
-    const select = document.getElementById('privateUserSelect');
-    const outroId = parseInt(select.value);
-    if (!outroId) return;
-    const ids = [sessao.id, outroId].sort((a,b) => a - b);
-    const conversationId = ids.join('-');
-    select.value = '';
-    abrirConversaChat(conversationId);
-    atualizarListaConversas();
-}
-
-function carregarUsuariosChat() {
-    const select = document.getElementById('privateUserSelect');
-    if (!select) return;
-    select.innerHTML = '<option value="">Nova conversa privada...</option>';
-    DB.usuarios.filter(u => u.ativo && !u.deletedAt && u.id !== sessao.id).forEach(u => {
-        select.innerHTML += `<option value="${u.id}">${u.nome} (${u.categoria})</option>`;
-    });
-}
-
-function atualizarBadge() {
-    const badge = document.getElementById('chatBadge');
-    if (!badge || !sessao) return;
-    const totalNaoLidas = DB.chatMessages.filter(m => (!m.readBy || !m.readBy.includes(sessao.id)) && (m.conversationId === 'group' || m.conversationId.includes(String(sessao.id)))).length;
-    if (totalNaoLidas > 0) {
-        badge.textContent = totalNaoLidas > 99 ? '99+' : totalNaoLidas;
-        badge.style.display = 'flex';
-    } else {
-        badge.style.display = 'none';
-    }
-}
-
-function iniciarChat() {
-    if (!sessao) return;
-    const chatWidget = document.getElementById('chatWidget');
-    if (chatWidget) chatWidget.style.display = 'flex';
-    carregarUsuariosChat();
-    buscarMensagensChat();
-    if (chatPollingInterval) clearInterval(chatPollingInterval);
-    chatPollingInterval = setInterval(() => {
-        if (sessao) buscarMensagensChat();
-    }, 3000);
-}
-
-function toggleChat() {
-    const widget = document.getElementById('chatWidget');
-    if (widget.classList.contains('expanded')) {
-        widget.classList.remove('expanded');
-        widget.classList.add('minimized');
-    } else {
-        widget.classList.remove('minimized');
-        widget.classList.add('expanded');
-        carregarUsuariosChat();
-        atualizarListaConversas();
-        if (!chatConversationAtual) {
-            document.getElementById('chatSidebar').style.display = 'block';
-            document.getElementById('chatMain').style.display = 'none';
-            document.getElementById('chatBackBtn').style.display = 'none';
-            document.getElementById('chatTitle').innerHTML = '<i class="fas fa-comment-dots"></i> Chat';
-        } else {
-            abrirConversaChat(chatConversationAtual);
-        }
-    }
-}
-
-// ===== FUNÇÕES DE VENDAS (LISTAGEM, PAGINAÇÃO) =====
-function obterVendasAprovadas() { return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false); }
-function obterVendasAprovadasPorData(data) { return obterVendasAprovadas().filter(a => a.data === data); }
-function obterVendasAprovadasPorMes(ano, mes) { return obterVendasAprovadas().filter(a => { const [aAno, aMes] = a.data.split('-').map(Number); return aAno === ano && aMes === mes; }); }
-function obterVendasAprovadasHoje() { const hoje = new Date().toISOString().split('T')[0]; return obterVendasAprovadasPorData(hoje); }
-function obterVendasAprovadasMesAtual() { const hoje = new Date(); return obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1); }
-function obterVendasAprovadasMesAnterior() { const hoje = new Date(); const mes = hoje.getMonth() === 0 ? 12 : hoje.getMonth(); const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear(); return obterVendasAprovadasPorMes(ano, mes); }
-function obterVendasAprovadasDiaPassado() { const hoje = new Date(); const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, hoje.getDate()); const data = mesPassado.toISOString().split('T')[0]; return obterVendasAprovadasPorData(data); }
-function gerarDadosVendas() { return obterVendasAprovadasHoje().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data, hora: '00:00' })); }
-function gerarVendasDiaPassado() { return obterVendasAprovadasDiaPassado().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
-function gerarVendasMesAtual() { return obterVendasAprovadasMesAtual().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
-function gerarVendasMesAnterior() { return obterVendasAprovadasMesAnterior().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
-
-function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
-    const tabela = document.getElementById('tabelaAtivacoes');
-    if (!tabela) return;
-    let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => b.id - a.id);
-    const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
-    if (termo) { naoAprovadas = naoAprovadas.filter(a => { const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id); const texto = `${a.nomeCompleto||a.nomeCliente} ${a.produto||a.plano} ${vendedor?vendedor.nome:''} ${a.status} ${a.tratandoPor||''}`.toLowerCase(); return texto.includes(termo); }); }
-    const total = naoAprovadas.length;
-    const totalPaginas = Math.ceil(total / itensPorPagina);
-    paginaAtualAtivacoes = Math.min(pagina, totalPaginas || 1);
-    const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
-    const itensExibidos = naoAprovadas.slice(inicio, inicio + itensPorPagina);
-    tabela.innerHTML = itensExibidos.map(a => {
-        const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
-        const tratando = a.tratandoPor || '—';
-        return `<td><td><strong>${a.nomeCompleto || a.nomeCliente}</strong></td><td>${a.produto || a.plano}</td><td>${vendedor?vendedor.nome:'N/A'}</td><td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td><td><span style="font-size:12px;">${tratando}</span></td><td><button onclick="abrirModalAtivacao(${a.id})" class="btn-glass-sm" style="margin-right:4px;"><i class="fas fa-search"></i></button><button onclick="removerVenda(${a.id})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td></tr>`;
-    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
-    atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
-}
-
-function mudarPaginaAtivacoes(direcao) {
-    if (direcao === 'anterior' && paginaAtualAtivacoes > 1) { carregarAtivacoes(paginaAtualAtivacoes - 1); }
-    else if (direcao === 'proximo') {
-        let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
-        const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
-        if (termo) { naoAprovadas = naoAprovadas.filter(a => { const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id); const texto = `${a.nomeCompleto||a.nomeCliente} ${a.produto||a.plano} ${vendedor?vendedor.nome:''} ${a.status} ${a.tratandoPor||''}`.toLowerCase(); return texto.includes(termo); }); }
-        const totalPaginas = Math.ceil(naoAprovadas.length / itensPorPagina);
-        if (paginaAtualAtivacoes < totalPaginas) { carregarAtivacoes(paginaAtualAtivacoes + 1); }
-    }
-}
-
+// ===== VENDAS APROVADAS =====
 function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const tabela = document.getElementById('tabelaVendasAprovadas');
     if (!tabela) return;
-    let aprovadas = obterVendasAprovadas().sort((a,b) => b.id - a.id);
+    let aprovadas = DB.ativacoes.filter(a => a.status === 'Aprovado').sort((a,b) => b.id - a.id);
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
-    if (filtroData) { aprovadas = aprovadas.filter(a => a.data === filtroData); }
+    if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
     const total = aprovadas.length;
     const totalPaginas = Math.ceil(total / itensPorPagina);
     paginaAtualVendasAprovadas = Math.min(pagina, totalPaginas || 1);
@@ -868,19 +498,26 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        return `<tr><td><strong>${a.nomeCompleto || a.nomeCliente}</strong></td><td>${a.produto || a.plano}</td><td>${vendedor?vendedor.nome:'N/A'}</td><td>R$ ${parseFloat(a.valor).toFixed(2)}</td><td>${new Date(a.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm" style="margin-right:4px;"><i class="fas fa-eye"></i></button><button onclick="removerVenda(${a.id})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td></tr>`;
+        return `<tr>
+            <td><strong>${a.nomeCompleto || '—'}</strong></td>
+            <td>${a.produto || a.plano || '—'}</td>
+            <td>${vendedor ? vendedor.nome : 'N/A'}</td>
+            <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
+            <td>${a.data || '—'}</td>
+            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
+                <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
 
 function mudarPaginaVendasAprovadas(direcao) {
-    if (direcao === 'anterior' && paginaAtualVendasAprovadas > 1) { carregarVendasAprovadas(paginaAtualVendasAprovadas - 1); }
+    if (direcao === 'anterior' && paginaAtualVendasAprovadas > 1) carregarVendasAprovadas(paginaAtualVendasAprovadas - 1);
     else if (direcao === 'proximo') {
-        let aprovadas = obterVendasAprovadas();
-        const filtroData = document.getElementById('filtroDataAprovadas')?.value;
-        if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
+        let aprovadas = DB.ativacoes.filter(a => a.status === 'Aprovado');
         const totalPaginas = Math.ceil(aprovadas.length / itensPorPagina);
-        if (paginaAtualVendasAprovadas < totalPaginas) { carregarVendasAprovadas(paginaAtualVendasAprovadas + 1); }
+        if (paginaAtualVendasAprovadas < totalPaginas) carregarVendasAprovadas(paginaAtualVendasAprovadas + 1);
     }
 }
 
@@ -896,40 +533,173 @@ function atualizarControlesPaginacao(idContainer, pagina, totalPaginas, totalIte
 }
 function filtrarAtivacoes() { paginaAtualAtivacoes = 1; carregarAtivacoes(1); }
 
+// ===== REMOVER VENDA =====
+function removerVenda(id) {
+    const venda = DB.ativacoes.find(a => a.id === id);
+    if (!venda) { alert('Venda não encontrada!'); return; }
+    if (venda.tratandoPor && venda.tratandoPor !== sessao.nome && venda.status !== 'Aprovado') {
+        alert(`⚠️ Esta venda está sendo tratada por ${venda.tratandoPor}. Aguarde.`);
+        return;
+    }
+    const nomeCliente = venda.nomeCompleto;
+    const uuid = venda.id;
+    if (confirm(`Tem certeza que deseja remover permanentemente a venda de "${nomeCliente || uuid}"?`)) {
+        if (uuid && typeof uuid === 'string' && uuid.includes('-')) {
+            postParaGoogleSheets('excluirVenda', { uuid: uuid });
+        } else if (nomeCliente) {
+            postParaGoogleSheets('excluirVenda', { vendaId: nomeCliente });
+        }
+        DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
+        salvarDB();
+        if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
+        if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
+        if (sessao.tipo === 'admin') carregarDashboard();
+        alert('✅ Venda removida com sucesso!');
+    }
+}
+
+// ===== VISUALIZAÇÃO DE VENDA (MODAL) =====
 function abrirModalVisualizacao(id) {
     const a = DB.ativacoes.find(x => x.id === id);
     if (!a) return;
     const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
     let html = `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;"><span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Status:</strong> <span style="color:${flag.cor}">${a.status}</span></span><span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Plano:</strong> ${a.plano || a.produto}</span><span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ${parseFloat(a.valor).toFixed(2)}</span></div>`;
-    if (a.contrato || a.infoData || a.infoPeriodo) { html += `<div style="background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.3);border-radius:12px;padding:12px 15px;margin-bottom:20px;"><h4 style="color:#2ed573;margin:0 0 10px 0;font-size:14px;">📋 Informações de Instalação</h4><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;"><div><strong style="color:var(--text-secondary);font-size:11px;">Contrato</strong><br><span style="color:#fff;">${a.contrato||'—'}</span></div><div><strong style="color:var(--text-secondary);font-size:11px;">Data</strong><br><span style="color:#fff;">${a.infoData?new Date(a.infoData+'T00:00:00').toLocaleDateString('pt-BR'):'—'}</span></div><div><strong style="color:var(--text-secondary);font-size:11px;">Período</strong><br><span style="color:#fff;">${a.infoPeriodo||'—'}</span></div></div></div>`; }
+    if (a.contrato || a.infoData || a.infoPeriodo) {
+        html += `<div style="background:rgba(46,213,115,0.1);border:1px solid rgba(46,213,115,0.3);border-radius:12px;padding:12px 15px;margin-bottom:20px;"><h4 style="color:#2ed573;margin:0 0 10px 0;font-size:14px;">📋 Informações de Instalação</h4><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px;"><div><strong style="color:var(--text-secondary);font-size:11px;">Contrato</strong><br><span style="color:#fff;">${a.contrato || '—'}</span></div><div><strong style="color:var(--text-secondary);font-size:11px;">Data</strong><br><span style="color:#fff;">${a.infoData ? formatarDataISO(a.infoData) : '—'}</span></div><div><strong style="color:var(--text-secondary);font-size:11px;">Período</strong><br><span style="color:#fff;">${a.infoPeriodo || '—'}</span></div></div></div>`;
+    }
     html += `<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:8px;">`;
-    const campos = [['Nome Completo', a.nomeCompleto],['CPF', a.cpf],['Data Nasc.', a.dataNasc],['Órgão Exp.', a.orgaoExpeditor],['Nome da Mãe', a.nomeMae],['RG', a.rg],['Data Exp.', a.dataExpedicao],['Email', a.email],['Tel 1', a.telefone1],['Tel 2', a.telefone2],['CEP', a.cep],['Logradouro', a.logradouro],['N°', a.numero],['Complemento', a.complemento],['Bairro', a.bairro],['Estado', a.uf],['Cidade', a.cidade],['Ponto Ref.', a.pontoReferencia],['Velocidade', a.velocidade],['Produto', a.produto||a.plano],['Valor', a.valor],['Vencimento', a.vencimento],['Pagamento', a.formaPagamento],['HP', a.hp],['Viabilidade', a.viabilidade],['Plano Tipo', a.planoTipo],['Tipo Aprov.', a.tipoAprovacao]];
-    campos.forEach(([label, valor]) => { html += `<div class="input-group"><label>${label}</label><input value="${valor||''}" readonly style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);"></div>`; });
+    const campos = [
+        ['Nome Completo', a.nomeCompleto], ['CPF', a.cpf], ['Data Nasc.', a.dataNasc],
+        ['Órgão Exp.', a.orgaoExpeditor], ['Nome da Mãe', a.nomeMae], ['RG', a.rg],
+        ['Data Exp.', a.dataExpedicao], ['Email', a.email], ['Tel 1', a.telefone1],
+        ['Tel 2', a.telefone2], ['CEP', a.cep], ['Logradouro', a.logradouro],
+        ['N°', a.numero], ['Complemento', a.complemento], ['Bairro', a.bairro],
+        ['Estado', a.uf], ['Cidade', a.cidade], ['Ponto Ref.', a.pontoReferencia],
+        ['Velocidade', a.velocidade], ['Produto', a.produto || a.plano], ['Valor', a.valor],
+        ['Vencimento', a.vencimento], ['Pagamento', a.formaPagamento], ['HP', a.hp],
+        ['Viabilidade', a.viabilidade], ['Plano Tipo', a.planoTipo], ['Tipo Aprov.', a.tipoAprovacao]
+    ];
+    campos.forEach(([label, valor]) => {
+        html += `<div class="input-group"><label>${label}</label><input value="${valor || ''}" readonly style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);"></div>`;
+    });
     html += `</div>`;
     document.getElementById('conteudoModalVisualizacao').innerHTML = html;
     document.getElementById('modalVisualizacao').style.display = 'flex';
 }
 function fecharModalVisualizacao() { document.getElementById('modalVisualizacao').style.display = 'none'; }
 
+// ===== FUNÇÕES DO VENDEDOR =====
+function limparFormularioVenda() {
+    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
+    ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+function enviarVenda() {
+    if (!sessao) { alert('Sessão expirada.'); return; }
+    const campos = {
+        viabilidade: document.getElementById('vViabilidade')?.value || '',
+        planoTipo: document.getElementById('vPlanoTipo')?.value || '',
+        tipoAprovacao: document.getElementById('vTipoAprovacao')?.value || '',
+        nomeCompleto: document.getElementById('vNomeCompleto')?.value.trim() || '',
+        cpf: document.getElementById('vCpf')?.value.trim() || '',
+        dataNasc: document.getElementById('vDataNasc')?.value || '',
+        orgaoExpeditor: document.getElementById('vOrgaoExpeditor')?.value.trim() || '',
+        nomeMae: document.getElementById('vNomeMae')?.value.trim() || '',
+        rg: document.getElementById('vRg')?.value.trim() || '',
+        dataExpedicao: document.getElementById('vDataExpedicao')?.value || '',
+        email: document.getElementById('vEmail')?.value.trim() || '',
+        telefone1: document.getElementById('vTelefone1')?.value.trim() || '',
+        telefone2: document.getElementById('vTelefone2')?.value.trim() || '',
+        cep: document.getElementById('vCep')?.value.trim() || '',
+        logradouro: document.getElementById('vLogradouro')?.value.trim() || '',
+        numero: document.getElementById('vNumero')?.value.trim() || '',
+        complemento: document.getElementById('vComplemento')?.value.trim() || '',
+        bairro: document.getElementById('vBairro')?.value.trim() || '',
+        uf: document.getElementById('vUf')?.value.trim() || '',
+        cidade: document.getElementById('vCidade')?.value.trim() || '',
+        pontoReferencia: document.getElementById('vPontoReferencia')?.value.trim() || '',
+        velocidade: document.getElementById('vVelocidade')?.value || '',
+        produto: document.getElementById('vPlano')?.value || '',
+        plano: document.getElementById('vPlano')?.value || '',
+        valor: document.getElementById('vValor')?.value || '',
+        vencimento: document.getElementById('vVencimento')?.value || '',
+        formaPagamento: document.getElementById('vFormaPagamento')?.value || '',
+        hp: document.getElementById('vHp')?.value.trim() || ''
+    };
+    const obrigatorios = ['nomeCompleto', 'cpf', 'dataNasc', 'email', 'telefone1', 'cep', 'logradouro', 'numero', 'bairro', 'uf', 'cidade', 'velocidade', 'produto', 'valor', 'vencimento', 'formaPagamento'];
+    for (let campo of obrigatorios) {
+        if (!campos[campo]) {
+            alert(`Preencha o campo "${campo.replace(/([A-Z])/g, ' $1').toLowerCase()}"`);
+            return;
+        }
+    }
+    const novaAtivacao = {
+        id: Date.now(),
+        nomeCompleto: campos.nomeCompleto,
+        vendedor_id: sessao.id,
+        vendedorNome: sessao.nome,
+        status: "Pendente",
+        data: new Date().toISOString().split('T')[0],
+        finalizada: false,
+        ...campos
+    };
+    fetchFromGS('adicionarPendente', { venda: JSON.stringify(novaAtivacao) }).then(resp => {
+        if (resp && resp.ok === true) {
+            alert('✅ Venda enviada com sucesso!');
+            limparFormularioVenda();
+            DB.ativacoes.push(novaAtivacao);
+            salvarDB();
+            if (sessao.tipo === 'vendedor' && document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
+                carregarControleVendas();
+            }
+        } else alert('❌ Erro ao enviar. Tente novamente.');
+    }).catch(err => { console.error(err); alert('❌ Erro de comunicação.'); });
+}
 function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes.filter(a => a.vendedor_id === sessao.id).sort((a,b) => b.id - a.id);
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
-    tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => { const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' }; return `<tr><td><strong>${a.nomeCompleto || a.nomeCliente}</strong></td><td>${a.plano || a.produto}</td><td>R$ ${parseFloat(a.valor).toFixed(2)}</td><td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td><td>${new Date(a.data+'T00:00:00').toLocaleDateString('pt-BR')}</td><td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td></tr>`; }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
+    tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
+        const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
+        return `<tr>
+            <td><strong>${a.nomeCompleto || '—'}</strong></td>
+            <td>${a.plano || a.produto || '—'}</td>
+            <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
+            <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
+            <td>${a.data || '—'}</td>
+            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
+            </td>
+        </tr>`;
+    }).join('') : '<td><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></table>';
 }
 function carregarInstalacoes() {
     const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false).sort((a,b) => b.id - a.id);
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
-    tabela.innerHTML = aprovadas.length ? aprovadas.map(a => { const statusInstalacao = a.instalacaoStatus || 'Aguardando'; return `<tr><td><strong>${a.nomeCompleto || a.nomeCliente}</strong></td><td>${a.plano || a.produto}</td><td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td><td><select onchange="alterarStatusInstalacao(${a.id}, this.value)" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:4px 8px;border-radius:6px;"><option value="Aguardando" ${statusInstalacao==='Aguardando'?'selected':''}>Aguardando</option><option value="Instalado" ${statusInstalacao==='Instalado'?'selected':''}>Instalado</option><option value="Cancelado" ${statusInstalacao==='Cancelado'?'selected':''}>Cancelado</option></select></td><td><button onclick="abrirModalVisualizacao(${a.id})" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td></tr>`; }).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;">Nenhuma venda aprovada para instalação</td></tr>';
+    tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
+        const statusInstalacao = a.instalacaoStatus || 'Aguardando';
+        return `<tr>
+            <td><strong>${a.nomeCompleto || '—'}</strong></td>
+            <td>${a.plano || a.produto || '—'}</td>
+            <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
+            <td><select onchange="alterarStatusInstalacao('${a.id}', this.value)" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:4px 8px;border-radius:6px;">
+                <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
+                <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''}>Instalado</option>
+                <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+            </select></td>
+            <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
+            </td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;">Nenhuma venda aprovada para instalação</td></tr>';
 }
-function alterarStatusInstalacao(id, novoStatus) { const a = DB.ativacoes.find(x => x.id === id); if (a) { a.instalacaoStatus = novoStatus; salvarDB(); } }
-
+function alterarStatusInstalacao(id, novoStatus) {
+    const a = DB.ativacoes.find(x => x.id === id);
+    if (a) { a.instalacaoStatus = novoStatus; salvarDB(); }
+}
 function mostrarSecaoVendedor(e, secao) {
     document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
     const el = document.getElementById(`secao-${secao}`); if(el){ el.style.display = 'block'; el.className = 'section-active'; }
     document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
-    if (e && e.currentTarget) { e.currentTarget.classList.add('active'); }
+    if (e && e.currentTarget) e.currentTarget.classList.add('active');
     const titulos = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
     if (secao === 'inicio') carregarInicioVendedor();
@@ -946,7 +716,7 @@ function carregarInicioVendedor() {
     const hoje = new Date();
     const mesAtual = hoje.getMonth() + 1;
     const anoAtual = hoje.getFullYear();
-    const vendasAprovadas = DB.ativacoes.filter(a => { if (a.vendedor_id !== sessao.id) return false; if (a.status !== 'Aprovado' || a.finalizada === false) return false; const dataVenda = new Date(a.data + 'T00:00:00'); return dataVenda.getMonth() + 1 === mesAtual && dataVenda.getFullYear() === anoAtual; });
+    const vendasAprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
     const totalVendas = vendasAprovadas.length;
     const percentual = Math.min((totalVendas / metaMensal) * 100, 100).toFixed(1);
     document.getElementById('realizadoVendedorMes').textContent = totalVendas;
@@ -965,7 +735,7 @@ function atualizarPainelInstalacoes() {
         let ano = hoje.getFullYear();
         let mes = hoje.getMonth();
         if (mes === 0) { mes = 12; ano--; }
-        const vendasAnteriores = DB.ativacoes.filter(a => { if (a.vendedor_id !== sessao.id) return false; if (a.status !== 'Aprovado' || a.finalizada === false) return false; const dataVenda = new Date(a.data + 'T00:00:00'); return dataVenda.getMonth() + 1 === mes && dataVenda.getFullYear() === ano; });
+        const vendasAnteriores = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
         const instalados = vendasAnteriores.filter(v => v.instalacaoStatus === 'Instalado').length;
         const cancelados = vendasAnteriores.filter(v => v.instalacaoStatus === 'Cancelado').length;
         instaladosEl.textContent = instalados;
@@ -976,10 +746,67 @@ function atualizarPainelInstalacoes() {
 function buscarCep() {
     const cep = document.getElementById('vCep').value.replace(/\D/g, '');
     if (cep.length !== 8) return alert('Digite um CEP válido com 8 dígitos.');
-    fetch(`https://viacep.com.br/ws/${cep}/json/`).then(res => res.json()).then(data => { if (data.erro) { alert('CEP não encontrado.'); return; } document.getElementById('vLogradouro').value = data.logradouro || ''; document.getElementById('vBairro').value = data.bairro || ''; document.getElementById('vCidade').value = data.localidade || ''; document.getElementById('vUf').value = data.uf || ''; document.getElementById('vNumero').focus(); }).catch(() => alert('Erro ao buscar CEP.'));
+    fetch(`https://viacep.com.br/ws/${cep}/json/`).then(res => res.json()).then(data => {
+        if (data.erro) { alert('CEP não encontrado.'); return; }
+        document.getElementById('vLogradouro').value = data.logradouro || '';
+        document.getElementById('vBairro').value = data.bairro || '';
+        document.getElementById('vCidade').value = data.localidade || '';
+        document.getElementById('vUf').value = data.uf || '';
+        document.getElementById('vNumero').focus();
+    }).catch(() => alert('Erro ao buscar CEP.'));
+}
+function enviarParaGoogleSheets(venda) {
+    const payload = {
+        uuid: venda.id,
+        status: 'Aprovado',
+        nomeCliente: venda.nomeCompleto || '',
+        cpf: venda.cpf || '',
+        dataNasc: venda.dataNasc || '',
+        nomeMae: venda.nomeMae || '',
+        rg: venda.rg || '',
+        orgaoExpeditor: venda.orgaoExpeditor || '',
+        dataExpedicao: venda.dataExpedicao || '',
+        email: venda.email || '',
+        telefone1: venda.telefone1 || '',
+        telefone2: venda.telefone2 || '',
+        cep: venda.cep || '',
+        logradouro: venda.logradouro || '',
+        numero: venda.numero || '',
+        complemento: venda.complemento || '',
+        bairro: venda.bairro || '',
+        uf: venda.uf || '',
+        cidade: venda.cidade || '',
+        pontoReferencia: venda.pontoReferencia || '',
+        plano: venda.produto || '',
+        velocidade: venda.velocidade || '',
+        valor: venda.valor || '',
+        vencimento: venda.vencimento || '',
+        formaPagamento: venda.formaPagamento || '',
+        hp: venda.hp || '',
+        viabilidade: venda.viabilidade || '',
+        planoTipo: venda.planoTipo || '',
+        tipoAprovacao: venda.tipoAprovacao || '',
+        contrato: venda.contrato || '',
+        infoData: venda.infoData || '',
+        infoPeriodo: venda.infoPeriodo || '',
+        vendedorNome: (DB.usuarios.find(u => u.id === venda.vendedor_id) || {}).nome || 'N/A',
+        dataAprovacao: new Date().toLocaleDateString('pt-BR')
+    };
+    postParaGoogleSheets('enviarVenda', payload);
 }
 
 // ===== DASHBOARD ADMIN =====
+function obterVendasAprovadas() { return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false); }
+function obterVendasAprovadasPorData(data) { return obterVendasAprovadas().filter(a => a.data === data); }
+function obterVendasAprovadasPorMes(ano, mes) { return obterVendasAprovadas().filter(a => { const [aAno, aMes] = a.data.split('-').map(Number); return aAno === ano && aMes === mes; }); }
+function obterVendasAprovadasHoje() { const hoje = new Date().toISOString().split('T')[0]; return obterVendasAprovadasPorData(hoje); }
+function obterVendasAprovadasMesAtual() { const hoje = new Date(); return obterVendasAprovadasPorMes(hoje.getFullYear(), hoje.getMonth() + 1); }
+function obterVendasAprovadasMesAnterior() { const hoje = new Date(); const mes = hoje.getMonth() === 0 ? 12 : hoje.getMonth(); const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear(); return obterVendasAprovadasPorMes(ano, mes); }
+function obterVendasAprovadasDiaPassado() { const hoje = new Date(); const diaPassado = new Date(hoje); diaPassado.setDate(hoje.getDate() - 1); const data = diaPassado.toISOString().split('T')[0]; return obterVendasAprovadasPorData(data); }
+function gerarDadosVendas() { return obterVendasAprovadasHoje().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data, hora: '00:00' })); }
+function gerarVendasDiaPassado() { return obterVendasAprovadasDiaPassado().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
+function gerarVendasMesAtual() { return obterVendasAprovadasMesAtual().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
+function gerarVendasMesAnterior() { return obterVendasAprovadasMesAnterior().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
 function carregarDashboard() {
     const vendasMes = gerarVendasMesAtual();
     const realizado = vendasMes.length;
@@ -995,7 +822,7 @@ function carregarDashboard() {
 }
 function carregarVendasDiarias() {
     const hoje = new Date();
-    document.getElementById('dataVendasDiarias').textContent = hoje.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+    document.getElementById('dataVendasDiarias').textContent = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
     const vendasHoje = gerarDadosVendas();
     const meta = DB.metas.diariaVendas || 10;
     document.getElementById('totalVendasHoje').textContent = vendasHoje.length;
@@ -1004,59 +831,68 @@ function carregarVendasDiarias() {
     document.getElementById('realizadoMetaDiaria').textContent = vendasHoje.length;
     document.getElementById('faltamMetaDiaria').textContent = Math.max(meta - vendasHoje.length, 0);
     document.getElementById('metaDiaria').textContent = meta;
-    const ranking = {}; vendasHoje.forEach(v => { if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0,valor:0}; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor+=v.valor; });
-    const rankingArr = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas);
+    const ranking = {};
+    vendasHoje.forEach(v => { if (!ranking[v.vendedor_id]) ranking[v.vendedor_id] = { nome: v.vendedor_nome, vendas: 0, valor: 0 }; ranking[v.vendedor_id].vendas++; ranking[v.vendedor_id].valor += v.valor; });
+    const rankingArr = Object.values(ranking).sort((a, b) => b.vendas - a.vendas);
     const rankingEl = document.getElementById('rankingVendedores');
-    rankingEl.innerHTML = rankingArr.length ? rankingArr.map((r,i)=>{ const pos=i+1; const cls=pos===1?'top1':pos===2?'top2':pos===3?'top3':'normal'; const medal=pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos; return `<div class="ranking-item"><div class="ranking-posicao ${cls}">${medal}</div><div class="ranking-info"><span class="ranking-nome">${r.nome}</span><span class="ranking-vendas">${r.vendas} vendas</span></div><span class="ranking-pontos">${r.vendas}</span></div>`; }).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Nenhuma venda hoje</p>';
-    const produtos = {}; vendasHoje.forEach(v => { if(!produtos[v.plano]) produtos[v.plano]={nome:v.plano,qtd:0}; produtos[v.plano].qtd++; });
-    const prodArr = Object.values(produtos).sort((a,b)=>b.qtd-a.qtd);
-    const maxQtd = prodArr[0]?.qtd||1;
+    rankingEl.innerHTML = rankingArr.length ? rankingArr.map((r, i) => {
+        const pos = i + 1;
+        const cls = pos === 1 ? 'top1' : pos === 2 ? 'top2' : pos === 3 ? 'top3' : 'normal';
+        const medal = pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : pos;
+        return `<div class="ranking-item"><div class="ranking-posicao ${cls}">${medal}</div><div class="ranking-info"><span class="ranking-nome">${r.nome}</span><span class="ranking-vendas">${r.vendas} vendas</span></div><span class="ranking-pontos">${r.vendas}</span></div>`;
+    }).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Nenhuma venda hoje</p>';
+    const produtos = {};
+    vendasHoje.forEach(v => { if (!produtos[v.plano]) produtos[v.plano] = { nome: v.plano, qtd: 0 }; produtos[v.plano].qtd++; });
+    const prodArr = Object.values(produtos).sort((a, b) => b.qtd - a.qtd);
+    const maxQtd = prodArr[0]?.qtd || 1;
     const prodEl = document.getElementById('produtosVendidos');
-    prodEl.innerHTML = prodArr.length ? prodArr.map(p=>`<div class="produto-item"><span class="produto-nome">${p.nome}</span><div class="produto-bar"><div class="produto-bar-fill" style="width:${(p.qtd/maxQtd)*100}%"></div></div><span class="produto-qtd">${p.qtd}x</span></div>`).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);">Nenhum produto</p>';
+    prodEl.innerHTML = prodArr.length ? prodArr.map(p => `<div class="produto-item"><span class="produto-nome">${p.nome}</span><div class="produto-bar"><div class="produto-bar-fill" style="width:${(p.qtd / maxQtd) * 100}%"></div></div><span class="produto-qtd">${p.qtd}x</span></div>`).join('') : '<p style="text-align:center;color:rgba(255,255,255,0.4);">Nenhum produto</p>';
 }
-
 function mostrarComparativo(tipo) {
     comparativoAtual = tipo;
-    document.querySelectorAll('.btn-compare').forEach(b=>b.classList.remove('active'));
-    document.getElementById(tipo==='diario'?'btnDiario':'btnMensal').classList.add('active');
-    document.getElementById('comparativoDiario').style.display = tipo==='diario'?'block':'none';
-    document.getElementById('comparativoMensal').style.display = tipo==='mensal'?'block':'none';
-    tipo==='diario' ? carregarComparativoDiario() : carregarComparativoMensal();
+    document.querySelectorAll('.btn-compare').forEach(b => b.classList.remove('active'));
+    document.getElementById(tipo === 'diario' ? 'btnDiario' : 'btnMensal').classList.add('active');
+    document.getElementById('comparativoDiario').style.display = tipo === 'diario' ? 'block' : 'none';
+    document.getElementById('comparativoMensal').style.display = tipo === 'mensal' ? 'block' : 'none';
+    tipo === 'diario' ? carregarComparativoDiario() : carregarComparativoMensal();
 }
 function carregarComparativoDiario() {
     const hoje = new Date();
-    document.getElementById('compDataHoje').textContent = hoje.toLocaleDateString('pt-BR',{day:'numeric',month:'long'});
-    const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth()-1, hoje.getDate());
-    document.getElementById('compDataPassado').textContent = mesPassado.toLocaleDateString('pt-BR',{day:'numeric',month:'long'});
+    document.getElementById('compDataHoje').textContent = hoje.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+    const diaPassado = new Date(hoje);
+    diaPassado.setDate(hoje.getDate() - 1);
+    document.getElementById('compDataPassado').textContent = diaPassado.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
     const vHoje = gerarDadosVendas(), vPassado = gerarVendasDiaPassado();
     document.getElementById('compVendasHoje').textContent = vHoje.length;
     document.getElementById('compVendasPassado').textContent = vPassado.length;
     const dif = vHoje.length - vPassado.length;
     const diffEl = document.getElementById('compDiferencaDiario');
-    diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
-    diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vPassado.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
-    const ranking = {}; vHoje.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
-    const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
+    diffEl.className = `comp-diferenca ${dif > 0 ? 'positivo' : dif < 0 ? 'negativo' : 'positivo'}`;
+    diffEl.innerHTML = dif > 0 ? `📈 ${dif} vendas a mais (${((dif / Math.max(vPassado.length, 1)) * 100).toFixed(1)}%)` : dif < 0 ? `📉 ${Math.abs(dif)} vendas a menos (${((dif / Math.max(vPassado.length, 1)) * 100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
+    const ranking = {};
+    vHoje.forEach(v => { if (!ranking[v.vendedor_id]) ranking[v.vendedor_id] = { nome: v.vendedor_nome, vendas: 0 }; ranking[v.vendedor_id].vendas++; });
+    const melhor = Object.values(ranking).sort((a, b) => b.vendas - a.vendas)[0];
     document.getElementById('destaqueDiario').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas hoje</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
     carregarComparacaoProdutos(vHoje, vPassado, 'compProdutosDiario');
 }
 function carregarComparativoMensal() {
     const hoje = new Date();
-    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     document.getElementById('compMesAtual').textContent = meses[hoje.getMonth()];
-    document.getElementById('compMesPassado').textContent = meses[hoje.getMonth()===0?11:hoje.getMonth()-1];
+    document.getElementById('compMesPassado').textContent = meses[hoje.getMonth() === 0 ? 11 : hoje.getMonth() - 1];
     const vAtual = gerarVendasMesAtual(), vAnterior = gerarVendasMesAnterior();
     document.getElementById('compVendasMesAtual').textContent = vAtual.length;
     document.getElementById('compVendasMesAnterior').textContent = vAnterior.length;
     const dif = vAtual.length - vAnterior.length;
     const diffEl = document.getElementById('compDiferencaMensal');
-    diffEl.className = `comp-diferenca ${dif>0?'positivo':dif<0?'negativo':'positivo'}`;
-    diffEl.innerHTML = dif>0?`📈 ${dif} vendas a mais (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : dif<0?`📉 ${Math.abs(dif)} vendas a menos (${((dif/Math.max(vAnterior.length,1))*100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
-    const ranking = {}; vAtual.forEach(v=>{ if(!ranking[v.vendedor_id]) ranking[v.vendedor_id]={nome:v.vendedor_nome,vendas:0}; ranking[v.vendedor_id].vendas++; });
-    const melhor = Object.values(ranking).sort((a,b)=>b.vendas-a.vendas)[0];
+    diffEl.className = `comp-diferenca ${dif > 0 ? 'positivo' : dif < 0 ? 'negativo' : 'positivo'}`;
+    diffEl.innerHTML = dif > 0 ? `📈 ${dif} vendas a mais (${((dif / Math.max(vAnterior.length, 1)) * 100).toFixed(1)}%)` : dif < 0 ? `📉 ${Math.abs(dif)} vendas a menos (${((dif / Math.max(vAnterior.length, 1)) * 100).toFixed(1)}%)` : '➡️ Mesmo número de vendas';
+    const ranking = {};
+    vAtual.forEach(v => { if (!ranking[v.vendedor_id]) ranking[v.vendedor_id] = { nome: v.vendedor_nome, vendas: 0 }; ranking[v.vendedor_id].vendas++; });
+    const melhor = Object.values(ranking).sort((a, b) => b.vendas - a.vendas)[0];
     document.getElementById('destaqueMensal').innerHTML = melhor ? `<div class="destaque-card"><div class="destaque-icon">🏆</div><div><div class="destaque-nome">${melhor.nome}</div><div class="destaque-info">${melhor.vendas} vendas no mês</div></div></div>` : '<p style="color:rgba(255,255,255,0.4);">Nenhum vendedor</p>';
     carregarComparacaoProdutos(vAtual, vAnterior, 'compProdutosMensal');
-    const meta = DB.metas.mensalVendas || 150, realizado = vAtual.length, pct = Math.min((realizado/meta)*100,100).toFixed(1);
+    const meta = DB.metas.mensalVendas || 150, realizado = vAtual.length, pct = Math.min((realizado / meta) * 100, 100).toFixed(1);
     document.getElementById('metaMensalValor').textContent = meta;
     document.getElementById('metaMensalRealizado').textContent = realizado;
     document.getElementById('metaMensalPct').textContent = `${pct}%`;
@@ -1064,56 +900,71 @@ function carregarComparativoMensal() {
 }
 function carregarComparacaoProdutos(vAtual, vPassado, containerId) {
     const container = document.getElementById(containerId);
-    const planos = ['Básico','Empresarial','Premium','Ultra'];
-    const maxVendas = Math.max(...planos.map(p=>Math.max(vAtual.filter(v=>v.plano===p).length, vPassado.filter(v=>v.plano===p).length,1)),1);
-    container.innerHTML = planos.map(p=>{ const qAtual = vAtual.filter(v=>v.plano===p).length, qPassado = vPassado.filter(v=>v.plano===p).length; return `<div class="comp-produto-item"><span class="comp-produto-nome">${p}</span><div class="comp-produto-barras"><div class="comp-produto-atual" style="width:${(qAtual/maxVendas)*100}%;min-width:${qAtual>0?'25px':'0'}">${qAtual>0?qAtual:''}</div><div class="comp-produto-passado" style="width:${(qPassado/maxVendas)*100}%;min-width:${qPassado>0?'25px':'0'}">${qPassado>0?qPassado:''}</div></div></div>`; }).join('');
+    const planos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
+    const maxVendas = Math.max(...planos.map(p => Math.max(vAtual.filter(v => v.plano === p).length, vPassado.filter(v => v.plano === p).length, 1)), 1);
+    container.innerHTML = planos.map(p => {
+        const qAtual = vAtual.filter(v => v.plano === p).length, qPassado = vPassado.filter(v => v.plano === p).length;
+        return `<div class="comp-produto-item"><span class="comp-produto-nome">${p}</span><div class="comp-produto-barras"><div class="comp-produto-atual" style="width:${(qAtual / maxVendas) * 100}%;min-width:${qAtual > 0 ? '25px' : '0'}">${qAtual > 0 ? qAtual : ''}</div><div class="comp-produto-passado" style="width:${(qPassado / maxVendas) * 100}%;min-width:${qPassado > 0 ? '25px' : '0'}">${qPassado > 0 ? qPassado : ''}</div></div></div>`;
+    }).join('');
 }
 
+// ===== NAVEGAÇÃO ADMIN =====
 function mostrarSecao(secao) {
-    document.querySelectorAll('.section-active,.section-hidden').forEach(s=>{s.style.display='none';s.className='section-hidden';});
-    const el = document.getElementById(`secao-${secao}`); if(el){el.style.display='block';el.className='section-active';}
-    document.querySelectorAll('.nav-item').forEach(a=>a.classList.remove('active'));
-    const nav = document.querySelector(`[data-section="${secao}"]`); if(nav) nav.classList.add('active');
-    document.getElementById('tituloSecao').innerHTML = { dashboard:'📊 Dashboard', cadastro:'👥 Cadastro', ativacoes:'⚡ Ativações', vendasAprovadas:'✅ Vendas Aprovadas', relatorios:'📈 Relatórios', metas:'🎯 Metas', promocoes:'🏆 Promoções' }[secao]||secao;
-    if(secao==='cadastro') carregarUsuarios();
-    if(secao==='ativacoes') { paginaAtualAtivacoes = 1; buscarPendentesDaNuvem(); carregarAtivacoes(); }
-    if(secao==='vendasAprovadas') { paginaAtualVendasAprovadas = 1; buscarVendasAprovadasDaNuvem(); carregarVendasAprovadas(); }
-    if(secao==='relatorios') carregarRelatorios();
-    if(secao==='metas') carregarMetas();
-    if(secao==='promocoes') carregarPromocoes();
+    document.querySelectorAll('.section-active, .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
+    const el = document.getElementById(`secao-${secao}`); if (el) { el.style.display = 'block'; el.className = 'section-active'; }
+    document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
+    const nav = document.querySelector(`[data-section="${secao}"]`); if (nav) nav.classList.add('active');
+    document.getElementById('tituloSecao').innerHTML = { dashboard: '📊 Dashboard', cadastro: '👥 Cadastro', ativacoes: '⚡ Ativações', vendasAprovadas: '✅ Vendas Aprovadas', relatorios: '📈 Relatórios', metas: '🎯 Metas', promocoes: '🏆 Promoções' }[secao] || secao;
+    if (secao === 'cadastro') carregarUsuarios();
+    if (secao === 'ativacoes') { paginaAtualAtivacoes = 1; buscarPendentesDaNuvem(); carregarAtivacoes(); }
+    if (secao === 'vendasAprovadas') { paginaAtualVendasAprovadas = 1; buscarVendasAprovadasDaNuvem(); carregarVendasAprovadas(); }
+    if (secao === 'relatorios') carregarRelatorios();
+    if (secao === 'metas') carregarMetas();
+    if (secao === 'promocoes') carregarPromocoes();
 }
 
 // ===== CADASTRO DE USUÁRIOS =====
-function mostrarFormCadastro(){document.getElementById('formCadastro').style.display='block';}
-function cadastrarUsuario(){
-    const n=document.getElementById('nomeUsuario').value.trim();
-    const u=document.getElementById('usuarioUsuario').value.trim();
-    const s=document.getElementById('senhaUsuario').value.trim();
-    const e=document.getElementById('emailUsuario').value.trim();
-    const cat=document.getElementById('categoriaUsuario').value;
-    const eq=document.getElementById('equipeUsuario').value.trim();
-    if(!n||!u||!s||!e) return alert('Preencha todos os campos obrigatórios!');
-    if(DB.usuarios.find(x=>x.usuario===u && !x.deletedAt)) return alert('Usuário já existe!');
-    DB.usuarios.push({ id: Date.now(), usuario: u, senha: s, nome: n, email: e, tipo: cat, categoria: cat, ativo: true, deletedAt: null, equipe: cat==='admin'?'Gestão':(eq||'Geral') });
-    salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display='none';
-    ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>document.getElementById(id).value='');
+function mostrarFormCadastro() { document.getElementById('formCadastro').style.display = 'block'; }
+function cadastrarUsuario() {
+    const n = document.getElementById('nomeUsuario').value.trim();
+    const u = document.getElementById('usuarioUsuario').value.trim();
+    const s = document.getElementById('senhaUsuario').value.trim();
+    const e = document.getElementById('emailUsuario').value.trim();
+    const cat = document.getElementById('categoriaUsuario').value;
+    const eq = document.getElementById('equipeUsuario').value.trim();
+    if (!n || !u || !s || !e) return alert('Preencha todos os campos obrigatórios!');
+    if (DB.usuarios.find(x => x.usuario === u && !x.deletedAt)) return alert('Usuário já existe!');
+    DB.usuarios.push({ id: Date.now(), usuario: u, senha: s, nome: n, email: e, tipo: cat, categoria: cat, ativo: true, deletedAt: null, equipe: cat === 'admin' ? 'Gestão' : (eq || 'Geral') });
+    salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display = 'none';
+    ['nomeUsuario', 'usuarioUsuario', 'senhaUsuario', 'emailUsuario', 'equipeUsuario'].forEach(id => document.getElementById(id).value = '');
     alert('✅ Usuário cadastrado com sucesso!');
 }
 function carregarUsuarios() {
     const agora = new Date();
-    DB.usuarios = DB.usuarios.filter(u => { if(u.deletedAt){ const dias = (agora - new Date(u.deletedAt))/(1000*60*60*24); return dias <= 15; } return true; });
+    DB.usuarios = DB.usuarios.filter(u => { if (u.deletedAt) { const dias = (agora - new Date(u.deletedAt)) / (1000 * 60 * 60 * 24); return dias <= 15; } return true; });
     salvarDB();
     const usuarios = DB.usuarios.filter(u => !u.deletedAt);
     const tabela = document.getElementById('tabelaUsuarios');
     if (!tabela) return;
-    tabela.innerHTML = usuarios.map(u => `<td><td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td><td>@${u.usuario}</td><td>${u.email}</td><td><span class="badge-cat">${u.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td><td>${u.equipe||'Geral'}</td><td class="${u.ativo?'status-ativo':''}">${u.ativo?'● Ativo':'○ Inativo'}</td><td><button onclick="toggleUsuario(${u.id})" style="background:${u.ativo?'rgba(255,71,87,0.2)':'rgba(46,213,115,0.2)'};border:1px solid ${u.ativo?'rgba(255,71,87,0.3)':'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${u.ativo?'🔒 Desativar':'🔓 Ativar'}</button><button onclick="excluirUsuario(${u.id})" style="background:rgba(255,71,87,0.3);border:1px solid rgba(255,71,87,0.5);color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;margin-left:5px;"><i class="fas fa-trash"></i> Excluir</button></td></tr>`).join('');
-    const cont = document.getElementById('contadorLixeira'); if(cont) cont.textContent = DB.usuarios.filter(u => u.deletedAt).length;
+    tabela.innerHTML = usuarios.map(u => `<tr>
+        <td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
+        <td>@${u.usuario}</td>
+        <td>${u.email}</td>
+        <td><span class="badge-cat">${u.categoria === 'admin' ? '👑 Admin' : '💼 Vendedor'}</span></td>
+        <td>${u.equipe || 'Geral'}</td>
+        <td class="${u.ativo ? 'status-ativo' : ''}">${u.ativo ? '● Ativo' : '○ Inativo'}</td>
+        <td>
+            <button onclick="toggleUsuario(${u.id})" style="background:${u.ativo ? 'rgba(255,71,87,0.2)' : 'rgba(46,213,115,0.2)'};border:1px solid ${u.ativo ? 'rgba(255,71,87,0.3)' : 'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${u.ativo ? '🔒 Desativar' : '🔓 Ativar'}</button>
+            <button onclick="excluirUsuario(${u.id})" style="background:rgba(255,71,87,0.3);border:1px solid rgba(255,71,87,0.5);color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;margin-left:5px;"><i class="fas fa-trash"></i> Excluir</button>
+        </td>
+    </table>`).join('');
+    const cont = document.getElementById('contadorLixeira'); if (cont) cont.textContent = DB.usuarios.filter(u => u.deletedAt).length;
 }
-function toggleUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.ativo=!u.ativo;salvarDB();carregarUsuarios();} }
-function excluirUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(!u) return; if(confirm(`⚠️ Excluir "${u.nome}"? Ele irá para a lixeira e perderá o acesso.`)){ u.deletedAt = new Date().toISOString(); u.ativo = false; salvarDB(); carregarUsuarios(); } }
-function abrirModalEditar(id){ const u=DB.usuarios.find(u=>u.id===id); if(!u) return; document.getElementById('editUsuarioId').value = u.id; document.getElementById('editNomeUsuario').value = u.nome; document.getElementById('editLoginUsuario').value = u.usuario; document.getElementById('editEmailUsuario').value = u.email; document.getElementById('editCategoriaUsuario').value = u.categoria || u.tipo; document.getElementById('editSenhaUsuario').value = ''; document.getElementById('editEquipeUsuario').value = u.equipe||''; document.getElementById('modalEditarUsuario').style.display = 'flex'; }
-function fecharModalEditar(){ document.getElementById('modalEditarUsuario').style.display = 'none'; }
-function salvarEdicaoUsuario(){
+function toggleUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.ativo = !u.ativo; salvarDB(); carregarUsuarios(); } }
+function excluirUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (!u) return; if (confirm(`⚠️ Excluir "${u.nome}"? Ele irá para a lixeira e perderá o acesso.`)) { u.deletedAt = new Date().toISOString(); u.ativo = false; salvarDB(); carregarUsuarios(); } }
+function abrirModalEditar(id) { const u = DB.usuarios.find(u => u.id === id); if (!u) return; document.getElementById('editUsuarioId').value = u.id; document.getElementById('editNomeUsuario').value = u.nome; document.getElementById('editLoginUsuario').value = u.usuario; document.getElementById('editEmailUsuario').value = u.email; document.getElementById('editCategoriaUsuario').value = u.categoria || u.tipo; document.getElementById('editSenhaUsuario').value = ''; document.getElementById('editEquipeUsuario').value = u.equipe || ''; document.getElementById('modalEditarUsuario').style.display = 'flex'; }
+function fecharModalEditar() { document.getElementById('modalEditarUsuario').style.display = 'none'; }
+function salvarEdicaoUsuario() {
     const id = parseInt(document.getElementById('editUsuarioId').value);
     const nome = document.getElementById('editNomeUsuario').value.trim();
     const usuario = document.getElementById('editLoginUsuario').value.trim();
@@ -1121,62 +972,266 @@ function salvarEdicaoUsuario(){
     const categoria = document.getElementById('editCategoriaUsuario').value;
     const novaSenha = document.getElementById('editSenhaUsuario').value.trim();
     const equipe = document.getElementById('editEquipeUsuario').value.trim();
-    if(!nome||!usuario||!email) return alert('Nome, usuário e email são obrigatórios.');
-    const u=DB.usuarios.find(u=>u.id===id); if(!u) return;
-    const conflito = DB.usuarios.find(u=>u.usuario===usuario && u.id!==id && !u.deletedAt);
-    if(conflito) return alert('Usuário já existe.');
-    u.nome=nome; u.usuario=usuario; u.email=email; u.categoria=categoria; u.tipo=categoria;
-    if(novaSenha) u.senha = novaSenha;
-    u.equipe = categoria==='admin'?'Gestão':(equipe||'Geral');
+    if (!nome || !usuario || !email) return alert('Nome, usuário e email são obrigatórios.');
+    const u = DB.usuarios.find(u => u.id === id); if (!u) return;
+    const conflito = DB.usuarios.find(u => u.usuario === usuario && u.id !== id && !u.deletedAt);
+    if (conflito) return alert('Usuário já existe.');
+    u.nome = nome; u.usuario = usuario; u.email = email; u.categoria = categoria; u.tipo = categoria;
+    if (novaSenha) u.senha = novaSenha;
+    u.equipe = categoria === 'admin' ? 'Gestão' : (equipe || 'Geral');
     salvarDB(); carregarUsuarios(); fecharModalEditar();
 }
-function toggleLixeira(){ const l=document.getElementById('lixeiraUsuarios'); if(l.style.display==='none'||l.style.display===''){ carregarLixeira(); l.style.display='block'; } else l.style.display='none'; }
-function carregarLixeira(){
+function toggleLixeira() { const l = document.getElementById('lixeiraUsuarios'); if (l.style.display === 'none' || l.style.display === '') { carregarLixeira(); l.style.display = 'block'; } else l.style.display = 'none'; }
+function carregarLixeira() {
     const agora = new Date();
-    const lixeira = DB.usuarios.filter(u=>u.deletedAt);
+    const lixeira = DB.usuarios.filter(u => u.deletedAt);
     document.getElementById('contadorLixeira').textContent = lixeira.length;
-    const tabela=document.getElementById('tabelaLixeira');
-    if(!lixeira.length){ tabela.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
-    tabela.innerHTML = lixeira.map(v=>{ const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt))/(1000*60*60*24))); return `<tr><td><strong>${v.nome}</strong></td><td>@${v.usuario}</td><td>${v.email}</td><td><span class="badge-cat">${v.categoria==='admin'?'👑 Admin':'💼 Vendedor'}</span></td><td>${v.equipe||'Geral'}</td><td><span style="color:#ffa502;">${dias} dia(s)</span></td><td><button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button><button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button></td></tr>`; }).join('');
+    const tabela = document.getElementById('tabelaLixeira');
+    if (!lixeira.length) { tabela.innerHTML = '<td><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
+    tabela.innerHTML = lixeira.map(v => {
+        const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt)) / (1000 * 60 * 60 * 24)));
+        return `<tr>
+            <td><strong>${v.nome}</strong></td>
+            <td>@${v.usuario}</td>
+            <td>${v.email}</td>
+            <td><span class="badge-cat">${v.categoria === 'admin' ? '👑 Admin' : '💼 Vendedor'}</span></td>
+            <td>${v.equipe || 'Geral'}</td>
+            <td><span style="color:#ffa502;">${dias} dia(s)</span></td>
+            <td>
+                <button onclick="recuperarUsuario(${v.id})" style="background:rgba(46,213,115,0.2);border:1px solid rgba(46,213,115,0.3);color:#2ed573;padding:6px 12px;border-radius:8px;cursor:pointer;"><i class="fas fa-undo"></i> Recuperar</button>
+                <button onclick="excluirPermanentemente(${v.id})" style="background:rgba(255,71,87,0.2);border:1px solid rgba(255,71,87,0.3);color:#ff4757;padding:6px 12px;border-radius:8px;cursor:pointer;margin-left:5px;"><i class="fas fa-times-circle"></i> Excluir definitivo</button>
+            </td>
+        </tr>`;
+    }).join('');
 }
-function recuperarUsuario(id){ const u=DB.usuarios.find(u=>u.id===id); if(u){u.deletedAt=null;u.ativo=true;salvarDB();carregarUsuarios();carregarLixeira();} }
-function excluirPermanentemente(id){ const u=DB.usuarios.find(u=>u.id===id); if(u && confirm(`Excluir definitivamente "${u.nome}"?`)){ DB.usuarios = DB.usuarios.filter(u=>u.id!==id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
+function recuperarUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.deletedAt = null; u.ativo = true; salvarDB(); carregarUsuarios(); carregarLixeira(); } }
+function excluirPermanentemente(id) { const u = DB.usuarios.find(u => u.id === id); if (u && confirm(`Excluir definitivamente "${u.nome}"?`)) { DB.usuarios = DB.usuarios.filter(u => u.id !== id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
 // ===== RELATÓRIOS =====
-function carregarRelatorios() { const periodo = document.getElementById('filtroPeriodo').value; let dadosAtual, dadosAnterior; if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); } else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); } else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); } carregarComparativoProdutos(dadosAtual, dadosAnterior, periodo); carregarVendasPorVendedor(dadosAtual, dadosAnterior); carregarVendasPorEquipe(dadosAtual, dadosAnterior); carregarRankingRelatorio(dadosAtual); }
-function gerarVendasQuinzenaAtual() { const hoje = new Date(); const dia = hoje.getDate(); const todas = gerarVendasMesAtual(); if (dia <= 15) return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); else return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; }); }
-function gerarVendasQuinzenaAnterior() { const hoje = new Date(); const dia = hoje.getDate(); let vendas = []; if (dia <= 15) { const mesAnterior = hoje.getMonth() === 0 ? 12 : hoje.getMonth(); const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear(); vendas = gerarVendasMesAnterior().filter(v => { const [y, m, d] = v.data.split('-').map(Number); return y === ano && m === mesAnterior && d >= 16; }); } else { vendas = gerarVendasMesAtual().filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; }); } if (vendas.length === 0) { const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && u.ativo && !u.deletedAt); const planos = [{nome:'Básico',valor:299.9},{nome:'Empresarial',valor:499.9},{nome:'Premium',valor:899.9}]; const num = Math.floor(Math.random()*12)+4; for (let i=0;i<num;i++) { const v = vendedores[Math.floor(Math.random()*vendedores.length)]; const p = planos[Math.floor(Math.random()*planos.length)]; vendas.push({id:Date.now()+i, vendedor_id:v.id, vendedor_nome:v.nome, plano:p.nome, valor:p.valor, data:`2024-06-${String(Math.floor(Math.random()*15)+1).padStart(2,'0')}`}); } } return vendas; }
-function carregarComparativoProdutos(atual, anterior, periodo) { const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra']; let html = '</table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>'; produtos.forEach(p => { const qtdAtual = atual.filter(v => v.plano === p).length; const qtdAnterior = anterior.filter(v => v.plano === p).length; const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0); const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)'; html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; }); html += '</tbody></tr>'; document.getElementById('tabelaComparativaProdutos').innerHTML = html; }
-function carregarVendasPorVendedor(atual, anterior) { const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt); const dados = vendedores.map(v => ({ nome: v.nome, atual: atual.filter(vd => vd.vendedor_id === v.id).length, anterior: anterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual); let html = '<table><thead><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>'; dados.forEach(d => { const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0); const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)'; html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; }); html += '</tbody></tr>'; document.getElementById('tabelaVendedoresRelatorio').innerHTML = html; const ctx = document.getElementById('graficoVendedores').getContext('2d'); if (graficoVendedoresInstance) graficoVendedoresInstance.destroy(); graficoVendedoresInstance = new Chart(ctx, { type: 'bar', data: { labels: dados.map(d => d.nome), datasets: [{ label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 }, { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }] }, options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: '#fff' }, grid: { display: false } } } } }); }
-function carregarVendasPorEquipe(atual, anterior) { const equipes = {}; DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; }); atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; }); anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; }); let html = '<tr><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>'; Object.entries(equipes).forEach(([nome, valores]) => { const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0); const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)'; html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`; }); html += '</tbody></table>'; document.getElementById('tabelaEquipesRelatorio').innerHTML = html; }
-function carregarRankingRelatorio(atual) { const vendedores = DB.usuarios.filter(u => u.tipo==='vendedor' && !u.deletedAt); const ranking = vendedores.map(v => ({ nome: v.nome, vendas: atual.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.vendas - a.vendas); const maxVendas = ranking[0]?.vendas || 1; let html = ''; ranking.forEach((v, i) => { const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : ''; const pct = maxVendas > 0 ? (v.vendas / maxVendas * 100).toFixed(0) : 0; html += `<div class="ranking-item-relatorio"><div class="ranking-posicao-relatorio">${medalha || i+1}</div><div class="ranking-info-relatorio"><span class="ranking-nome-relatorio">${v.nome}</span><span class="ranking-detalhes-relatorio">${v.vendas} vendas</span><div class="barra-progresso-relatorio"><div class="barra-progresso-preenchimento" style="width:${pct}%"></div></div></div><div class="ranking-pontos-relatorio">${v.vendas}</div></div>`; }); document.getElementById('rankingRelatorio').innerHTML = html; }
+function carregarRelatorios() {
+    const periodo = document.getElementById('filtroPeriodo').value;
+    let dadosAtual, dadosAnterior;
+    if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
+    else if (periodo === 'quinzena') { dadosAtual = gerarVendasQuinzenaAtual(); dadosAnterior = gerarVendasQuinzenaAnterior(); }
+    else { dadosAtual = gerarVendasMesAtual(); dadosAnterior = gerarVendasMesAnterior(); }
+    carregarComparativoProdutos(dadosAtual, dadosAnterior, periodo);
+    carregarVendasPorVendedor(dadosAtual, dadosAnterior);
+    carregarVendasPorEquipe(dadosAtual, dadosAnterior);
+    carregarRankingRelatorio(dadosAtual);
+}
+function gerarVendasQuinzenaAtual() {
+    const hoje = new Date();
+    const dia = hoje.getDate();
+    const todas = gerarVendasMesAtual();
+    if (dia <= 15) return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; });
+    else return todas.filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 16; });
+}
+function gerarVendasQuinzenaAnterior() {
+    const hoje = new Date();
+    const dia = hoje.getDate();
+    let vendas = [];
+    if (dia <= 15) {
+        const mesAnterior = hoje.getMonth() === 0 ? 12 : hoje.getMonth();
+        const ano = hoje.getMonth() === 0 ? hoje.getFullYear() - 1 : hoje.getFullYear();
+        vendas = gerarVendasMesAnterior().filter(v => { const [y, m, d] = v.data.split('-').map(Number); return y === ano && m === mesAnterior && d >= 16; });
+    } else {
+        vendas = gerarVendasMesAtual().filter(v => { const d = parseInt(v.data.split('-')[2]); return d >= 1 && d <= 15; });
+    }
+    return vendas;
+}
+function carregarComparativoProdutos(atual, anterior, periodo) {
+    const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
+    let html = '<table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
+    produtos.forEach(p => {
+        const qtdAtual = atual.filter(v => v.plano === p).length;
+        const qtdAnterior = anterior.filter(v => v.plano === p).length;
+        const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0);
+        const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
+        html += `<td><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('tabelaComparativaProdutos').innerHTML = html;
+}
+function carregarVendasPorVendedor(atual, anterior) {
+    const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
+    const dados = vendedores.map(v => ({ nome: v.nome, atual: atual.filter(vd => vd.vendedor_id === v.id).length, anterior: anterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a, b) => b.atual - a.atual);
+    let html = '<tr><thead><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
+    dados.forEach(d => {
+        const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
+        const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
+        html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}<tr><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('tabelaVendedoresRelatorio').innerHTML = html;
+    const ctx = document.getElementById('graficoVendedores').getContext('2d');
+    if (graficoVendedoresInstance) graficoVendedoresInstance.destroy();
+    graficoVendedoresInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: dados.map(d => d.nome), datasets: [{ label: 'Vendas Atual', data: dados.map(d => d.atual), backgroundColor: '#e74c3c', borderRadius: 5 }, { label: 'Período Anterior', data: dados.map(d => d.anterior), backgroundColor: '#555', borderRadius: 5 }] },
+        options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: '#fff' }, grid: { display: false } } } }
+    });
+}
+function carregarVendasPorEquipe(atual, anterior) {
+    const equipes = {};
+    DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
+    atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
+    anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
+    let html = '<table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
+    Object.entries(equipes).forEach(([nome, valores]) => {
+        const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
+        const corVar = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
+        html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('tabelaEquipesRelatorio').innerHTML = html;
+}
+function carregarRankingRelatorio(atual) {
+    const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
+    const ranking = vendedores.map(v => ({ nome: v.nome, vendas: atual.filter(vd => vd.vendedor_id === v.id).length })).sort((a, b) => b.vendas - a.vendas);
+    const maxVendas = ranking[0]?.vendas || 1;
+    let html = '';
+    ranking.forEach((v, i) => {
+        const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+        const pct = maxVendas > 0 ? (v.vendas / maxVendas * 100).toFixed(0) : 0;
+        html += `<div class="ranking-item-relatorio"><div class="ranking-posicao-relatorio">${medalha || i + 1}</div><div class="ranking-info-relatorio"><span class="ranking-nome-relatorio">${v.nome}</span><span class="ranking-detalhes-relatorio">${v.vendas} vendas</span><div class="barra-progresso-relatorio"><div class="barra-progresso-preenchimento" style="width:${pct}%"></div></div></div><div class="ranking-pontos-relatorio">${v.vendas}</div></div>`;
+    });
+    document.getElementById('rankingRelatorio').innerHTML = html;
+}
 
 // ===== PROMOÇÕES =====
 function mostrarFormPromocao() { document.getElementById('formPromocao').style.display = 'block'; }
-function cadastrarPromocao() { const tipo = document.getElementById('tipoPromocao').value; const quantidade = parseInt(document.getElementById('quantidadePromocao').value) || 0; const inicio = document.getElementById('inicioPromocao').value; const fim = document.getElementById('fimPromocao').value; const premio = document.getElementById('premioPromocao').value.trim(); if (!inicio || !fim || !premio || quantidade <= 0) return alert('Preencha todos os campos corretamente!'); DB.promocoes.push({ id: Date.now(), tipo, quantidade, inicio, fim, premio, ativa: true, concluida: false, vencedores: [] }); salvarDB(); carregarPromocoes(); document.getElementById('formPromocao').style.display = 'none'; document.getElementById('premioPromocao').value = ''; alert('✅ Promoção cadastrada!'); }
-function carregarPromocoes() { const agora = new Date(); const tabela = document.getElementById('tabelaPromocoes'); const divVazia = document.getElementById('promocoesVazia'); if (!tabela || !divVazia) return; DB.promocoes.forEach(p => { const inicio = new Date(p.inicio); const fim = new Date(p.fim); if (agora < inicio) p.status = '⏳ Aguardando'; else if (agora >= inicio && agora <= fim) { p.status = '▶️ Ativa'; p.ativa = true; } else if (agora > fim && !p.concluida) { p.status = '⏹️ Encerrada'; p.ativa = false; verificarVencedoresPromocao(p); } }); salvarDB(); if (DB.promocoes.length === 0) { tabela.innerHTML = ''; divVazia.style.display = 'block'; } else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr><td>${p.tipo}</td><td>${p.quantidade}</td><td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td><td>${p.premio}</td><td>${p.status || 'Ativa'}</td><td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); } }
+function cadastrarPromocao() {
+    const tipo = document.getElementById('tipoPromocao').value;
+    const quantidade = parseInt(document.getElementById('quantidadePromocao').value) || 0;
+    const inicio = document.getElementById('inicioPromocao').value;
+    const fim = document.getElementById('fimPromocao').value;
+    const premio = document.getElementById('premioPromocao').value.trim();
+    if (!inicio || !fim || !premio || quantidade <= 0) return alert('Preencha todos os campos corretamente!');
+    DB.promocoes.push({ id: Date.now(), tipo, quantidade, inicio, fim, premio, ativa: true, concluida: false, vencedores: [] });
+    salvarDB(); carregarPromocoes(); document.getElementById('formPromocao').style.display = 'none'; document.getElementById('premioPromocao').value = ''; alert('✅ Promoção cadastrada!');
+}
+function carregarPromocoes() {
+    const agora = new Date();
+    const tabela = document.getElementById('tabelaPromocoes');
+    const divVazia = document.getElementById('promocoesVazia');
+    if (!tabela || !divVazia) return;
+    DB.promocoes.forEach(p => {
+        const inicio = new Date(p.inicio); const fim = new Date(p.fim);
+        if (agora < inicio) p.status = '⏳ Aguardando';
+        else if (agora >= inicio && agora <= fim) { p.status = '▶️ Ativa'; p.ativa = true; }
+        else if (agora > fim && !p.concluida) { p.status = '⏹️ Encerrada'; p.ativa = false; verificarVendedoresPromocao(p); }
+    });
+    salvarDB();
+    if (DB.promocoes.length === 0) { tabela.innerHTML = ''; divVazia.style.display = 'block'; }
+    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr>
+        <td>${p.tipo}</td>
+        <td>${p.quantidade}</td>
+        <td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td>
+        <td>${p.premio}</td>
+        <td>${p.status || 'Ativa'}</td>
+        <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join(''); }
+}
 function excluirPromocao(id) { if (confirm('Excluir esta promoção?')) { DB.promocoes = DB.promocoes.filter(p => p.id !== id); salvarDB(); carregarPromocoes(); } }
+function verificarVendedoresPromocao(promocao) {
+    const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt);
+    const vencedores = [];
+    vendedores.forEach(v => { const qtd = obterQuantidadePeriodo(v.id, promocao.tipo, promocao.inicio, promocao.fim); if (qtd >= promocao.quantidade) vencedores.push({ id: v.id, nome: v.nome, quantidade: qtd }); });
+    promocao.vencedores = vencedores.map(v => v.id); promocao.concluida = true; salvarDB();
+    if (vencedores.length > 0) { const nomes = vencedores.map(v => v.nome).join(', '); mostrarModalParabens(`🏆 Meta bônus de ${promocao.tipo} batida! Vencedor(es): ${nomes}. Prêmio: ${promocao.premio}`); vencedores.forEach(v => { DB.notificacoes.push({ id: Date.now() + Math.random(), userId: v.id, mensagem: `🎉 Você bateu a meta bônus de ${promocao.tipo} e ganhou: ${promocao.premio}!`, lida: false }); }); salvarDB(); }
+    else { mostrarModalParabens(`😞 Nenhum vendedor bateu a meta bônus de ${promocao.tipo}.`); }
+}
 function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) { return gerarVendasParaPeriodo(vendedorId, inicio, fim).length; }
-function gerarVendasParaPeriodo(vendedorId, inicio, fim) { const inicioDate = new Date(inicio); const fimDate = new Date(fim); const vendas = []; for (let d = new Date(inicioDate); d <= fimDate; d.setDate(d.getDate() + 1)) { const dataStr = d.toISOString().split('T')[0]; const vendasDia = gerarVendasParaData(dataStr); vendas.push(...vendasDia.filter(v => v.vendedor_id === vendedorId)); } return vendas; }
-function gerarVendasParaData(data) { return obterVendasAprovadasPorData(data).map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor) || 0, data: v.data })); }
-function verificarVencedoresPromocao(promocao) { const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt); const vencedores = []; vendedores.forEach(v => { const qtd = obterQuantidadePeriodo(v.id, promocao.tipo, promocao.inicio, promocao.fim); if (qtd >= promocao.quantidade) vencedores.push({ id: v.id, nome: v.nome, quantidade: qtd }); }); promocao.vencedores = vencedores.map(v => v.id); promocao.concluida = true; salvarDB(); if (vencedores.length > 0) { const nomes = vencedores.map(v => v.nome).join(', '); mostrarModalParabens(`🏆 Meta bônus de ${promocao.tipo} batida! Vencedor(es): ${nomes}. Prêmio: ${promocao.premio}`); vencedores.forEach(v => { DB.notificacoes.push({ id: Date.now() + Math.random(), userId: v.id, mensagem: `🎉 Você bateu a meta bônus de ${promocao.tipo} e ganhou: ${promocao.premio}!`, lida: false }); }); salvarDB(); } else { mostrarModalParabens(`😞 Nenhum vendedor bateu a meta bônus de ${promocao.tipo}.`); } }
-function verificarPromocoesAdmin() { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); }
+function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
+    const inicioDate = new Date(inicio); const fimDate = new Date(fim); const vendas = [];
+    for (let d = new Date(inicioDate); d <= fimDate; d.setDate(d.getDate() + 1)) { const dataStr = d.toISOString().split('T')[0]; const vendasDia = obterVendasAprovadasPorData(dataStr); vendas.push(...vendasDia.filter(v => v.vendedor_id === vendedorId)); }
+    return vendas;
+}
+function verificarPromocoesAdmin() { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVendedoresPromocao(p); }); }
 function mostrarModalParabens(mensagem) { document.getElementById('parabensMensagem').textContent = mensagem; document.getElementById('modalParabens').style.display = 'flex'; }
-function verificarNotificacoesVendedor() { if (!sessao || sessao.tipo !== 'vendedor') return; const notificacoesPendentes = DB.notificacoes.filter(n => n.userId === sessao.id && !n.lida); if (notificacoesPendentes.length > 0) { const notif = notificacoesPendentes[0]; document.getElementById('parabensVendedorMensagem').textContent = notif.mensagem; document.getElementById('modalParabensVendedor').style.display = 'flex'; notif.lida = true; salvarDB(); } }
-setInterval(() => { if (sessao && sessao.tipo === 'admin') { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); } }, 30000);
+function verificarNotificacoesVendedor() {
+    if (!sessao || sessao.tipo !== 'vendedor') return;
+    const notificacoesPendentes = DB.notificacoes.filter(n => n.userId === sessao.id && !n.lida);
+    if (notificacoesPendentes.length > 0) { const notif = notificacoesPendentes[0]; document.getElementById('parabensVendedorMensagem').textContent = notif.mensagem; document.getElementById('modalParabensVendedor').style.display = 'flex'; notif.lida = true; salvarDB(); }
+}
+setInterval(() => { if (sessao && sessao.tipo === 'admin') { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVendedoresPromocao(p); }); } }, 30000);
 
 // ===== METAS =====
-function carregarMetas() { document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10; document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75; document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas || 150; carregarSelectProdutos(); const tabelaProd = document.getElementById('tabelaMetasProdutos'); tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr><td>${p.produto}</td><td>${p.diaria}</td><td>${p.quinzenal}</td><td>${p.mensal}</td><td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); carregarMetasInstalacoes(); const selectVendedor = document.getElementById('vendedorMetaInstalacao'); selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join(''); carregarTabelaProdutos(); carregarOpcoesVendaAdmin(); }
-function carregarSelectProdutos() { const select = document.getElementById('produtoMetaSelect'); if (select) select.innerHTML = DB.produtos.map(p => `<option value="${p}">${p}</option>`).join(''); const selectVenda = document.getElementById('vPlano'); if (selectVenda) selectVenda.innerHTML = '<option value="">Selecione o plano</option>' + DB.produtos.map(p => `<option value="${p}">${p}</option>`).join(''); }
-function adicionarMetaProduto() { const produto = document.getElementById('produtoMetaSelect').value; const diaria = parseInt(document.getElementById('produtoDiaria').value) || 0; const quinzenal = parseInt(document.getElementById('produtoQuinzenal').value) || 0; const mensal = parseInt(document.getElementById('produtoMensal').value) || 0; if (!produto || diaria <= 0 || quinzenal <= 0 || mensal <= 0) return alert('Preencha todos os campos corretamente!'); DB.metas.produtos.push({ id: Date.now(), produto, diaria, quinzenal, mensal }); salvarDB(); carregarMetas(); }
+function carregarMetas() {
+    document.getElementById('metaDiariaVendas').value = DB.metas.diariaVendas || 10;
+    document.getElementById('metaQuinzenalVendas').value = DB.metas.quinzenalVendas || 75;
+    document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas || 150;
+    carregarSelectProdutos();
+    const tabelaProd = document.getElementById('tabelaMetasProdutos');
+    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr>
+        <td>${p.produto}</td>
+        <td>${p.diaria}</td>
+        <td>${p.quinzenal}</td>
+        <td>${p.mensal}</td>
+        <td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+    carregarMetasInstalacoes();
+    const selectVendedor = document.getElementById('vendedorMetaInstalacao');
+    selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
+    carregarTabelaProdutos();
+    carregarOpcoesVendaAdmin();
+}
+function carregarSelectProdutos() {
+    const select = document.getElementById('produtoMetaSelect');
+    if (select) select.innerHTML = DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
+    const selectVenda = document.getElementById('vPlano');
+    if (selectVenda) selectVenda.innerHTML = '<option value="">Selecione o plano</option>' + DB.produtos.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+function adicionarMetaProduto() {
+    const produto = document.getElementById('produtoMetaSelect').value;
+    const diaria = parseInt(document.getElementById('produtoDiaria').value) || 0;
+    const quinzenal = parseInt(document.getElementById('produtoQuinzenal').value) || 0;
+    const mensal = parseInt(document.getElementById('produtoMensal').value) || 0;
+    if (!produto || diaria <= 0 || quinzenal <= 0 || mensal <= 0) return alert('Preencha todos os campos corretamente!');
+    DB.metas.produtos.push({ id: Date.now(), produto, diaria, quinzenal, mensal });
+    salvarDB(); carregarMetas();
+}
 function removerMetaProduto(id) { DB.metas.produtos = DB.metas.produtos.filter(p => p.id !== id); salvarDB(); carregarMetas(); }
 function toggleMetaInstalacao() { document.getElementById('grupoVendedorInstalacao').style.display = document.getElementById('tipoMetaInstalacao').value === 'vendedor' ? 'block' : 'none'; }
-function adicionarMetaInstalacao() { const tipo = document.getElementById('tipoMetaInstalacao').value; const diaria = parseInt(document.getElementById('instalacaoDiaria').value) || 0; const quinzenal = parseInt(document.getElementById('instalacaoQuinzenal').value) || 0; const mensal = parseInt(document.getElementById('instalacaoMensal').value) || 0; if (diaria <= 0 || quinzenal <= 0 || mensal <= 0) return alert('Valores inválidos'); let entidade = '', entidadeId = null; if (tipo === 'vendedor') { entidadeId = parseInt(document.getElementById('vendedorMetaInstalacao').value); const vend = DB.usuarios.find(u => u.id === entidadeId); entidade = vend ? vend.nome : 'Vendedor'; } else { entidade = 'STAGE TELECOM'; entidadeId = 0; } DB.metas.instalacoes.push({ id: Date.now(), tipo, entidade, entidadeId, diaria, quinzenal, mensal }); salvarDB(); carregarMetas(); }
-function carregarMetasInstalacoes() { const tabelaInst = document.getElementById('tabelaMetasInstalacoes'); tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr><td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td><td>${i.entidade}</td><td>${i.diaria}</td><td>${i.quinzenal}</td><td>${i.mensal}</td><td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); }
+function adicionarMetaInstalacao() {
+    const tipo = document.getElementById('tipoMetaInstalacao').value;
+    const diaria = parseInt(document.getElementById('instalacaoDiaria').value) || 0;
+    const quinzenal = parseInt(document.getElementById('instalacaoQuinzenal').value) || 0;
+    const mensal = parseInt(document.getElementById('instalacaoMensal').value) || 0;
+    if (diaria <= 0 || quinzenal <= 0 || mensal <= 0) return alert('Valores inválidos');
+    let entidade = '', entidadeId = null;
+    if (tipo === 'vendedor') { entidadeId = parseInt(document.getElementById('vendedorMetaInstalacao').value); const vend = DB.usuarios.find(u => u.id === entidadeId); entidade = vend ? vend.nome : 'Vendedor'; }
+    else { entidade = 'STAGE TELECOM'; entidadeId = 0; }
+    DB.metas.instalacoes.push({ id: Date.now(), tipo, entidade, entidadeId, diaria, quinzenal, mensal });
+    salvarDB(); carregarMetas();
+}
+function carregarMetasInstalacoes() {
+    const tabelaInst = document.getElementById('tabelaMetasInstalacoes');
+    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr>
+        <td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td>
+        <td>${i.entidade}</td>
+        <td>${i.diaria}</td>
+        <td>${i.quinzenal}</td>
+        <td>${i.mensal}</td>
+        <td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+}
 function removerMetaInstalacao(id) { DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id); salvarDB(); carregarMetas(); }
 function salvarMetas() { DB.metas.diariaVendas = parseInt(document.getElementById('metaDiariaVendas').value) || 10; DB.metas.quinzenalVendas = parseInt(document.getElementById('metaQuinzenalVendas').value) || 75; DB.metas.mensalVendas = parseInt(document.getElementById('metaMensalVendas').value) || 150; salvarDB(); alert('✅ Metas de vendas atualizadas!'); }
-function carregarTabelaProdutos() { const tbody = document.getElementById('tabelaProdutos'); if (!tbody) return; tbody.innerHTML = DB.produtos.map((p, index) => `<tr><td>${p}</td><td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); }
-function adicionarProduto() { const nome = document.getElementById('novoProdutoNome').value.trim(); if (!nome) return alert('Digite um nome para o produto.'); if (DB.produtos.includes(nome)) return alert('Produto já existe.'); DB.produtos.push(nome); salvarDB(); document.getElementById('novoProdutoNome').value = ''; carregarTabelaProdutos(); carregarSelectProdutos(); }
+function carregarTabelaProdutos() {
+    const tbody = document.getElementById('tabelaProdutos');
+    if (!tbody) return;
+    tbody.innerHTML = DB.produtos.map((p, index) => `<tr>
+        <td>${p}</td>
+        <td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td>
+    </tr>`).join('');
+}
+function adicionarProduto() {
+    const nome = document.getElementById('novoProdutoNome').value.trim();
+    if (!nome) return alert('Digite um nome para o produto.');
+    if (DB.produtos.includes(nome)) return alert('Produto já existe.');
+    DB.produtos.push(nome); salvarDB(); document.getElementById('novoProdutoNome').value = ''; carregarTabelaProdutos(); carregarSelectProdutos();
+}
 function editarProduto(index) { const novoNome = prompt('Novo nome do produto:', DB.produtos[index]); if (novoNome && novoNome.trim() && novoNome.trim() !== DB.produtos[index]) { if (DB.produtos.includes(novoNome.trim())) return alert('Produto já existe.'); DB.produtos[index] = novoNome.trim(); salvarDB(); carregarTabelaProdutos(); carregarSelectProdutos(); } }
 function excluirProduto(index) { if (confirm(`Excluir produto "${DB.produtos[index]}"?`)) { DB.produtos.splice(index, 1); salvarDB(); carregarTabelaProdutos(); carregarSelectProdutos(); } }
 function carregarOpcoesVendaAdmin() { const vel = document.getElementById('opcoesVelocidade'); const formPag = document.getElementById('opcoesFormaPagamento'); const val = document.getElementById('opcoesValor'); if (vel) vel.value = (DB.opcoesVenda.velocidades || []).join(', '); if (formPag) formPag.value = (DB.opcoesVenda.formasPagamento || []).join(', '); if (val) val.value = (DB.opcoesVenda.valores || []).join(', '); }
@@ -1190,24 +1245,19 @@ function carregarListaStatusFlags() { const container = document.getElementById(
 function adicionarStatusFlag() { const nome = document.getElementById('novoStatusNome').value.trim(); const cor = document.getElementById('novoStatusCor').value; if (!nome) return alert('Digite um nome para a flag!'); DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = ''; }
 function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
 
-// ===== NOTIFICAÇÕES E ALERTAS =====
+// ===== NOTIFICAÇÕES =====
 function tocarAlerta() {
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
-        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.25);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine'; gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.25); gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.25);
         gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
         if (ctx.state === 'suspended') ctx.resume();
     } catch(e) { console.warn(e); }
 }
@@ -1215,23 +1265,18 @@ function mostrarModalNovaVenda() {
     const existente = document.getElementById('modalNovaVenda');
     if (existente) existente.remove();
     const modal = document.createElement('div');
-    modal.id = 'modalNovaVenda';
-    modal.className = 'modal-overlay';
-    modal.style.display = 'flex';
-    modal.style.zIndex = '99999';
+    modal.id = 'modalNovaVenda'; modal.className = 'modal-overlay'; modal.style.display = 'flex'; modal.style.zIndex = '99999';
     modal.innerHTML = `<div class="modal-glass modal-parabens modal-vibrando" style="text-align:center;max-width:450px;"><div class="parabens-icon" style="font-size:64px;">🔔</div><h2 style="color:#ffd700;font-size:28px;margin:15px 0;">NOVA VENDA!</h2><p style="color:#fff;font-size:16px;">Uma nova venda foi recebida no sistema.</p><button onclick="fecharModalNovaVenda()" class="btn-glass-primary" style="margin-top:20px;background:#ff4757;cursor:pointer;">Fechar (X)</button></div>`;
     document.body.appendChild(modal);
-    setTimeout(() => fecharModalNovaVenda(), 20000);
+    setTimeout(() => fecharModalNovaVenda(), 8000);
 }
-function fecharModalNovaVenda() { const modal = document.getElementById('modalNovaVenda'); if (modal) modal.remove(); novasVendas = false; }
-function verificarNotificacaoPendente() {
-    if (sessionStorage.getItem('stage_notificacao_pendente') === 'true') {
-        sessionStorage.removeItem('stage_notificacao_pendente');
-        setTimeout(() => mostrarModalNovaVenda(), 1000);
-    }
-}
+function fecharModalNovaVenda() { const modal = document.getElementById('modalNovaVenda'); if (modal) modal.remove(); }
+function verificarNotificacaoPendente() { if (sessionStorage.getItem('stage_notificacao_pendente') === 'true') { sessionStorage.removeItem('stage_notificacao_pendente'); setTimeout(() => mostrarModalNovaVenda(), 1000); } }
 
-// ===== FUNÇÕES DE LOGOUT E EXIBIÇÃO =====
+// ===== POLLING =====
+setInterval(() => { if (sessao) { buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem(); } }, 5000);
+
+// ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
     sessionStorage.removeItem('stage_session');
     sessionStorage.removeItem('stage_notificados_pendentes');
@@ -1239,46 +1284,27 @@ function logout() {
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'none';
-    const chatWidget = document.getElementById('chatWidget');
-    if (chatWidget) chatWidget.style.display = 'none';
-    if (chatPollingInterval) clearInterval(chatPollingInterval);
 }
 function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
     document.getElementById('vendedorScreen').style.display = 'none';
     document.getElementById('userInfoAdmin').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
-    carregarDashboard();
-    verificarPromocoesAdmin();
-    iniciarChat();
-    buscarPendentesDaNuvem();
-    buscarVendasAprovadasDaNuvem();
+    carregarDashboard(); verificarPromocoesAdmin(); buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem();
 }
 function mostrarVendedor() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'flex';
     document.getElementById('userInfoVendedor').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
-    mostrarSecaoVendedor(null, 'inicio');
-    verificarNotificacoesVendedor();
-    iniciarChat();
-    buscarPendentesDaNuvem();
-    buscarVendasAprovadasDaNuvem();
+    mostrarSecaoVendedor(null, 'inicio'); verificarNotificacoesVendedor(); buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem();
 }
 
-// ===== POLLING PRINCIPAL =====
-setInterval(() => {
-    if (sessao) {
-        buscarPendentesDaNuvem();
-        buscarVendasAprovadasDaNuvem();
-    }
-}, 5000);
-
 // ===== INICIALIZAÇÃO =====
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', () => {
     const lembrar = localStorage.getItem('stage_remember');
-    if(lembrar){ document.getElementById('usuario').value=lembrar; document.getElementById('lembrar').checked=true; }
-    if(sessao){ sessao.tipo==='admin'?mostrarAdmin():mostrarVendedor(); }
-    document.addEventListener('keypress',e=>{ if(e.key==='Enter' && document.getElementById('loginScreen').style.display!=='none') fazerLogin(); });
+    if (lembrar) { document.getElementById('usuario').value = lembrar; document.getElementById('lembrar').checked = true; }
+    if (sessao) { sessao.tipo === 'admin' ? mostrarAdmin() : mostrarVendedor(); }
+    document.addEventListener('keypress', e => { if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') fazerLogin(); });
     verificarNotificacaoPendente();
 });
