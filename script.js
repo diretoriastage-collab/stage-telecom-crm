@@ -1,6 +1,6 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT FINAL COMPLETO
-// UUID oculto, modal correto, notificação única, chat, metas, promoções, PDF
+// STAGE TELECOM CRM - SCRIPT COMPLETO
+// (UUID oculto, notificação única, trava tratando)
 // ============================================
 
 let DB;
@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxTQ5-NKdx59dJ75PFnrwJGDdvik10OLQcSQOcl50FH3HgC7M5R3wfxCA3PSeUfGrSp_w/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwhYJhQmAOy18lX2pGLtCzUq5buT2NHpIRaMRKM4lkIyRWvCriSou9axIZPqcAd1ZcGnA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -202,7 +202,7 @@ function formatarDataISO(dataStr) {
     return data.toLocaleDateString('pt-BR');
 }
 
-// ===== BUSCAR PENDENTES (UUID OCULTO) =====
+// ===== BUSCAR PENDENTES (UUID OCULTO, NOME DO CLIENTE CORRETO) =====
 async function buscarPendentesDaNuvem() {
     if (!sessao) return;
     try {
@@ -347,7 +347,7 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
     const itensExibidos = naoAprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.map(a => `
-        <tr>
+        <table>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.produto || a.plano || '—'}</td>
             <td>${a.vendedorNome || '—'}</td>
@@ -358,7 +358,7 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
                 <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></table>';
+    `).join('') || '<table><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
     atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
 
@@ -508,7 +508,13 @@ function salvarInfoAdicional() {
         a.infoData = document.getElementById('infoData').value;
         a.infoPeriodo = document.getElementById('infoPeriodo').value;
         salvarDB();
-        alert('✅ Informações adicionais salvas!');
+        postParaGoogleSheets('atualizarPendente', {
+            uuid: a.id,
+            contrato: a.contrato,
+            infoData: a.infoData,
+            infoPeriodo: a.infoPeriodo
+        });
+        alert('✅ Informações adicionais salvas e sincronizadas!');
     }
     fecharModalInfoAdicional();
 }
@@ -527,7 +533,7 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
-        return `<table>
+        return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.produto || a.plano || '—'}</td>
             <td>${vendedor ? vendedor.nome : 'N/A'}</td>
@@ -537,7 +543,7 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
                 <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></table>';
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
 
@@ -686,7 +692,7 @@ function carregarInstalacoes() {
     if (!tabela) return;
     tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
         const statusInstalacao = a.instalacaoStatus || 'Aguardando';
-        return `<tr>
+        return `<td>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.plano || a.produto || '—'}</td>
             <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
@@ -804,7 +810,7 @@ function enviarParaGoogleSheets(venda) {
     postParaGoogleSheets('enviarVenda', payload);
 }
 
-// ===== DASHBOARD ADMIN (completo) =====
+// ===== DASHBOARD ADMIN =====
 function obterVendasAprovadas() { return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false); }
 function obterVendasAprovadasHoje() { const hoje = new Date().toISOString().split('T')[0]; return obterVendasAprovadas().filter(a => a.data === hoje); }
 function obterVendasAprovadasMesAtual() { const hoje = new Date(); return obterVendasAprovadas().filter(a => { const [aAno, aMes] = a.data.split('-').map(Number); return aAno === hoje.getFullYear() && aMes === hoje.getMonth()+1; }); }
@@ -941,7 +947,7 @@ function carregarUsuarios() {
     const usuarios = DB.usuarios.filter(u => !u.deletedAt);
     const tabela = document.getElementById('tabelaUsuarios');
     if (!tabela) return;
-    tabela.innerHTML = usuarios.map(u => `<tr>
+    tabela.innerHTML = usuarios.map(u => `<td>
         <td><strong>${u.nome}</strong><button onclick="abrirModalEditar(${u.id})" style="background:none;border:none;color:var(--primary-light);cursor:pointer;margin-left:8px;"><i class="fas fa-pencil-alt"></i></button></td>
         <td>@${u.usuario}</td>
         <td>${u.email}</td>
@@ -952,7 +958,7 @@ function carregarUsuarios() {
             <button onclick="toggleUsuario(${u.id})" style="background:${u.ativo ? 'rgba(255,71,87,0.2)' : 'rgba(46,213,115,0.2)'};border:1px solid ${u.ativo ? 'rgba(255,71,87,0.3)' : 'rgba(46,213,115,0.3)'};color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;">${u.ativo ? '🔒 Desativar' : '🔓 Ativar'}</button>
             <button onclick="excluirUsuario(${u.id})" style="background:rgba(255,71,87,0.3);border:1px solid rgba(255,71,87,0.5);color:white;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;margin-left:5px;"><i class="fas fa-trash"></i> Excluir</button>
         </td>
-    </table>`).join('');
+    </tr>`).join('');
     const cont = document.getElementById('contadorLixeira'); if (cont) cont.textContent = DB.usuarios.filter(u => u.deletedAt).length;
 }
 function mostrarFormCadastro() { document.getElementById('formCadastro').style.display = 'block'; }
@@ -997,7 +1003,7 @@ function carregarLixeira() {
     const lixeira = DB.usuarios.filter(u => u.deletedAt);
     document.getElementById('contadorLixeira').textContent = lixeira.length;
     const tabela = document.getElementById('tabelaLixeira');
-    if (!lixeira.length) { tabela.innerHTML = '</table><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
+    if (!lixeira.length) { tabela.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Lixeira vazia</td></tr>'; return; }
     tabela.innerHTML = lixeira.map(v => {
         const dias = Math.ceil(15 - ((agora - new Date(v.deletedAt)) / (1000*60*60*24)));
         return `<tr>
@@ -1017,7 +1023,7 @@ function carregarLixeira() {
 function recuperarUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.deletedAt = null; u.ativo = true; salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 function excluirPermanentemente(id) { const u = DB.usuarios.find(u => u.id === id); if (u && confirm(`Excluir definitivamente "${u.nome}"?`)) { DB.usuarios = DB.usuarios.filter(u => u.id !== id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== RELATÓRIOS (completo) =====
+// ===== RELATÓRIOS =====
 function carregarRelatorios() {
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
@@ -1061,25 +1067,25 @@ function gerarVendasQuinzenaAnterior() {
 }
 function carregarComparativoProdutos(atual, anterior, periodo) {
     const produtos = ['Básico', 'Empresarial', 'Premium', 'Ultra'];
-    let html = '<table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
+    let html = '</table><thead><tr><th>Produto</th><th>Período Atual</th><th>Período Anterior</th><th>Variação</th></tr></thead><tbody>';
     produtos.forEach(p => {
         const qtdAtual = atual.filter(v => v.plano === p).length;
         const qtdAnterior = anterior.filter(v => v.plano === p).length;
         const variacao = qtdAnterior > 0 ? (((qtdAtual - qtdAnterior) / qtdAnterior) * 100).toFixed(1) : (qtdAtual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td><strong>${p}</strong></td>.html${qtdAtual}</td>.html${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+        html += `<tr><td><strong>${p}</strong></td><td>${qtdAtual}</td><td>${qtdAnterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
-    html += '</tbody></table>';
+    html += '</tbody></tr>';
     document.getElementById('tabelaComparativaProdutos').innerHTML = html;
 }
 function carregarVendasPorVendedor(atual, anterior) {
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt);
     const dados = vendedores.map(v => ({ nome: v.nome, atual: atual.filter(vd => vd.vendedor_id === v.id).length, anterior: anterior.filter(vd => vd.vendedor_id === v.id).length })).sort((a,b) => b.atual - a.atual);
-    let html = '<td><thead><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th><tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Vendedor</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
     dados.forEach(d => {
         const variacao = d.anterior > 0 ? (((d.atual - d.anterior) / d.anterior) * 100).toFixed(1) : (d.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<td>.html${d.nome}</td>.html${d.atual}</td>.html${d.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+        html += `<tr><td>${d.nome}</td><td>${d.atual}</td><td>${d.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('tabelaVendedoresRelatorio').innerHTML = html;
@@ -1096,11 +1102,11 @@ function carregarVendasPorEquipe(atual, anterior) {
     DB.usuarios.filter(u => u.tipo === 'vendedor' && !u.deletedAt).forEach(u => { const eq = u.equipe || 'Sem equipe'; if (!equipes[eq]) equipes[eq] = { atual: 0, anterior: 0 }; });
     atual.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].atual++; });
     anterior.forEach(v => { const user = DB.usuarios.find(u => u.id === v.vendedor_id); const eq = user?.equipe || 'Sem equipe'; if (equipes[eq]) equipes[eq].anterior++; });
-    let html = '</tr><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Equipe</th><th>Atual</th><th>Anterior</th><th>% Variação</th></tr></thead><tbody>';
     Object.entries(equipes).forEach(([nome, valores]) => {
         const variacao = valores.anterior > 0 ? (((valores.atual - valores.anterior) / valores.anterior) * 100).toFixed(1) : (valores.atual > 0 ? 100 : 0);
         const corVar = variacao >= 0 ? '#2ed573' : '#ff4757';
-        html += `<tr><td><strong>${nome}</strong></td>.html${valores.atual}</td>.html${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
+        html += `<tr><td><strong>${nome}</strong></td><td>${valores.atual}</td><td>${valores.anterior}</td><td style="color:${corVar}">${variacao >= 0 ? '+' + variacao : variacao}%</td></tr>`;
     });
     html += '</tbody></table>';
     document.getElementById('tabelaEquipesRelatorio').innerHTML = html;
@@ -1189,13 +1195,7 @@ function carregarMetas() {
     document.getElementById('metaMensalVendas').value = DB.metas.mensalVendas || 150;
     carregarSelectProdutos();
     const tabelaProd = document.getElementById('tabelaMetasProdutos');
-    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr>
-        <td>${p.produto}</td>
-        <td>${p.diaria}</td>
-        <td>${p.quinzenal}</td>
-        <td>${p.mensal}</td>
-        <td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
-    </table>`).join('');
+    tabelaProd.innerHTML = DB.metas.produtos.map(p => `<tr><td>${p.produto}</td><td>${p.diaria}</td><td>${p.quinzenal}</td><td>${p.mensal}</td><td><button onclick="removerMetaProduto(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
     carregarMetasInstalacoes();
     const selectVendedor = document.getElementById('vendedorMetaInstalacao');
     selectVendedor.innerHTML = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt).map(u => `<option value="${u.id}">${u.nome}</option>`).join('');
@@ -1233,14 +1233,7 @@ function adicionarMetaInstalacao() {
 }
 function carregarMetasInstalacoes() {
     const tabelaInst = document.getElementById('tabelaMetasInstalacoes');
-    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr>
-        <td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td>
-        <td>${i.entidade}</td>
-        <td>${i.diaria}</td>
-        <td>${i.quinzenal}</td>
-        <td>${i.mensal}</td>
-        <td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
-    </tr>`).join('');
+    tabelaInst.innerHTML = DB.metas.instalacoes.map(i => `<tr><td>${i.tipo === 'vendedor' ? 'Vendedor' : 'Empresa'}</td><td>${i.entidade}</td><td>${i.diaria}</td><td>${i.quinzenal}</td><td>${i.mensal}</td><td><button onclick="removerMetaInstalacao(${i.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
 }
 function removerMetaInstalacao(id) { DB.metas.instalacoes = DB.metas.instalacoes.filter(i => i.id !== id); salvarDB(); carregarMetas(); }
 function salvarMetas() {
@@ -1252,10 +1245,7 @@ function salvarMetas() {
 function carregarTabelaProdutos() {
     const tbody = document.getElementById('tabelaProdutos');
     if (!tbody) return;
-    tbody.innerHTML = DB.produtos.map((p, index) => `<tr>
-        <td>${p}</td>
-        <td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td>
-    </tr>`).join('');
+    tbody.innerHTML = DB.produtos.map((p, index) => `<tr><td>${p}</td><td><button onclick="editarProduto(${index})" class="btn-glass-sm" style="margin-right:5px;"><i class="fas fa-edit"></i></button><button onclick="excluirProduto(${index})" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button></td></tr>`).join('');
 }
 function adicionarProduto() {
     const nome = document.getElementById('novoProdutoNome').value.trim();
@@ -1294,14 +1284,7 @@ function carregarPromocoes() {
     });
     salvarDB();
     if (DB.promocoes.length === 0) { tabela.innerHTML = ''; divVazia.style.display = 'block'; }
-    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr>
-        <td>${p.tipo}</td>
-        <td>${p.quantidade}</td>
-        <td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td>
-        <td>${p.premio}</td>
-        <td>${p.status || 'Ativa'}</td>
-        <td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td>
-    </tr>`).join(''); }
+    else { divVazia.style.display = 'none'; tabela.innerHTML = DB.promocoes.map(p => `<tr><td>${p.tipo}</td><td>${p.quantidade}</td><td>${new Date(p.inicio).toLocaleString('pt-BR')} → ${new Date(p.fim).toLocaleString('pt-BR')}</td><td>${p.premio}</td><td>${p.status || 'Ativa'}</td><td><button onclick="excluirPromocao(${p.id})" class="btn-glass-danger" style="padding:4px 10px;font-size:12px;"><i class="fas fa-trash"></i></button></td></tr>`).join(''); }
 }
 function excluirPromocao(id) { if (confirm('Excluir esta promoção?')) { DB.promocoes = DB.promocoes.filter(p => p.id !== id); salvarDB(); carregarPromocoes(); } }
 function obterQuantidadePeriodo(vendedorId, tipo, inicio, fim) { return gerarVendasParaPeriodo(vendedorId, inicio, fim).length; }
@@ -1314,7 +1297,6 @@ function gerarVendasParaPeriodo(vendedorId, inicio, fim) {
     }
     return vendas;
 }
-function obterVendasAprovadasPorData(data) { return obterVendasAprovadas().filter(a => a.data === data); }
 function verificarVencedoresPromocao(promocao) {
     const vendedores = DB.usuarios.filter(u => u.tipo === 'vendedor' && u.ativo && !u.deletedAt);
     const vencedores = [];
@@ -1332,7 +1314,7 @@ function verificarNotificacoesVendedor() {
 }
 setInterval(() => { if (sessao && sessao.tipo === 'admin') { const agora = new Date(); DB.promocoes.forEach(p => { if (p.ativa && new Date(p.fim) <= agora && !p.concluida) verificarVencedoresPromocao(p); }); } }, 30000);
 
-// ===== CHAT (multi-PC via GS) =====
+// ===== CHAT (multi-PC) =====
 let chatConversationAtual = null;
 let chatIntervalo = null;
 function carregarUsuariosChat() { const select = document.getElementById('privateUserSelect'); if (!select) return; select.innerHTML = '<option value="">Nova conversa privada...</option>'; DB.usuarios.filter(u => u.ativo && !u.deletedAt && u.id !== sessao.id).forEach(u => { select.innerHTML += `<option value="${u.id}">${u.nome} (${u.categoria})</option>`; }); }
