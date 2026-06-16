@@ -1246,14 +1246,52 @@ function salvarEdicaoUsuario() {
     const categoria = document.getElementById('editCategoriaUsuario').value;
     const novaSenha = document.getElementById('editSenhaUsuario').value.trim();
     const equipe = document.getElementById('editEquipeUsuario').value.trim();
+
     if (!nome || !usuario || !email) return alert('Nome, usuário e email são obrigatórios.');
-    const u = DB.usuarios.find(u => u.id === id); if (!u) return;
+
+    const u = DB.usuarios.find(u => u.id === id);
+    if (!u) return;
+
+    const usuarioAntigo = u.usuario; // necessário para localizar a linha na planilha
+
     const conflito = DB.usuarios.find(u => u.usuario === usuario && u.id !== id && !u.deletedAt);
     if (conflito) return alert('Usuário já existe.');
-    u.nome = nome; u.usuario = usuario; u.email = email; u.categoria = categoria; u.tipo = categoria;
+
+    // Atualiza localmente
+    u.nome = nome;
+    u.usuario = usuario;
+    u.email = email;
+    u.categoria = categoria;
+    u.tipo = categoria;
     if (novaSenha) u.senha = novaSenha;
     u.equipe = categoria === 'admin' ? 'Gestão' : (equipe || 'Geral');
-    salvarDB(); carregarUsuarios(); fecharModalEditar();
+    salvarDB();
+
+    // Sincroniza com a planilha
+    fetchFromGS('editarUsuario', {
+        usuarioAntigo: usuarioAntigo,
+        nome: nome,
+        usuario: usuario,
+        senha: novaSenha,          // vazia mantém a senha atual
+        email: email,
+        categoria: categoria,
+        equipe: u.equipe,
+        status: u.ativo ? 'LIBERADO' : 'BLOQUEADO'
+    }).then(resp => {
+        console.log('Resposta do editarUsuario:', resp);
+        if (resp && resp.ok) {
+            console.log('✅ Usuário atualizado no Google Sheets');
+        } else {
+            console.warn('⚠️ Falha ao sincronizar edição:', resp?.erro);
+            alert('⚠️ Usuário salvo localmente, mas houve falha ao sincronizar com a planilha: ' + (resp?.erro || 'Erro desconhecido'));
+        }
+    }).catch(err => {
+        console.error('Erro de rede ao sincronizar edição:', err);
+        alert('⚠️ Erro de comunicação ao sincronizar com a planilha.');
+    });
+
+    carregarUsuarios();
+    fecharModalEditar();
 }
 
 function toggleLixeira() { const l = document.getElementById('lixeiraUsuarios'); if (l.style.display === 'none' || l.style.display === '') { carregarLixeira(); l.style.display = 'block'; } else l.style.display = 'none'; }
