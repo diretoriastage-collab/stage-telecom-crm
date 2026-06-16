@@ -935,8 +935,12 @@ function carregarInstalacoes() {
     }).join('') : '<tr><td colspan="5" style="text-align:center;padding:30px;">Nenhuma venda para instalação</td></tr>';
 }
 async function alterarStatusInstalacao(id, novoStatus) {
+    console.log('🔄 alterarStatusInstalacao chamada:', id, novoStatus);
     const a = DB.ativacoes.find(x => x.id === id);
-    if (!a) return;
+    if (!a) {
+        console.error('❌ Venda não encontrada:', id);
+        return;
+    }
 
     if (novoStatus === 'Instalado') {
         if (!confirm(`⚠️ Essa venda de "${a.nomeCompleto}" foi realmente INSTALADA?`)) {
@@ -950,21 +954,40 @@ async function alterarStatusInstalacao(id, novoStatus) {
     a.instalacaoStatus = novoStatus;
     salvarDB();
 
-    // 🔥 Envia para o GS via POST (ou GET)
-    await postParaGoogleSheets('atualizarInstalacao', {
-        uuid: a.id,
-        status: novoStatus
-    });
+    try {
+        // 🔥 Envia para o GS via JSONP (GET)
+        const resp = await fetchFromGS('atualizarInstalacao', {
+            uuid: a.id,
+            status: novoStatus
+        });
 
-    // Aguarda o polling para sincronizar
-    setTimeout(() => {
-        buscarVendasAprovadasDaNuvem();
-    }, 1000);
+        console.log('📦 Resposta do GS:', resp);
 
-    // Feedback visual
-    const select = document.querySelector(`select[onchange*="alterarStatusInstalacao('${id}"]`);
-    if (select) select.style.borderColor = '#2ed573';
-    setTimeout(() => { if (select) select.style.borderColor = ''; }, 2000);
+        if (resp && resp.ok === true) {
+            console.log(`✅ Status atualizado para: ${novoStatus}`);
+            // Recarrega os dados para sincronizar
+            await buscarVendasAprovadasDaNuvem();
+            if (sessao.tipo === 'vendedor') {
+                carregarControleVendas();
+                carregarInstalacoes();
+            }
+            if (sessao.tipo === 'admin') {
+                carregarVendasAprovadas();
+            }
+        } else {
+            console.error('❌ Erro no GS:', resp?.erro || 'Erro desconhecido');
+            a.instalacaoStatus = statusAnterior;
+            salvarDB();
+            alert('❌ Erro ao atualizar status. Tente novamente.');
+            carregarInstalacoes();
+        }
+    } catch (err) {
+        console.error('❌ Erro de rede:', err);
+        a.instalacaoStatus = statusAnterior;
+        salvarDB();
+        alert('❌ Erro de comunicação. Tente novamente.');
+        carregarInstalacoes();
+    }
 }
 function mostrarSecaoVendedor(e, secao) {
     document.querySelectorAll('#vendedorScreen .section-active, #vendedorScreen .section-hidden').forEach(s => { s.style.display = 'none'; s.className = 'section-hidden'; });
