@@ -733,17 +733,51 @@ function abrirModalVisualizacao(id) {
 function fecharModalVisualizacao() { document.getElementById('modalVisualizacao').style.display = 'none'; }
 
 // ===== REMOVER VENDA =====
-function removerVenda(id) {
+async function removerVenda(id) {
     const venda = DB.ativacoes.find(a => a.id === id);
-    if (!venda) return;
-    if (confirm('Tem certeza que deseja remover permanentemente esta venda?')) {
-        postParaGoogleSheets('excluirVenda', { uuid: venda.id });
-        DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
-        salvarDB();
-        if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
-        if (document.getElementById('secao-vendasAprovadas')?.classList.contains('section-active')) carregarVendasAprovadas();
-        if (sessao.tipo === 'admin') carregarDashboard();
-        alert('✅ Venda removida com sucesso!');
+    if (!venda) {
+        alert('Venda não encontrada!');
+        return;
+    }
+
+    if (!confirm(`Tem certeza que deseja remover permanentemente a venda de "${venda.nomeCompleto || venda.nomeCliente}"?`)) {
+        return;
+    }
+
+    // Mostra feedback visual (opcional)
+    const btn = document.querySelector(`[onclick*="removerVenda('${id}')"]`);
+    if (btn) {
+        btn.textContent = '...';
+        btn.disabled = true;
+    }
+
+    try {
+        // Usa fetchFromGS (GET) para excluir e ler a resposta
+        const resp = await fetchFromGS('excluirVenda', { uuid: venda.id });
+        console.log('Resposta da exclusão:', resp);
+
+        if (resp && resp.ok === true) {
+            // Exclusão confirmada no GS
+            DB.ativacoes = DB.ativacoes.filter(a => a.id !== id);
+            salvarDB();
+
+            // Recarrega as listas para garantir consistência (opcional, mas seguro)
+            await buscarPendentesDaNuvem();
+            await buscarVendasAprovadasDaNuvem();
+
+            alert('✅ Venda removida com sucesso!');
+        } else {
+            alert('❌ Erro ao excluir venda: ' + (resp?.erro || 'Erro desconhecido'));
+        }
+    } catch (err) {
+        console.error('Erro na exclusão:', err);
+        alert('❌ Erro de comunicação ao excluir venda.');
+    }
+
+    // Restaura o botão (se existir)
+    if (btn) {
+        btn.textContent = '🗑';
+        btn.disabled = false;
     }
 }
 
