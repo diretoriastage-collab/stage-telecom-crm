@@ -87,7 +87,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwLSXpQuahLQY7FTjaowx2InSx1LfycrinkTXR4uGHJSes_8lYkwtKSpIOOodmokht6QA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzsKMFKqYm08LGbU9Yb6GsmZcJB7VdjpEv7CYrKzeYTjYAVoj_3C6ukbr3kAxnsMLrMYQ/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -1203,10 +1203,35 @@ function cadastrarUsuario() {
     const eq = document.getElementById('equipeUsuario').value.trim();
     if (!n || !u || !s || !e) return alert('Preencha todos os campos obrigatórios!');
     if (DB.usuarios.find(x => x.usuario === u && !x.deletedAt)) return alert('Usuário já existe!');
+
+    // Salva localmente
     DB.usuarios.push({ id: Date.now(), usuario: u, senha: s, nome: n, email: e, tipo: cat, categoria: cat, ativo: true, deletedAt: null, equipe: cat === 'admin' ? 'Gestão' : (eq || 'Geral') });
-    salvarDB(); carregarUsuarios(); document.getElementById('formCadastro').style.display = 'none';
+    salvarDB();
+
+    // Envia para o Google Sheets
+    fetchFromGS('adicionarUsuario', {
+        nome: n,
+        usuario: u,
+        senha: s,
+        email: e,
+        categoria: cat,
+        equipe: cat === 'admin' ? 'Gestão' : (eq || 'Geral'),
+        status: 'LIBERADO'
+    }).then(resp => {
+        if (resp && resp.ok) {
+            console.log('✅ Usuário sincronizado com Google Sheets');
+        } else {
+            console.warn('⚠️ Usuário salvo localmente, mas falha ao sincronizar com Google Sheets:', resp?.erro);
+        }
+    }).catch(err => {
+        console.warn('⚠️ Erro de rede ao sincronizar usuário:', err);
+    });
+
+    // Limpa formulário e atualiza tabela
+    document.getElementById('formCadastro').style.display = 'none';
     ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id => document.getElementById(id).value = '');
-    alert('✅ Usuário cadastrado com sucesso!');
+    carregarUsuarios();
+    alert('✅ Usuário cadastrado com sucesso! (Sincronizando com a nuvem...)');
 }
 
 function toggleUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.ativo = !u.ativo; salvarDB(); carregarUsuarios(); } }
