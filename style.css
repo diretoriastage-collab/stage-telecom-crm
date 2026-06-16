@@ -559,3 +559,34 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
   opacity: 0.4;
   pointer-events: none;
 }
+/* Bloco de Informações de Instalação (topo do modal) */
+.instalacao-info-top {
+    background: rgba(46, 213, 115, 0.08);
+    border: 1px solid rgba(46, 213, 115, 0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.instalacao-info-top .info-item {
+    display: flex;
+    flex-direction: column;
+}
+.instalacao-info-top .info-item .label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+.instalacao-info-top .info-item .value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+}
+.instalacao-info-top .info-item .value.empty {
+    color: rgba(255, 255, 255, 0.3);
+    font-weight: 400;
+}
