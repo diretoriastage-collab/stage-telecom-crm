@@ -247,7 +247,8 @@ async function buscarPendentesDaNuvem() {
                 tratandoPor: p.TratandoPor || null,
                 contrato: p.Contrato || '',
                 infoData: p.DataInstalacao || '',
-                infoPeriodo: p.PeriodoInstalacao || ''
+                infoPeriodo: p.PeriodoInstalacao || '',
+                createdAt: p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now() // 🔥 TIMESTAMP
             }));
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             const aprovadasLocais = DB.ativacoes.filter(a => a.status === 'Aprovado');
@@ -270,7 +271,6 @@ async function buscarPendentesDaNuvem() {
         }
     } catch (err) { console.warn('Erro ao buscar pendentes:', err); }
 }
-
 async function buscarVendasAprovadasDaNuvem() {
     if (!sessao) return;
     try {
@@ -314,7 +314,8 @@ async function buscarVendasAprovadasDaNuvem() {
                 vendedor_id: null,
                 data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
-                instalacaoStatus: 'Aguardando'
+                instalacaoStatus: 'Aguardando',
+                createdAt: v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now() // 🔥 TIMESTAMP
             }));
             aprovadasNuvem.forEach(v => {
                 const user = DB.usuarios.find(u => u.nome && u.nome.trim().toUpperCase() === (v.vendedorNome || '').trim().toUpperCase());
@@ -328,13 +329,14 @@ async function buscarVendasAprovadasDaNuvem() {
         }
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
-
 // ===== ATIVAÇÕES (TABELA - NUNCA MOSTRA UUID) =====
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
-    // 🔥 Ordenação decrescente (mais recentes primeiro)
-    let naoAprovadas = DB.ativacoes.filter(a => a.status !== 'Aprovado').sort((a,b) => (b.data || '').localeCompare(a.data || ''));
+    let naoAprovadas = DB.ativacoes
+        .filter(a => a.status !== 'Aprovado')
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
+
     const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
     if (termo) {
         naoAprovadas = naoAprovadas.filter(a => {
@@ -365,7 +367,6 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
     atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
-
 function mudarPaginaAtivacoes(direcao) {
     if (direcao === 'anterior' && paginaAtualAtivacoes > 1) carregarAtivacoes(paginaAtualAtivacoes - 1);
     else if (direcao === 'proximo') {
@@ -597,8 +598,10 @@ function salvarInfoAdicional() {
 function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const tabela = document.getElementById('tabelaVendasAprovadas');
     if (!tabela) return;
-    // 🔥 Ordenação decrescente (mais recentes primeiro)
-    let aprovadas = DB.ativacoes.filter(a => a.status === 'Aprovado').sort((a,b) => b.data.localeCompare(a.data));
+    let aprovadas = DB.ativacoes
+        .filter(a => a.status === 'Aprovado')
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
+
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
     if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
     const total = aprovadas.length;
@@ -786,6 +789,7 @@ function enviarVenda() {
         status: "Pendente",
         data: new Date().toISOString().split('T')[0],
         finalizada: false,
+        createdAt: Date.now(), // 🔥 TIMESTAMP PARA ORDENAÇÃO
         ...campos
     };
     fetchFromGS('adicionarPendente', { venda: JSON.stringify(novaAtivacao) }).then(resp => {
@@ -800,11 +804,10 @@ function enviarVenda() {
         } else alert('❌ Erro ao enviar. Tente novamente.');
     }).catch(err => { console.error(err); alert('❌ Erro de comunicação.'); });
 }
-
 function carregarControleVendas() {
     const minhasAtivacoes = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id)
-        .sort((a, b) => (b.data || '').localeCompare(a.data || '')); // 🔥 MAIS RECENTE PRIMEIRO
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
 
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
@@ -824,7 +827,7 @@ function carregarControleVendas() {
 function carregarInstalacoes() {
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
-        .sort((a, b) => (b.data || '').localeCompare(a.data || '')); // 🔥 MAIS RECENTE PRIMEIRO
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 🔥 MAIS RECENTE PRIMEIRO
 
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
