@@ -635,29 +635,39 @@ function salvarInfoAdicional() {
 function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const tabela = document.getElementById('tabelaVendasAprovadas');
     if (!tabela) return;
-    let aprovadas = DB.ativacoes.filter(a => a.status === 'Aprovado').sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+    
+    // 🔥 USA reverse() IGUAL NO PAINEL DO VENDEDOR
+    let aprovadas = DB.ativacoes
+        .filter(a => a.status === 'Aprovado')
+        .reverse(); // Mais recentes primeiro
+    
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
     if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
+    
     const total = aprovadas.length;
     const totalPaginas = Math.ceil(total / itensPorPagina);
     paginaAtualVendasAprovadas = Math.min(pagina, totalPaginas || 1);
     const inicio = (paginaAtualVendasAprovadas - 1) * itensPorPagina;
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
+    
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
         const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
+        const instalacaoStatus = a.instalacaoStatus || 'Aguardando';
         return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.produto || a.plano || '—'}</td>
             <td>${vendedor ? vendedor.nome : 'N/A'}</td>
             <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
             <td>${dataFormatada}</td>
+            <td><span style="color:${instalacaoStatus === 'Instalado' ? '#2ed573' : instalacaoStatus === 'Cancelado' ? '#ff4757' : '#ffa502'};font-weight:600;">${instalacaoStatus}</span></td>
             <td>
                 <button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>
                 <button onclick="removerVenda('${a.id}')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>
             </td>
         </tr>`;
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
+    
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
 function mudarPaginaVendasAprovadas(direcao) {
