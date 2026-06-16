@@ -897,11 +897,10 @@ function carregarControleVendas() {
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
 }
 function carregarInstalacoes() {
-    // 🔥 INVERTE A ORDEM: as mais recentes primeiro
     const aprovadas = DB.ativacoes
         .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
         .reverse();
-    
+
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
     tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
@@ -911,10 +910,14 @@ function carregarInstalacoes() {
             <td>${a.plano || a.produto || '—'}</td>
             <td><span style="color:#2ed573;font-weight:600;">● ${a.status}</span></td>
             <td>
-                <select onchange="alterarStatusInstalacao('${a.id}', this.value)" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);padding:4px 8px;border-radius:6px;">
-                    <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''}>Aguardando</option>
-                    <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''}>Instalado</option>
-                    <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+                <select onchange="alterarStatusInstalacao('${a.id}', this.value)" 
+                        style="background:#2a1a1a !important;color:#ffffff !important;border:1px solid rgba(255,255,255,0.3) !important;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer;min-width:130px;appearance:auto;-webkit-appearance:auto;">
+                    <option value="Aguardando" ${statusInstalacao === 'Aguardando' ? 'selected' : ''} 
+                            style="background:#1a0a0a !important;color:#ffffff !important;padding:4px 8px;">Aguardando</option>
+                    <option value="Instalado" ${statusInstalacao === 'Instalado' ? 'selected' : ''} 
+                            style="background:#1a0a0a !important;color:#ffffff !important;padding:4px 8px;">Instalado</option>
+                    <option value="Cancelado" ${statusInstalacao === 'Cancelado' ? 'selected' : ''} 
+                            style="background:#1a0a0a !important;color:#ffffff !important;padding:4px 8px;">Cancelado</option>
                 </select>
             </td>
             <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
