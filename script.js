@@ -337,15 +337,12 @@ async function buscarVendasAprovadasDaNuvem() {
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
     if (!tabela) return;
+    
+    // 🔥 INVERTE A ORDEM: as mais recentes primeiro
     let naoAprovadas = DB.ativacoes
         .filter(a => a.status !== 'Aprovado')
-        .sort((a, b) => {
-            // Prioridade: createdAt (timestamp) > dataCriacao (string ISO) > data (string)
-            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
-            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
-            return timeB - timeA;
-        });
-
+        .reverse();
+    
     const termo = document.getElementById('buscaAtivacao')?.value.trim().toLowerCase();
     if (termo) {
         naoAprovadas = naoAprovadas.filter(a => {
@@ -353,11 +350,13 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
             return texto.includes(termo);
         });
     }
+    
     const total = naoAprovadas.length;
     const totalPaginas = Math.ceil(total / itensPorPagina);
     paginaAtualAtivacoes = Math.min(pagina, totalPaginas || 1);
     const inicio = (paginaAtualAtivacoes - 1) * itensPorPagina;
     const itensExibidos = naoAprovadas.slice(inicio, inicio + itensPorPagina);
+    
     tabela.innerHTML = itensExibidos.map(a => {
         const idStr = String(a.id);
         return `
@@ -374,6 +373,7 @@ function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
             </tr>
         `;
     }).join('') || '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma ativação pendente</td></tr>';
+    
     atualizarControlesPaginacao('paginacaoAtivacoes', paginaAtualAtivacoes, totalPaginas, total);
 }
 function mudarPaginaAtivacoes(direcao) {
@@ -630,21 +630,21 @@ function salvarInfoAdicional() {
 function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
     const tabela = document.getElementById('tabelaVendasAprovadas');
     if (!tabela) return;
+    
+    // 🔥 INVERTE A ORDEM: as mais recentes primeiro
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
-        .sort((a, b) => {
-            const timeA = a.createdAt || (a.dataCriacao ? new Date(a.dataCriacao).getTime() : 0) || (a.data ? new Date(a.data).getTime() : 0) || 0;
-            const timeB = b.createdAt || (b.dataCriacao ? new Date(b.dataCriacao).getTime() : 0) || (b.data ? new Date(b.data).getTime() : 0) || 0;
-            return timeB - timeA;
-        });
-
+        .reverse(); // Isso coloca as últimas adicionadas no topo
+    
     const filtroData = document.getElementById('filtroDataAprovadas')?.value;
     if (filtroData) aprovadas = aprovadas.filter(a => a.data === filtroData);
+    
     const total = aprovadas.length;
     const totalPaginas = Math.ceil(total / itensPorPagina);
     paginaAtualVendasAprovadas = Math.min(pagina, totalPaginas || 1);
     const inicio = (paginaAtualVendasAprovadas - 1) * itensPorPagina;
     const itensExibidos = aprovadas.slice(inicio, inicio + itensPorPagina);
+    
     tabela.innerHTML = itensExibidos.length ? itensExibidos.map(a => {
         const vendedor = DB.usuarios.find(u => u.id === a.vendedor_id);
         const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
@@ -660,6 +660,7 @@ function carregarVendasAprovadas(pagina = paginaAtualVendasAprovadas) {
             </td>
         </tr>`;
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
+    
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
 function mudarPaginaVendasAprovadas(direcao) {
