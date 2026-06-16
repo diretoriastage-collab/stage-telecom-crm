@@ -386,24 +386,26 @@ async function buscarVendasDoVendedor() {
                 infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
                 vendedorNome: v.Vendedor || '',
-                vendedor_id: null,
+                vendedor_id: sessao.id,
                 data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
-                instalacaoStatus: v.InstalacaoStatus || 'Aguardando'
+                instalacaoStatus: v.InstalacaoStatus || 'Aguardando',
+                createdAt: Date.now()
             }));
             
-            // Mantém as pendentes e mescla com as vendas do vendedor
-            const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
-            const aprovadasDeOutros = DB.ativacoes.filter(a => a.status === 'Aprovado' && a.vendedor_id !== sessao.id);
-            DB.ativacoes = [...pendentesLocais, ...aprovadasDeOutros, ...vendasVendedor];
+            // 🔥 MANTÉM AS VENDAS INSTALADAS (não sobrescreve)
+            const instaladas = DB.ativacoes.filter(a => a.instalacaoStatus === 'Instalado' && a.vendedor_id === sessao.id);
+            const pendentes = DB.ativacoes.filter(a => a.status !== 'Aprovado');
+            const outrosVendedores = DB.ativacoes.filter(a => a.vendedor_id !== sessao.id && a.vendedor_id !== null);
+            
+            DB.ativacoes = [...pendentes, ...outrosVendedores, ...vendasVendedor, ...instaladas];
             salvarDB();
             
-            // Atualiza as listas do vendedor
-            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
-                carregarInstalacoes();
-            }
             if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
                 carregarControleVendas();
+            }
+            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                carregarInstalacoes();
             }
         }
     } catch (err) { console.warn('Erro ao buscar vendas do vendedor:', err); }
@@ -449,16 +451,16 @@ async function buscarVendasInstaladasDoVendedor() {
                 infoPeriodo: v['Período Inst.'] || '',
                 status: v.Status || 'Instalado',
                 vendedorNome: v.Vendedor || '',
-                vendedor_id: null,
+                vendedor_id: sessao.id,
                 data: v['Data Instalacao'] || new Date().toISOString().split('T')[0],
                 finalizada: true,
-                instalacaoStatus: 'Instalado'
+                instalacaoStatus: 'Instalado',
+                createdAt: Date.now()
             }));
             
-            // Adiciona as instaladas ao DB
-            const pendentes = DB.ativacoes.filter(a => a.status !== 'Aprovado' && a.instalacaoStatus !== 'Instalado');
-            const aprovadasNaoInstaladas = DB.ativacoes.filter(a => a.status === 'Aprovado' && a.instalacaoStatus !== 'Instalado');
-            DB.ativacoes = [...pendentes, ...aprovadasNaoInstaladas, ...instaladas];
+            // 🔥 MANTÉM AS VENDAS NÃO INSTALADAS
+            const naoInstaladas = DB.ativacoes.filter(a => a.instalacaoStatus !== 'Instalado' || a.vendedor_id !== sessao.id);
+            DB.ativacoes = [...naoInstaladas, ...instaladas];
             salvarDB();
             
             if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
@@ -1014,9 +1016,9 @@ function enviarVenda() {
     }).catch(err => { console.error(err); alert('❌ Erro de comunicação.'); });
 }
 function carregarControleVendas() {
-    // 🔥 INVERTE A ORDEM: as mais recentes primeiro
+    // 🔥 TODAS AS VENDAS DO VENDEDOR (independente do status de instalação)
     const minhasAtivacoes = DB.ativacoes
-        .filter(a => a.vendedor_id === sessao.id)
+        .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado')
         .reverse();
     
     const tabela = document.getElementById('tabelaControleVendas');
@@ -1024,19 +1026,22 @@ function carregarControleVendas() {
     tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
         const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
         const dataFormatada = a.data ? formatarDataISO(a.data) : '—';
+        const statusInstalacao = a.instalacaoStatus || 'Aguardando';
         return `<tr>
             <td><strong>${a.nomeCompleto || '—'}</strong></td>
             <td>${a.plano || a.produto || '—'}</td>
             <td>R$ ${parseFloat(a.valor).toFixed(2)}</td>
             <td><span style="color:${flag.cor};font-weight:600;">● ${a.status}</span></td>
             <td>${dataFormatada}</td>
+            <td><span style="color:${statusInstalacao === 'Instalado' ? '#2ed573' : '#ffa502'};">${statusInstalacao}</span></td>
             <td><button onclick="abrirModalVisualizacao('${a.id}')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>
         </tr>`;
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda enviada</td></tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
 }
 function carregarInstalacoes() {
+    // 🔥 MOSTRA TODAS AS VENDAS APROVADAS DO VENDEDOR (INSTALADAS E NÃO INSTALADAS)
     const aprovadas = DB.ativacoes
-        .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false)
+        .filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado')
         .reverse();
 
     const tabela = document.getElementById('tabelaInstalacoes');
