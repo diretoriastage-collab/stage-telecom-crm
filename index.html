@@ -182,7 +182,7 @@
                         <button onclick="mudarPaginaAtivacoes('proximo')" class="btn-glass-sm pagina-btn" id="btnProximoAtivacoes">Próximo →</button>
                     </div>
                     <!-- MODAL ATIVAÇÃO COMPACTO -->
-                    <div id="modalAtivacao" class="modal-overlay" style="display:none;">
+                    <div id="modalAtivacao" class="modal-overlay" style="display:none;" onclick="if(event.target === this) cancelarEdicaoAtivacao()">
                         <div class="modal-glass modal-ativacao-compacto">
                             <h3><i class="fas fa-search"></i> Detalhes da Ativação</h3>
                             <div id="conteudoModalAtivacao"></div>
