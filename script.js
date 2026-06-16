@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyO1lwYAbaucoN33D_ItxAvy3j1myt8t0Fhyt7UzHTt0lRXK9Cd3-eIAj8MU5lM1ri1QA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyzweyGm4TyTkxFvIhVzNiVRE8q3YYvzvMGiM1UhvT3l5v2MADpJEHSv-gJCirqnZ5uZA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -990,24 +990,30 @@ function carregarInstalacoes() {
 }
 async function alterarStatusInstalacao(id, novoStatus) {
     const a = DB.ativacoes.find(x => x.id === id);
-    if (a) {
-        // Atualiza localmente
-        a.instalacaoStatus = novoStatus;
-        salvarDB();
-        
-        // 🔥 Envia para o Google Sheets (atualiza na aba do vendedor)
-        await postParaGoogleSheets('atualizarStatusInstalacaoVendedor', {
-            uuid: a.id,
-            status: novoStatus,
-            vendedorNome: sessao.nome
-        });
-        
-        console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
-        
-        // Atualiza a lista de instalações
-        if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
-            carregarInstalacoes();
+    if (!a) return;
+
+    if (novoStatus === 'Instalado') {
+        if (!confirm(`⚠️ Essa venda de "${a.nomeCompleto}" foi realmente INSTALADA?`)) {
+            const select = document.querySelector(`select[onchange*="alterarStatusInstalacao('${id}"]`);
+            if (select) select.value = a.instalacaoStatus || 'Aguardando';
+            return;
         }
+    }
+
+    a.instalacaoStatus = novoStatus;
+    salvarDB();
+
+    await postParaGoogleSheets('atualizarStatusInstalacaoVendedor', {
+        uuid: a.id,
+        status: novoStatus,
+        vendedorNome: sessao.nome,
+        venda: JSON.stringify(a)
+    });
+
+    console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
+
+    if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+        carregarInstalacoes();
     }
 }
 function mostrarSecaoVendedor(e, secao) {
