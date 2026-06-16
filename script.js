@@ -990,7 +990,10 @@ function carregarInstalacoes() {
 }
 async function alterarStatusInstalacao(id, novoStatus) {
     const a = DB.ativacoes.find(x => x.id === id);
-    if (!a) return;
+    if (!a) {
+        console.error('Venda não encontrada:', id);
+        return;
+    }
 
     if (novoStatus === 'Instalado') {
         if (!confirm(`⚠️ Essa venda de "${a.nomeCompleto}" foi realmente INSTALADA?`)) {
@@ -1000,21 +1003,46 @@ async function alterarStatusInstalacao(id, novoStatus) {
         }
     }
 
+    // Atualiza localmente primeiro (otimista)
+    const statusAnterior = a.instalacaoStatus;
     a.instalacaoStatus = novoStatus;
     salvarDB();
 
-    // 🔥 ENVIA A VENDA COMPLETA
-    await postParaGoogleSheets('atualizarStatusInstalacaoVendedor', {
-        uuid: a.id,
-        status: novoStatus,
-        vendedorNome: sessao.nome,
-        venda: JSON.stringify(a)  // Envia a venda completa
-    });
+    try {
+        // 🔥 USA JSONP (GET) EM VEZ DE POST
+        const resp = await fetchFromGS('atualizarStatusInstalacaoVendedor', {
+            uuid: a.id,
+            status: novoStatus,
+            vendedorNome: sessao.nome,
+            venda: JSON.stringify(a)
+        });
 
-    console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
+        console.log('Resposta do GS:', resp);
 
-    if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
-        carregarInstalacoes();
+        if (resp && resp.ok === true) {
+            console.log(`✅ Status de instalação atualizado para: ${novoStatus}`);
+            // Recarrega a lista para garantir consistência
+            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                carregarInstalacoes();
+            }
+        } else {
+            console.error('❌ Erro ao atualizar status:', resp?.erro || 'Erro desconhecido');
+            // Reverte o status
+            a.instalacaoStatus = statusAnterior;
+            salvarDB();
+            alert('❌ Erro ao atualizar status. Tente novamente.');
+            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                carregarInstalacoes();
+            }
+        }
+    } catch (err) {
+        console.error('❌ Erro na requisição:', err);
+        a.instalacaoStatus = statusAnterior;
+        salvarDB();
+        alert('❌ Erro de comunicação. Tente novamente.');
+        if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+            carregarInstalacoes();
+        }
     }
 }
 function mostrarSecaoVendedor(e, secao) {
