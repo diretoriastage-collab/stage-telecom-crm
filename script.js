@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbx5grz34nk1HMyQY5NxEp6rBA9f_uDmc20wYkgtS1SRYHbdoWH3MyZQcQAsUeaCJahtDg/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwbol1AkThnpSzgan3cfMezBec8jwBt5YMStDwQu9MTTHHNXCL2jx1DsZTI9VgApIPN9w/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -407,6 +407,68 @@ async function buscarVendasDoVendedor() {
             }
         }
     } catch (err) { console.warn('Erro ao buscar vendas do vendedor:', err); }
+}
+async function buscarVendasInstaladasDoVendedor() {
+    if (!sessao || sessao.tipo !== 'vendedor') return;
+    try {
+        const nomeAba = 'INSTALADOS_' + sessao.nome.replace(/[^a-zA-Z0-9]/g, '_');
+        const resp = await fetchFromGS('listarVendasDaAba', { nomeAba: nomeAba });
+        if (resp && resp.vendas && Array.isArray(resp.vendas)) {
+            const instaladas = resp.vendas.map(v => ({
+                id: v.UUID || (v.Cliente + Date.now()),
+                nomeCompleto: v.Cliente || '',
+                cpf: v.CPF || '',
+                dataNasc: v['Data Nasc.'] || '',
+                nomeMae: v['Nome da Mãe'] || '',
+                rg: v.RG || '',
+                orgaoExpeditor: v['Órgão Exp.'] || '',
+                dataExpedicao: v['Data Exp.'] || '',
+                email: v.Email || '',
+                telefone1: v['Tel 1'] || '',
+                telefone2: v['Tel 2'] || '',
+                cep: v.CEP || '',
+                logradouro: v.Logradouro || '',
+                numero: v['N°'] || '',
+                complemento: v.Complemento || '',
+                bairro: v.Bairro || '',
+                uf: v.Estado || '',
+                cidade: v.Cidade || '',
+                pontoReferencia: v['Ponto Ref.'] || '',
+                produto: v.Plano || '',
+                plano: v.Plano || '',
+                velocidade: v.Velocidade || '',
+                valor: v['Valor (R$)'] || '0',
+                vencimento: v.Vencimento || '',
+                formaPagamento: v.Pagamento || '',
+                hp: v.HP || '',
+                viabilidade: v.Viabilidade || '',
+                planoTipo: v['Plano Tipo'] || '',
+                tipoAprovacao: v['Tipo Aprov.'] || '',
+                contrato: v.Contrato || '',
+                infoData: v['Data Inst.'] || '',
+                infoPeriodo: v['Período Inst.'] || '',
+                status: v.Status || 'Instalado',
+                vendedorNome: v.Vendedor || '',
+                vendedor_id: null,
+                data: v['Data Instalacao'] || new Date().toISOString().split('T')[0],
+                finalizada: true,
+                instalacaoStatus: 'Instalado'
+            }));
+            
+            // Adiciona as instaladas ao DB
+            const pendentes = DB.ativacoes.filter(a => a.status !== 'Aprovado' && a.instalacaoStatus !== 'Instalado');
+            const aprovadasNaoInstaladas = DB.ativacoes.filter(a => a.status === 'Aprovado' && a.instalacaoStatus !== 'Instalado');
+            DB.ativacoes = [...pendentes, ...aprovadasNaoInstaladas, ...instaladas];
+            salvarDB();
+            
+            if (document.getElementById('secao-instalacoes')?.classList.contains('section-active')) {
+                carregarInstalacoes();
+            }
+            if (document.getElementById('secao-controleVendas')?.classList.contains('section-active')) {
+                carregarControleVendas();
+            }
+        }
+    } catch (err) { console.warn('Erro ao buscar vendas instaladas:', err); }
 }
 // ===== ATIVAÇÕES (TABELA - NUNCA MOSTRA UUID) =====
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
