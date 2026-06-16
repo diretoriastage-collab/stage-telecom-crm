@@ -53,7 +53,7 @@ if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
 DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwbol1AkThnpSzgan3cfMezBec8jwBt5YMStDwQu9MTTHHNXCL2jx1DsZTI9VgApIPN9w/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycby4v-vzdBU_A5pO3npwKcOG7vqYCGGFmkAwzXToHbMswt1XHDffldH7dOVzPiSNhbiLnA/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -346,122 +346,8 @@ async function buscarVendasAprovadasDaNuvem() {
         }
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
-async function buscarVendasDoVendedor() {
-    if (!sessao || sessao.tipo !== 'vendedor') return;
-    try {
-        const resp = await fetchFromGS('listarVendasDoVendedor', { vendedorNome: sessao.nome });
-        if (resp && resp.vendas && Array.isArray(resp.vendas)) {
-            const vendasVendedor = resp.vendas.map(v => ({
-                id: v.UUID || (v.Cliente + Date.now()),
-                nomeCompleto: v.Cliente || '',
-                cpf: v.CPF || '',
-                dataNasc: v['Data Nasc.'] || '',
-                nomeMae: v['Nome da Mãe'] || '',
-                rg: v.RG || '',
-                orgaoExpeditor: v['Órgão Exp.'] || '',
-                dataExpedicao: v['Data Exp.'] || '',
-                email: v.Email || '',
-                telefone1: v['Tel 1'] || '',
-                telefone2: v['Tel 2'] || '',
-                cep: v.CEP || '',
-                logradouro: v.Logradouro || '',
-                numero: v['N°'] || '',
-                complemento: v.Complemento || '',
-                bairro: v.Bairro || '',
-                uf: v.Estado || '',
-                cidade: v.Cidade || '',
-                pontoReferencia: v['Ponto Ref.'] || '',
-                produto: v.Plano || '',
-                plano: v.Plano || '',
-                velocidade: v.Velocidade || '',
-                valor: v['Valor (R$)'] || '0',
-                vencimento: v.Vencimento || '',
-                formaPagamento: v.Pagamento || '',
-                hp: v.HP || '',
-                viabilidade: v.Viabilidade || '',
-                planoTipo: v['Plano Tipo'] || '',
-                tipoAprovacao: v['Tipo Aprov.'] || '',
-                contrato: v.Contrato || '',
-                infoData: v['Data Inst.'] || '',
-                infoPeriodo: v['Período Inst.'] || '',
-                status: 'Aprovado',
-                vendedorNome: v.Vendedor || '',
-                vendedor_id: sessao.id,
-                data: v['Data Aprovação'] || new Date().toISOString().split('T')[0],
-                finalizada: true,
-                instalacaoStatus: v.InstalacaoStatus || 'Aguardando',
-                createdAt: Date.now()
-            }));
-            
-            // Mantém as instaladas e as pendentes
-            const instaladas = DB.ativacoes.filter(a => a.instalacaoStatus === 'Instalado');
-            const pendentes = DB.ativacoes.filter(a => a.status !== 'Aprovado');
-            DB.ativacoes = [...pendentes, ...instaladas, ...vendasVendedor];
-            salvarDB();
-            
-            carregarControleVendas();
-            carregarInstalacoes();
-        }
-    } catch (err) { console.warn('Erro:', err); }
-}
-async function buscarVendasInstaladasDoVendedor() {
-    if (!sessao || sessao.tipo !== 'vendedor') return;
-    try {
-        const nomeAba = 'INSTALADOS_' + sessao.nome.replace(/[^a-zA-Z0-9]/g, '_');
-        const resp = await fetchFromGS('listarVendasDaAba', { nomeAba: nomeAba });
-        if (resp && resp.vendas && Array.isArray(resp.vendas)) {
-            const instaladas = resp.vendas.map(v => ({
-                id: v.UUID || (v.Cliente + Date.now()),
-                nomeCompleto: v.Cliente || '',
-                cpf: v.CPF || '',
-                dataNasc: v['Data Nasc.'] || '',
-                nomeMae: v['Nome da Mãe'] || '',
-                rg: v.RG || '',
-                orgaoExpeditor: v['Órgão Exp.'] || '',
-                dataExpedicao: v['Data Exp.'] || '',
-                email: v.Email || '',
-                telefone1: v['Tel 1'] || '',
-                telefone2: v['Tel 2'] || '',
-                cep: v.CEP || '',
-                logradouro: v.Logradouro || '',
-                numero: v['N°'] || '',
-                complemento: v.Complemento || '',
-                bairro: v.Bairro || '',
-                uf: v.Estado || '',
-                cidade: v.Cidade || '',
-                pontoReferencia: v['Ponto Ref.'] || '',
-                produto: v.Plano || '',
-                plano: v.Plano || '',
-                velocidade: v.Velocidade || '',
-                valor: v['Valor (R$)'] || '0',
-                vencimento: v.Vencimento || '',
-                formaPagamento: v.Pagamento || '',
-                hp: v.HP || '',
-                viabilidade: v.Viabilidade || '',
-                planoTipo: v['Plano Tipo'] || '',
-                tipoAprovacao: v['Tipo Aprov.'] || '',
-                contrato: v.Contrato || '',
-                infoData: v['Data Inst.'] || '',
-                infoPeriodo: v['Período Inst.'] || '',
-                status: 'Instalado',
-                vendedorNome: v.Vendedor || '',
-                vendedor_id: sessao.id,
-                data: v['Data Instalacao'] || new Date().toISOString().split('T')[0],
-                finalizada: true,
-                instalacaoStatus: 'Instalado',
-                createdAt: Date.now()
-            }));
-            
-            // Mescla com as existentes
-            const outras = DB.ativacoes.filter(a => a.instalacaoStatus !== 'Instalado' || a.vendedor_id !== sessao.id);
-            DB.ativacoes = [...outras, ...instaladas];
-            salvarDB();
-            
-            carregarInstalacoes();
-            carregarControleVendas();
-        }
-    } catch (err) { console.warn('Erro:', err); }
-}
+
+
 // ===== ATIVAÇÕES (TABELA - NUNCA MOSTRA UUID) =====
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
@@ -1072,17 +958,15 @@ async function alterarStatusInstalacao(id, novoStatus) {
     salvarDB();
 
     try {
-        const resp = await fetchFromGS('atualizarStatusInstalacaoVendedor', {
+        const resp = await fetchFromGS('atualizarStatusInstalacao', {
             uuid: a.id,
-            status: novoStatus,
-            vendedorNome: sessao.nome,
-            venda: JSON.stringify(a)
+            status: novoStatus
         });
 
         if (resp && resp.ok === true) {
             alert(`✅ Status atualizado para: ${novoStatus}`);
-            await buscarVendasDoVendedor();
-            await buscarVendasInstaladasDoVendedor();
+            // O polling vai atualizar sozinho, mas forçamos para ver imediatamente
+            await buscarVendasAprovadasDaNuvem();
         } else {
             a.instalacaoStatus = statusAnterior;
             salvarDB();
@@ -1867,11 +1751,8 @@ function mostrarVendedor() {
     verificarNotificacoesVendedor();
     iniciarChat();
     buscarPendentesDaNuvem();
-    buscarVendasDoVendedor();          // Busca aprovadas (não instaladas)
-    buscarVendasInstaladasDoVendedor(); // Busca instaladas
-    // NÃO chama buscarVendasAprovadasDaNuvem() para vendedor
+    buscarVendasAprovadasDaNuvem(); // ✅ Volta a usar a função normal
 }
-
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded', () => {
     const lembrar = localStorage.getItem('stage_remember');
