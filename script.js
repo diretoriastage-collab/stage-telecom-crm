@@ -2043,6 +2043,84 @@ async function removerStatusFlag(id) {
   }
 }
 
+
+// ===== RECUPERAR VENDAS =====
+async function recuperarVendasDaPlanilha() {
+    if (!confirm('Isso irá sobrescrever todas as vendas aprovadas locais com os dados da planilha. Continuar?')) return;
+    try {
+        await Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]);
+        alert('✅ Vendas recuperadas com sucesso!');
+        carregarVendasAprovadas();
+    } catch (e) {
+        alert('❌ Erro ao recuperar vendas.');
+        console.error(e);
+    }
+}
+
+// ===== DROPDOWN =====
+function toggleDropdown() {
+    const dropdown = document.getElementById('dropdownPlanilha');
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+}
+
+function abrirSelecaoMes() {
+    document.getElementById('modalSelecionarMes').style.display = 'flex';
+}
+
+function fecharSelecaoMes() {
+    document.getElementById('modalSelecionarMes').style.display = 'none';
+}
+
+// ===== BAIXAR PLANILHA =====
+async function baixarPlanilha(filtro) {
+    let vendas;
+    if (filtro === 'hoje') {
+        vendas = obterVendasAprovadasHoje();
+    } else if (filtro === 'mes') {
+        vendas = obterVendasAprovadasMesAtual();
+    } else if (filtro === 'geral') {
+        vendas = DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false);
+    } else {
+        alert('Filtro inválido');
+        return;
+    }
+    gerarExcel(vendas, `Vendas_${filtro}_${hojeBR().replace(/\//g, '-')}`);
+}
+
+async function confirmarSelecaoMes() {
+    const input = document.getElementById('inputMesPlanilha').value; // formato 'YYYY-MM'
+    if (!input) return alert('Selecione um mês.');
+    const [ano, mes] = input.split('-').map(Number);
+    const vendas = DB.ativacoes
+        .filter(a => a.status === 'Aprovado' && a.finalizada !== false)
+        .filter(a => {
+            const partes = a.data.split('/');
+            if (partes.length !== 3) return false;
+            return parseInt(partes[2]) === ano && parseInt(partes[1]) === mes;
+        });
+    gerarExcel(vendas, `Vendas_${input}`);
+    fecharSelecaoMes();
+}
+
+function gerarExcel(dados, nomeArquivo) {
+    const linhas = dados.map(v => ({
+        'Cliente': v.nomeCompleto || '',
+        'CPF': v.cpf || '',
+        'Plano': v.produto || v.plano || '',
+        'Valor (R$)': parseFloat(v.valor).toFixed(2),
+        'Data Aprovação': v.data || '',
+        'Vendedor': v.vendedorNome || '',
+        'Status Instalação': v.instalacaoStatus || 'Aguardando',
+        'Contrato': v.contrato || '',
+        'Data Instalação': v.infoData || '',
+        'Período': v.infoPeriodo || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(linhas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Vendas");
+    XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
+}
 // ===== POLLING PRINCIPAL =====
 setInterval(() => { if (sessao) { buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem(); } }, 5000);
 
