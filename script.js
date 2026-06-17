@@ -85,7 +85,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz07PEU-2bn9rF0RFkt8zwJD8qhpm083WCoTMU6iEPMEH4ZskOAdR4SpXIJ_da2I1DTPQ/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz5OdB3mHwxXstxjGlpgH3bFDVgTZTADwP1eTaVPt5iXrmoyzjJzdfL90oK3vB1TgcTEA/exec'; // SUBSTITUA PELO SEU NOVO URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -448,16 +448,14 @@ async function buscarVendasAprovadasDaNuvem() {
                 infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
                 vendedorNome: v.Vendedor || '',
-                vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,  // 🔥 USA O ID DA PLANILHA
+                vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,   // 🔥 CORRIGIDO
                 data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : hojeBR(),
                 finalizada: true,
                 instalacaoStatus: v.Instalação || 'Aguardando',
                 dataCriacao: v.DataCriacao || '',
                 createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now())
             }));
-            // ❌ REMOVA O TRECHO ABAIXO (forEach que tentava associar por nome)
-            // aprovadasNuvem.forEach(v => { ... });
-            
+            // NÃO associar por nome – remova qualquer forEach que tente fazer isso
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
             DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -471,6 +469,7 @@ async function buscarVendasAprovadasDaNuvem() {
         }
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
+
 // ===== ATIVAÇÕES (TABELA - NUNCA MOSTRA UUID) =====
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
@@ -1096,7 +1095,6 @@ function mostrarSecaoVendedor(e, secao) {
     if (e && e.currentTarget) e.currentTarget.classList.add('active');
     const titulos = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
-
     if (secao === 'inicio') {
         sincronizarMetasVendas().then(() => carregarInicioVendedor());
     }
@@ -1113,6 +1111,7 @@ function mostrarSecaoVendedor(e, secao) {
         buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
     }
 }
+
 function carregarInicioVendedor() {
     if (!sessao) return;
     const metaMensal = DB.metas.mensalVendas || 150;
@@ -1834,7 +1833,6 @@ function editarProduto(index) {
     const novoNome = prompt('Novo nome do produto:', DB.produtos[index]);
     if (novoNome && novoNome.trim() && novoNome.trim() !== DB.produtos[index]) {
         if (DB.produtos.includes(novoNome.trim())) return alert('Produto já existe.');
-        // Aqui poderia atualizar no Sheets, mas como não há ação de edição de produto, faremos local por enquanto
         DB.produtos[index] = novoNome.trim();
         salvarDB();
         carregarTabelaProdutos();
@@ -2407,11 +2405,12 @@ function mostrarVendedor() {
     verificarNotificacoesVendedor();
     iniciarChat();
 
-  Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]).then(() => {
-    if (document.getElementById('secao-inicio')?.classList.contains('section-active')) {
-        carregarInicioVendedor();
-    }
-}).catch(e => console.warn('Erro ao sincronizar vendas no login do vendedor:', e));
+    Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]).then(() => {
+        if (document.getElementById('secao-inicio')?.classList.contains('section-active')) {
+            carregarInicioVendedor();
+        }
+    }).catch(e => console.warn('Erro ao sincronizar vendas no login do vendedor:', e));
+
     sincronizarMetasVendas();
     sincronizarProdutos();
     sincronizarMetasProdutos();
