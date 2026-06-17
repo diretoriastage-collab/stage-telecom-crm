@@ -2024,6 +2024,13 @@ async function removerStatusFlag(id) {
 // ===== POLLING PRINCIPAL =====
 setInterval(() => { if (sessao) { buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem(); } }, 5000);
 
+// Sincronização periódica de usuários (a cada 30s)
+setInterval(() => {
+    if (sessao && sessao.tipo === 'admin') {
+        sincronizarUsuariosDaNuvem();
+    }
+}, 10000);
+
 // ===== LOGOUT E EXIBIÇÃO =====
 function logout() {
     sessionStorage.removeItem('stage_session');
@@ -2045,6 +2052,7 @@ function mostrarAdmin() {
     iniciarChat();
     buscarPendentesDaNuvem();
     buscarVendasAprovadasDaNuvem();
+    sincronizarUsuariosDaNuvem();  // <-- adicione esta linha
     sincronizarStatusFlagsDaNuvem(); // nova linha
 }
 
