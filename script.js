@@ -448,17 +448,16 @@ async function buscarVendasAprovadasDaNuvem() {
                 infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
                 vendedorNome: v.Vendedor || '',
-                vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,
+                vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,  // 🔥 USA O ID DA PLANILHA
                 data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : hojeBR(),
                 finalizada: true,
                 instalacaoStatus: v.Instalação || 'Aguardando',
                 dataCriacao: v.DataCriacao || '',
                 createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now())
             }));
-            aprovadasNuvem.forEach(v => {
-                const user = DB.usuarios.find(u => u.nome && u.nome.trim().toUpperCase() === (v.vendedorNome || '').trim().toUpperCase());
-                if (user) v.vendedor_id = user.id;
-            });
+            // ❌ REMOVA O TRECHO ABAIXO (forEach que tentava associar por nome)
+            // aprovadasNuvem.forEach(v => { ... });
+            
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
             DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -472,7 +471,6 @@ async function buscarVendasAprovadasDaNuvem() {
         }
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
-
 // ===== ATIVAÇÕES (TABELA - NUNCA MOSTRA UUID) =====
 function carregarAtivacoes(pagina = paginaAtualAtivacoes) {
     const tabela = document.getElementById('tabelaAtivacoes');
