@@ -2407,7 +2407,7 @@ function mostrarAdmin() {
     document.getElementById('userInfoAdmin').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
     carregarDashboard();
     verificarPromocoesAdmin();
-    iniciarChat();
+    //iniciarChat();
     buscarPendentesDaNuvem();
     buscarVendasAprovadasDaNuvem();
     sincronizarUsuariosDaNuvem();
@@ -2427,7 +2427,7 @@ function mostrarVendedor() {
     document.getElementById('userInfoVendedor').innerHTML = `<div style="font-weight:700;font-size:15px;">${sessao.nome}</div><div style="font-size:11px;color:var(--primary-light);margin-top:3px;">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px;">${sessao.email}</div>`;
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
-    iniciarChat();
+    //iniciarChat();
 
     Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]).then(() => {
         if (document.getElementById('secao-inicio')?.classList.contains('section-active')) {
