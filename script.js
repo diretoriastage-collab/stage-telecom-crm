@@ -1,7 +1,5 @@
 // ============================================
-// STAGE TELECOM CRM - SCRIPT COMPLETO E FINAL
-// UUID oculto, status correto, tratando com trava, notificação para todos admins
-// CORREÇÃO DE DATAS: Padrão DD/MM/AAAA
+// STAGE TELECOM CRM - MULTIUSUÁRIO (Google Sheets)
 // ============================================
 
 let DB;
@@ -87,7 +85,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbx87xArhiBON-143CMP4GmVzHm_u4c6gGLVH1oSoJicEQqHOJ_d-3jvey8CI2jfhvQ5wQ/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwlSHxlla6adB_bdSAtfAz-7cdunM_DtKFYQMoMwcBYjks9tq9cZMPB73ocTVYvxc9_/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -151,8 +149,7 @@ function consultarSheetUsuarios(usuario, senha) {
     return new Promise((resolve, reject) => {
         const callbackName = 'cbUsers' + Date.now();
         const script = document.createElement('script');
-        const params = new URLSearchParams({ acao: 'autenticar', usuario, senha, callback: callbackName });
-        script.src = GOOGLE_SHEET_VENDAS_URL + '?' + params.toString();
+        script.src = `${GOOGLE_SHEET_VENDAS_URL}?acao=autenticar&usuario=${encodeURIComponent(usuario)}&senha=${encodeURIComponent(senha)}&callback=${callbackName}`;
         const timeout = setTimeout(() => { document.body.removeChild(script); delete window[callbackName]; reject(new Error('Timeout')); }, 5000);
         window[callbackName] = (res) => { clearTimeout(timeout); document.body.removeChild(script); delete window[callbackName]; resolve(res); };
         script.onerror = () => { clearTimeout(timeout); document.body.removeChild(script); delete window[callbackName]; reject(new Error('Erro de rede')); };
@@ -211,48 +208,6 @@ function fetchFromGS(acao, params = {}) {
     });
 }
 
-async function sincronizarUsuariosDaNuvem() {
-  try {
-    const resp = await fetchFromGS('listarUsuarios');
-    if (resp && resp.usuarios && Array.isArray(resp.usuarios)) {
-      const idsExistentes = DB.usuarios
-        .filter(u => !u.deletedAt)
-        .map(u => u.usuario.toUpperCase());
-      
-      resp.usuarios.forEach(uSheet => {
-        const login = uSheet.usuario.toUpperCase();
-        if (!idsExistentes.includes(login)) {
-          DB.usuarios.push({
-            id: Date.now() + Math.random(),
-            nome: uSheet.nome,
-            usuario: uSheet.usuario,
-            senha: '',   // não conhecemos, mas para exibição não importa
-            email: uSheet.email,
-            categoria: uSheet.categoria || 'vendedor',
-            tipo: uSheet.categoria || 'vendedor',
-            ativo: uSheet.status === 'LIBERADO',
-            deletedAt: null,
-            equipe: uSheet.equipe || 'Geral'
-          });
-        } else {
-          // Atualiza dados caso tenha mudado (exceto senha)
-          const existente = DB.usuarios.find(u => u.usuario.toUpperCase() === login && !u.deletedAt);
-          if (existente) {
-            existente.nome = uSheet.nome;
-            existente.email = uSheet.email;
-            existente.categoria = uSheet.categoria || existente.categoria;
-            existente.tipo = uSheet.categoria || existente.tipo;
-            existente.ativo = uSheet.status === 'LIBERADO';
-            existente.equipe = uSheet.equipe || existente.equipe;
-          }
-        }
-      });
-      salvarDB();
-      console.log('✅ Usuários sincronizados da nuvem');
-    }
-  } catch (e) { console.warn('Erro ao sincronizar usuários da nuvem:', e); }
-}
-
 async function postParaGoogleSheets(acao, dados = {}) {
     try {
         const formData = new URLSearchParams();
@@ -263,6 +218,42 @@ async function postParaGoogleSheets(acao, dados = {}) {
         await fetch(GOOGLE_SHEET_VENDAS_URL, { method: 'POST', body: formData, mode: 'no-cors' });
         console.log(`✅ POST '${acao}' enviado`);
     } catch (e) { console.warn(`⚠️ Falha no POST '${acao}':`, e); }
+}
+
+// ===== SINCRONIZAÇÃO DE USUÁRIOS (MULTIUSUÁRIO) =====
+async function sincronizarUsuariosDaNuvem() {
+  try {
+    const resp = await fetchFromGS('listarUsuarios');
+    if (resp && resp.usuarios && Array.isArray(resp.usuarios)) {
+      const idsExistentes = DB.usuarios.filter(u => !u.deletedAt).map(u => u.usuario.toUpperCase());
+      resp.usuarios.forEach(uSheet => {
+        const login = uSheet.usuario.toUpperCase();
+        const existente = DB.usuarios.find(u => u.usuario.toUpperCase() === login && !u.deletedAt);
+        if (!existente) {
+          DB.usuarios.push({
+            id: Date.now() + Math.random(),
+            nome: uSheet.nome,
+            usuario: uSheet.usuario,
+            senha: '',
+            email: uSheet.email,
+            categoria: uSheet.categoria || 'vendedor',
+            tipo: uSheet.categoria || 'vendedor',
+            ativo: uSheet.status === 'LIBERADO',
+            deletedAt: null,
+            equipe: uSheet.equipe || 'Geral'
+          });
+        } else {
+          existente.nome = uSheet.nome;
+          existente.email = uSheet.email;
+          existente.categoria = uSheet.categoria || existente.categoria;
+          existente.tipo = uSheet.categoria || existente.tipo;
+          existente.ativo = uSheet.status === 'LIBERADO';
+          existente.equipe = uSheet.equipe || existente.equipe;
+        }
+      });
+      salvarDB();
+    }
+  } catch (e) { console.warn('Erro ao sincronizar usuários:', e); }
 }
 
 // ===== BUSCAR PENDENTES (CORRIGIDO) =====
@@ -472,14 +463,13 @@ async function abrirModalAtivacao(id) {
             return;
         }
     } catch (e) {
-    console.warn('Erro ao verificar lock no GS, usando DB local', e);
-    // Se a rede falhou, só confiamos no lock local se ele existir e NÃO for o admin atual
-    if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
-        alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde.`);
-        return;
+        console.warn('Erro ao verificar lock no GS, usando DB local', e);
+        // fallback para o DB local
+        if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
+            alert(`⚠️ Esta venda está sendo tratada por ${a.tratandoPor}. Aguarde.`);
+            return;
+        }
     }
-    // Se o lock local está vazio ou é o próprio admin, permitimos
-}
 
     // ✅ Adquire o lock
     vendaSendoVisualizada = a.id;
@@ -1091,13 +1081,9 @@ function gerarDadosVendas() {
     }));
 }
 
+// ===== CARREGAR DASHBOARD (COM SINCRONIZAÇÃO) =====
 async function carregarDashboard() {
-    // Aguarda a sincronização completa das vendas com a planilha
-    await Promise.all([
-        buscarPendentesDaNuvem(),
-        buscarVendasAprovadasDaNuvem()
-    ]);
-
+    await Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]);
     const vendasMes = obterVendasAprovadasMesAtual();
     const realizado = vendasMes.length;
     const metaMensal = DB.metas.mensalVendas || 150;
@@ -1110,6 +1096,7 @@ async function carregarDashboard() {
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
 }
+
 function carregarVendasDiarias() {
     const hoje = new Date();
     document.getElementById('dataVendasDiarias').textContent = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1236,22 +1223,15 @@ function mostrarSecao(secao) {
     document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
     const nav = document.querySelector(`[data-section="${secao}"]`); if (nav) nav.classList.add('active');
     document.getElementById('tituloSecao').innerHTML = { dashboard: '📊 Dashboard', cadastro: '👥 Cadastro', ativacoes: '⚡ Ativações', vendasAprovadas: '✅ Vendas Aprovadas', relatorios: '📈 Relatórios', metas: '🎯 Metas', promocoes: '🏆 Promoções' }[secao] || secao;
-    if (secao === 'cadastro') {
-  sincronizarUsuariosDaNuvem().then(() => carregarUsuarios());
-}
-    if (secao === 'ativacoes') { paginaAtualAtivacoes = 1; buscarPendentesDaNuvem(); carregarAtivacoes(); }
-    if (secao === 'vendasAprovadas') {
-  paginaAtualVendasAprovadas = 1;
-  buscarVendasAprovadasDaNuvem().then(() => carregarVendasAprovadas());
-}
-if (secao === 'relatorios') {
-  Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]).then(() => carregarRelatorios());
-}
+    if (secao === 'cadastro') { sincronizarUsuariosDaNuvem().then(() => carregarUsuarios()); }
+    if (secao === 'ativacoes') { paginaAtualAtivacoes = 1; buscarPendentesDaNuvem().then(() => carregarAtivacoes()); }
+    if (secao === 'vendasAprovadas') { paginaAtualVendasAprovadas = 1; buscarVendasAprovadasDaNuvem().then(() => carregarVendasAprovadas()); }
+    if (secao === 'relatorios') carregarRelatorios();
     if (secao === 'metas') carregarMetas();
     if (secao === 'promocoes') carregarPromocoes();
 }
 
-// ===== CADASTRO DE USUÁRIOS =====
+// ===== CADASTRO DE USUÁRIOS (MULTIUSUÁRIO) =====
 function carregarUsuarios() {
     const agora = new Date();
     DB.usuarios = DB.usuarios.filter(u => { if (u.deletedAt) { const dias = (agora - new Date(u.deletedAt)) / (1000*60*60*24); return dias <= 15; } return true; });
@@ -1314,26 +1294,18 @@ function cadastrarUsuario() {
     carregarUsuarios();
     alert('✅ Usuário cadastrado com sucesso! (Sincronizando com a nuvem...)');
 }
-function abrirModalEditarPorUsuario(usuario) {
-    // Busca pelo nome de usuário (campo único)
-    const u = DB.usuarios.find(u => u.usuario === usuario && !u.deletedAt);
-    if (!u) {
-        alert('Usuário não encontrado. Recarregue a página e tente novamente.');
-        return;
-    }
-    abrirModalEditar(u.id); // chama a versão existente que agora é assíncrona
-}
+
 function toggleUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.ativo = !u.ativo; salvarDB(); carregarUsuarios(); } }
 function excluirUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (!u) return; if (confirm(`⚠️ Excluir "${u.nome}"? Ele irá para a lixeira e perderá o acesso.`)) { u.deletedAt = new Date().toISOString(); u.ativo = false; salvarDB(); carregarUsuarios(); } }
+function abrirModalEditarPorUsuario(usuario) {
+    const u = DB.usuarios.find(u => u.usuario === usuario && !u.deletedAt);
+    if (!u) { alert('Usuário não encontrado. Recarregue a página.'); return; }
+    abrirModalEditar(u.id);
+}
 async function abrirModalEditar(id) {
-    // Garante que a lista de usuários esteja sincronizada com a planilha
     await sincronizarUsuariosDaNuvem();
-
-    const u = DB.usuarios.find(u => u.id === id);
-    if (!u) {
-        alert('Usuário não encontrado no banco local. Tente recarregar a página.');
-        return;
-    }
+    const u = DB.usuarios.find(u => u.id === id && !u.deletedAt);
+    if (!u) { alert('Usuário não encontrado após sincronização.'); carregarUsuarios(); return; }
     document.getElementById('editUsuarioId').value = u.id;
     document.getElementById('editNomeUsuario').value = u.nome;
     document.getElementById('editLoginUsuario').value = u.usuario;
@@ -1344,7 +1316,7 @@ async function abrirModalEditar(id) {
     document.getElementById('modalEditarUsuario').style.display = 'flex';
 }
 function fecharModalEditar() { document.getElementById('modalEditarUsuario').style.display = 'none'; }
-function salvarEdicaoUsuario() {
+async function salvarEdicaoUsuario() {
     const id = parseInt(document.getElementById('editUsuarioId').value);
     const nome = document.getElementById('editNomeUsuario').value.trim();
     const usuario = document.getElementById('editLoginUsuario').value.trim();
@@ -1355,15 +1327,17 @@ function salvarEdicaoUsuario() {
 
     if (!nome || !usuario || !email) return alert('Nome, usuário e email são obrigatórios.');
 
-    const u = DB.usuarios.find(u => u.id === id);
-    if (!u) return;
+    await sincronizarUsuariosDaNuvem();
 
-    const usuarioAntigo = u.usuario; // necessário para localizar a linha na planilha
+    let u = DB.usuarios.find(u => u.id === id && !u.deletedAt);
+    if (!u) {
+        u = DB.usuarios.find(u => u.usuario === usuario && !u.deletedAt);
+    }
+    if (!u) { alert('Usuário não encontrado.'); return; }
 
-    const conflito = DB.usuarios.find(u => u.usuario === usuario && u.id !== id && !u.deletedAt);
-    if (conflito) return alert('Usuário já existe.');
+    const usuarioAntigo = u.usuario;
+    if (DB.usuarios.find(u => u.usuario === usuario && u.id !== u.id && !u.deletedAt)) return alert('Login já existe.');
 
-    // Atualiza localmente
     u.nome = nome;
     u.usuario = usuario;
     u.email = email;
@@ -1373,29 +1347,21 @@ function salvarEdicaoUsuario() {
     u.equipe = categoria === 'admin' ? 'Gestão' : (equipe || 'Geral');
     salvarDB();
 
-    // Sincroniza com a planilha
-    fetchFromGS('editarUsuario', {
-        usuarioAntigo: usuarioAntigo,
-        nome: nome,
-        usuario: usuario,
-        senha: novaSenha,          // vazia mantém a senha atual
-        email: email,
-        categoria: categoria,
-        equipe: u.equipe,
-        status: u.ativo ? 'LIBERADO' : 'BLOQUEADO'
-    }).then(resp => {
-        console.log('Resposta do editarUsuario:', resp);
+    try {
+        const resp = await fetchFromGS('editarUsuario', {
+            usuarioAntigo: usuarioAntigo,
+            nome, usuario, senha: novaSenha, email, categoria,
+            equipe: u.equipe,
+            status: u.ativo ? 'LIBERADO' : 'BLOQUEADO'
+        });
         if (resp && resp.ok) {
-            console.log('✅ Usuário atualizado no Google Sheets');
+            alert('✅ Usuário atualizado com sucesso!');
         } else {
-            console.warn('⚠️ Falha ao sincronizar edição:', resp?.erro);
-            alert('⚠️ Usuário salvo localmente, mas houve falha ao sincronizar com a planilha: ' + (resp?.erro || 'Erro desconhecido'));
+            alert('⚠️ Erro ao sincronizar com planilha: ' + (resp?.erro || 'Erro desconhecido'));
         }
-    }).catch(err => {
-        console.error('Erro de rede ao sincronizar edição:', err);
-        alert('⚠️ Erro de comunicação ao sincronizar com a planilha.');
-    });
-
+    } catch (err) {
+        alert('⚠️ Erro de comunicação. Salvo apenas localmente.');
+    }
     carregarUsuarios();
     fecharModalEditar();
 }
@@ -1427,8 +1393,9 @@ function carregarLixeira() {
 function recuperarUsuario(id) { const u = DB.usuarios.find(u => u.id === id); if (u) { u.deletedAt = null; u.ativo = true; salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 function excluirPermanentemente(id) { const u = DB.usuarios.find(u => u.id === id); if (u && confirm(`Excluir definitivamente "${u.nome}"?`)) { DB.usuarios = DB.usuarios.filter(u => u.id !== id); salvarDB(); carregarUsuarios(); carregarLixeira(); } }
 
-// ===== RELATÓRIOS =====
-function carregarRelatorios() {
+// ===== RELATÓRIOS (COM SINCRONIZAÇÃO) =====
+async function carregarRelatorios() {
+    await Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]);
     const periodo = document.getElementById('filtroPeriodo').value;
     let dadosAtual, dadosAnterior;
     if (periodo === 'diario') { dadosAtual = gerarDadosVendas(); dadosAnterior = gerarVendasDiaPassado(); }
@@ -2018,5 +1985,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lembrar) { document.getElementById('usuario').value = lembrar; document.getElementById('lembrar').checked = true; }
     if (sessao) { sessao.tipo === 'admin' ? mostrarAdmin() : mostrarVendedor(); }
     document.addEventListener('keypress', e => { if (e.key === 'Enter' && document.getElementById('loginScreen').style.display !== 'none') fazerLogin(); });
-    verificarNotificacaoPendente(); // verifica se há notificações não lidas ao carregar
+    verificarNotificacaoPendente();
 });
