@@ -187,23 +187,30 @@ function fetchFromGS(acao, params = {}) {
         const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
         const script = document.createElement('script');
         script.src = GOOGLE_SHEET_VENDAS_URL + '?' + urlParams.toString();
+        
         const timeout = setTimeout(() => {
             if (document.body.contains(script)) document.body.removeChild(script);
-            delete window[callbackName];
             reject(new Error('Timeout na requisição JSONP'));
+            // Não deletar a callback aqui, pois o script ainda pode tentar chamá-la
+            setTimeout(() => { delete window[callbackName]; }, 1000);
         }, 15000);
+        
         window[callbackName] = (res) => {
             clearTimeout(timeout);
             if (document.body.contains(script)) document.body.removeChild(script);
-            delete window[callbackName];
             resolve(res);
+            // Mantém a função por mais 1 segundo antes de deletar
+            setTimeout(() => { delete window[callbackName]; }, 1000);
         };
+        
         script.onerror = () => {
             clearTimeout(timeout);
             if (document.body.contains(script)) document.body.removeChild(script);
-            delete window[callbackName];
+            // Não deletar a callback aqui, pois o script ainda pode tentar chamá-la
+            setTimeout(() => { delete window[callbackName]; }, 1000);
             reject(new Error('Erro de rede na requisição JSONP'));
         };
+        
         document.body.appendChild(script);
     });
 }
@@ -2365,8 +2372,16 @@ function gerarExcel(dados, nomeArquivo) {
 }
 
 // ===== POLLING PRINCIPAL =====
-setInterval(() => { if (sessao) { buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem(); } }, 5000);
-
+let isPolling = false;
+setInterval(() => {
+    if (sessao && !isPolling) {
+        isPolling = true;
+        Promise.all([
+            buscarPendentesDaNuvem(),
+            buscarVendasAprovadasDaNuvem()
+        ]).finally(() => { isPolling = false; });
+    }
+}, 5000);
 setInterval(() => {
     if (sessao && sessao.tipo === 'admin') {
         sincronizarUsuariosDaNuvem();
