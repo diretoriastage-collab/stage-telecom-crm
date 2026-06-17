@@ -295,7 +295,19 @@
 
                 <!-- SEÇÃO METAS -->
                 <div id="secao-metas" class="section-hidden">
-                    <div class="form-glass"><h3><i class="fas fa-bullseye"></i> Metas de Vendas</h3><div class="form-grid"><div class="input-group"><label>Meta Diária</label><input type="number" id="metaDiariaVendas" min="1" value="10"></div><div class="input-group"><label>Meta Quinzenal</label><input type="number" id="metaQuinzenalVendas" min="1" value="75"></div><div class="input-group"><label>Meta Mensal</label><input type="number" id="metaMensalVendas" min="1" value="150"></div></div></div>
+                    <div class="form-glass">
+                        <h3><i class="fas fa-bullseye"></i> Metas de Vendas</h3>
+                        <div class="form-grid">
+                            <div class="input-group"><label>Meta Diária</label><input type="number" id="metaDiariaVendas" min="1" value="10" onchange="salvarMetas()"></div>
+                            <div class="input-group"><label>Meta Quinzenal</label><input type="number" id="metaQuinzenalVendas" min="1" value="75" onchange="salvarMetas()"></div>
+                            <div class="input-group"><label>Meta Mensal</label><input type="number" id="metaMensalVendas" min="1" value="150" onchange="salvarMetas()"></div>
+                        </div>
+                        <div style="margin-top:10px; text-align:right;">
+                            <button onclick="salvarMetas()" class="btn-glass-primary" style="padding:8px 20px;">
+                                <i class="fas fa-save"></i> Salvar Metas de Vendas
+                            </button>
+                        </div>
+                    </div>
                     <div class="form-glass" style="margin-top:20px;"><h3><i class="fas fa-box"></i> Metas de Produtos</h3><div class="form-grid"><div class="input-group"><label>Produto</label><select id="produtoMetaSelect"></select></div><div class="input-group"><label>Meta Diária</label><input type="number" id="produtoDiaria" min="1" value="5"></div><div class="input-group"><label>Meta Quinzenal</label><input type="number" id="produtoQuinzenal" min="1" value="40"></div><div class="input-group"><label>Meta Mensal</label><input type="number" id="produtoMensal" min="1" value="80"></div></div><button onclick="adicionarMetaProduto()" class="btn-glass-primary" style="margin-top:10px;"><i class="fas fa-plus"></i> Adicionar Meta</button><div class="table-glass" style="margin-top:20px;" id="tabelaMetasProdutosContainer"><table><thead><tr><th>Produto</th><th>Diária</th><th>Quinzenal</th><th>Mensal</th><th>Ações</th></tr></thead><tbody id="tabelaMetasProdutos"></tbody></table></div></div>
                     <div class="form-glass" style="margin-top:20px;">
                         <h3><i class="fas fa-cogs"></i> Gerenciar Produtos</h3>
