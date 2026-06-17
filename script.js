@@ -1107,8 +1107,12 @@ function mostrarSecaoVendedor(e, secao) {
             carregarSelectProdutos();
         });
     }
-    if (secao === 'controleVendas') carregarControleVendas();
-    if (secao === 'instalacoes') carregarInstalacoes();
+  if (secao === 'controleVendas') {
+    buscarVendasAprovadasDaNuvem().then(() => carregarControleVendas());
+}
+if (secao === 'instalacoes') {
+    buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes());
+}
 }
 
 function carregarInicioVendedor() {
