@@ -2103,22 +2103,84 @@ async function confirmarSelecaoMes() {
 }
 
 function gerarExcel(dados, nomeArquivo) {
-    const linhas = dados.map(v => ({
-        'Cliente': v.nomeCompleto || '',
-        'CPF': v.cpf || '',
-        'Plano': v.produto || v.plano || '',
-        'Valor (R$)': parseFloat(v.valor).toFixed(2),
-        'Data Aprovação': v.data || '',
-        'Vendedor': v.vendedorNome || '',
-        'Status Instalação': v.instalacaoStatus || 'Aguardando',
-        'Contrato': v.contrato || '',
-        'Data Instalação': v.infoData || '',
-        'Período': v.infoPeriodo || ''
+    // Colunas na ordem desejada e seus respectivos campos no objeto de venda
+    const colunas = [
+        { titulo: 'Cliente', campo: 'nomeCompleto' },
+        { titulo: 'CPF', campo: 'cpf' },
+        { titulo: 'Plano', campo: 'produto' }, // ou 'plano'
+        { titulo: 'Valor (R$)', campo: 'valor', formatar: v => `R$ ${parseFloat(v.valor || 0).toFixed(2)}` },
+        { titulo: 'Data Aprovação', campo: 'data' },
+        { titulo: 'Vendedor', campo: 'vendedorNome' },
+        { titulo: 'Status Instalação', campo: 'instalacaoStatus' },
+        { titulo: 'Velocidade', campo: 'velocidade' },
+        { titulo: 'Contrato', campo: 'contrato' },
+        { titulo: 'HP', campo: 'hp' },
+        { titulo: 'Viabilidade', campo: 'viabilidade' },
+        { titulo: 'Plano Tipo', campo: 'planoTipo' },
+        { titulo: 'Tipo de Aprovação', campo: 'tipoAprovacao' }
+    ];
+
+    // Cria uma nova planilha
+    const ws_data = [];
+
+    // Linha 1: Título mesclado (será tratado depois)
+    ws_data.push(['STAGE TELECOM']); // placeholder, a mesclagem é feita depois
+
+    // Linha 2: cabeçalhos
+    const headers = colunas.map(c => c.titulo);
+    ws_data.push(headers);
+
+    // Linhas de dados
+    dados.forEach(v => {
+        const row = colunas.map(c => {
+            if (c.formatar) return c.formatar(v);
+            return v[c.campo] !== undefined ? v[c.campo] : '';
+        });
+        ws_data.push(row);
+    });
+
+    // Cria a planilha a partir dos dados
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    // Configurações de mesclagem e estilos
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    const numCols = colunas.length;
+
+    // Mescla título da coluna A até a última coluna (linha 0)
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: numCols - 1 } }];
+
+    // Estilos para o título (linha 0)
+    const titleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
+    ws[titleCell].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" }, sz: 16 },
+        fill: { fgColor: { rgb: "2E7D32" } },
+        alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    // Estilos para os cabeçalhos (linha 1)
+    for (let c = 0; c < numCols; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 1, c: c });
+        if (!ws[cellRef]) continue;
+        ws[cellRef].s = {
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+            fill: { fgColor: { rgb: "424242" } },
+            alignment: { horizontal: "center", vertical: "center" }
+        };
+    }
+
+    // Ajusta a largura das colunas (opcional)
+    ws['!cols'] = colunas.map(c => ({
+        wpx: Math.max(
+            c.titulo.length * 10 + 20,
+            ...dados.map(v => (v[c.campo] ? String(v[c.campo]).length * 8 : 0))
+        )
     }));
 
-    const ws = XLSX.utils.json_to_sheet(linhas);
+    // Cria o workbook e adiciona a planilha
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Vendas");
+
+    // Escreve o arquivo e força o download
     XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
 }
 // ===== POLLING PRINCIPAL =====
