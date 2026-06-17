@@ -1010,7 +1010,9 @@ function enviarVenda() {
 }
 
 function carregarControleVendas() {
-    const minhasAtivacoes = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').reverse();
+    const minhasAtivacoes = DB.ativacoes
+        .filter(a => a.vendedorNome === sessao.nome && a.status === 'Aprovado')
+        .reverse();
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = minhasAtivacoes.length ? minhasAtivacoes.map(a => {
@@ -1028,9 +1030,10 @@ function carregarControleVendas() {
         </tr>`;
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>';
 }
-
 function carregarInstalacoes() {
-    const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').reverse();
+    const aprovadas = DB.ativacoes
+        .filter(a => a.vendedorNome === sessao.nome && a.status === 'Aprovado')
+        .reverse();
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
     tabela.innerHTML = aprovadas.length ? aprovadas.map(a => {
@@ -1118,16 +1121,21 @@ function carregarInicioVendedor() {
     const metaDiaria = DB.metas.diariaVendas || 10;
     document.getElementById('metaMensalVendedor').textContent = metaMensal;
     document.getElementById('metaDiariaVendedor').textContent = metaDiaria;
-    const vendasAprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
+
+    const vendasAprovadas = DB.ativacoes.filter(a =>
+        a.vendedorNome === sessao.nome &&
+        a.status === 'Aprovado' &&
+        a.finalizada !== false
+    );
     const totalVendas = vendasAprovadas.length;
     const percentual = Math.min((totalVendas / metaMensal) * 100, 100).toFixed(1);
+
     document.getElementById('realizadoVendedorMes').textContent = totalVendas;
     document.getElementById('faltamVendedorMes').textContent = Math.max(metaMensal - totalVendas, 0);
     document.getElementById('totalVendasMesVendedor').textContent = totalVendas;
     document.getElementById('barraProgressoVendedor').style.width = `${percentual}%`;
     atualizarPainelInstalacoes();
 }
-
 function atualizarPainelInstalacoes() {
     const hoje = new Date();
     const dia = hoje.getDate();
