@@ -85,7 +85,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwlSHxlla6adB_bdSAtfAz-7cdunM_DtKFYQMoMwcBYjks9tq9cZMPB73ocTVYvxc9_/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbwp9dbYGofjl9DRgf5votGT8A3icPuDS1tn8i3PxuiNwzz_Awgf4gCLDQ2ECv26WTOv/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -255,7 +255,29 @@ async function sincronizarUsuariosDaNuvem() {
     }
   } catch (e) { console.warn('Erro ao sincronizar usuários:', e); }
 }
-
+async function sincronizarStatusFlagsDaNuvem() {
+  try {
+    const resp = await fetchFromGS('listarStatusFlags');
+    if (resp && resp.flags && Array.isArray(resp.flags)) {
+      DB.statusFlags = resp.flags.map(f => ({
+        id: f.id,
+        nome: f.nome,
+        cor: f.cor
+      }));
+      // Garante que ao menos as flags padrão existam
+      if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
+        DB.statusFlags.push({ id: Date.now(), nome: 'Pendente', cor: '#ffa502' });
+      }
+      if (!DB.statusFlags.find(f => f.nome === 'Aprovado')) {
+        DB.statusFlags.push({ id: Date.now()+1, nome: 'Aprovado', cor: '#2ed573' });
+      }
+      if (!DB.statusFlags.find(f => f.nome === 'Cancelado')) {
+        DB.statusFlags.push({ id: Date.now()+2, nome: 'Cancelado', cor: '#ff4757' });
+      }
+      salvarDB();
+    }
+  } catch (e) { console.warn('Erro ao sincronizar flags:', e); }
+}
 // ===== BUSCAR PENDENTES (CORRIGIDO) =====
 async function buscarPendentesDaNuvem() {
     if (!sessao) return;
@@ -1955,11 +1977,49 @@ function verificarNotificacaoPendente() {
 }
 
 // ===== GERENCIAR STATUS =====
-function abrirGerenciadorStatus() { carregarListaStatusFlags(); document.getElementById('modalStatus').style.display = 'flex'; }
+async function abrirGerenciadorStatus() {
+  await sincronizarStatusFlagsDaNuvem();
+  carregarListaStatusFlags();
+  document.getElementById('modalStatus').style.display = 'flex';
+}
 function fecharModalStatus() { document.getElementById('modalStatus').style.display = 'none'; }
 function carregarListaStatusFlags() { const container = document.getElementById('listaStatusFlags'); if (!container) return; container.innerHTML = DB.statusFlags.map(f => `<div class="flag-item"><span class="flag-color" style="background:${f.cor};"></span><span>${f.nome}</span><button onclick="removerStatusFlag(${f.id})"><i class="fas fa-trash"></i></button></div>`).join(''); }
-function adicionarStatusFlag() { const nome = document.getElementById('novoStatusNome').value.trim(); const cor = document.getElementById('novoStatusCor').value; if (!nome) return alert('Digite um nome para a flag!'); DB.statusFlags.push({ id: Date.now(), nome, cor }); salvarDB(); carregarListaStatusFlags(); document.getElementById('novoStatusNome').value = ''; }
-function removerStatusFlag(id) { DB.statusFlags = DB.statusFlags.filter(f => f.id !== id); salvarDB(); carregarListaStatusFlags(); if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes(); }
+async function adicionarStatusFlag() {
+  const nome = document.getElementById('novoStatusNome').value.trim();
+  const cor = document.getElementById('novoStatusCor').value;
+  if (!nome) return alert('Digite um nome para a flag!');
+  
+  try {
+    const resp = await fetchFromGS('adicionarStatusFlag', { nome, cor });
+    if (resp && resp.ok) {
+      // Atualiza localmente com o ID retornado
+      DB.statusFlags.push({ id: resp.id, nome, cor });
+      salvarDB();
+      carregarListaStatusFlags();
+      document.getElementById('novoStatusNome').value = '';
+    } else {
+      alert('Erro ao adicionar: ' + (resp?.erro || 'Erro desconhecido'));
+    }
+  } catch (err) {
+    alert('Erro de comunicação.');
+  }
+}
+
+async function removerStatusFlag(id) {
+  try {
+    const resp = await fetchFromGS('removerStatusFlag', { id });
+    if (resp && resp.ok) {
+      DB.statusFlags = DB.statusFlags.filter(f => f.id !== id);
+      salvarDB();
+      carregarListaStatusFlags();
+      if (document.getElementById('secao-ativacoes')?.classList.contains('section-active')) carregarAtivacoes();
+    } else {
+      alert('Erro ao remover: ' + (resp?.erro || 'Erro desconhecido'));
+    }
+  } catch (err) {
+    alert('Erro de comunicação.');
+  }
+}
 
 // ===== POLLING PRINCIPAL =====
 setInterval(() => { if (sessao) { buscarPendentesDaNuvem(); buscarVendasAprovadasDaNuvem(); } }, 5000);
@@ -1985,6 +2045,7 @@ function mostrarAdmin() {
     iniciarChat();
     buscarPendentesDaNuvem();
     buscarVendasAprovadasDaNuvem();
+    sincronizarStatusFlagsDaNuvem(); // nova linha
 }
 
 function mostrarVendedor() {
