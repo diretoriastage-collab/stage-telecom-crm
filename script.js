@@ -224,17 +224,34 @@ async function postParaGoogleSheets(acao, dados = {}) {
 async function sincronizarUsuariosDaNuvem() {
   try {
     const resp = await fetchFromGS('listarUsuarios');
+    console.log('📥 Usuários recebidos da nuvem:', resp);
     if (resp && resp.usuarios && Array.isArray(resp.usuarios)) {
-      const idsExistentes = DB.usuarios.filter(u => !u.deletedAt).map(u => u.usuario.toUpperCase());
+      const antes = DB.usuarios.filter(u => !u.deletedAt).length;
+      
+      // Mapeia os logins existentes (case‑insensitive)
+      const existentes = {};
+      DB.usuarios.forEach(u => {
+        if (!u.deletedAt) existentes[u.usuario.toUpperCase()] = u;
+      });
+
       resp.usuarios.forEach(uSheet => {
         const login = uSheet.usuario.toUpperCase();
-        const existente = DB.usuarios.find(u => u.usuario.toUpperCase() === login && !u.deletedAt);
-        if (!existente) {
+        if (existentes[login]) {
+          // Atualiza dados existentes
+          const u = existentes[login];
+          u.nome = uSheet.nome;
+          u.email = uSheet.email;
+          u.categoria = uSheet.categoria || u.categoria;
+          u.tipo = uSheet.categoria || u.tipo;
+          u.ativo = uSheet.status === 'LIBERADO';
+          u.equipe = uSheet.equipe || u.equipe;
+        } else {
+          // Adiciona novo
           DB.usuarios.push({
             id: Date.now() + Math.random(),
             nome: uSheet.nome,
             usuario: uSheet.usuario,
-            senha: '',
+            senha: '',               // não precisamos da senha para exibição
             email: uSheet.email,
             categoria: uSheet.categoria || 'vendedor',
             tipo: uSheet.categoria || 'vendedor',
@@ -242,18 +259,23 @@ async function sincronizarUsuariosDaNuvem() {
             deletedAt: null,
             equipe: uSheet.equipe || 'Geral'
           });
-        } else {
-          existente.nome = uSheet.nome;
-          existente.email = uSheet.email;
-          existente.categoria = uSheet.categoria || existente.categoria;
-          existente.tipo = uSheet.categoria || existente.tipo;
-          existente.ativo = uSheet.status === 'LIBERADO';
-          existente.equipe = uSheet.equipe || existente.equipe;
         }
       });
+
+      const depois = DB.usuarios.filter(u => !u.deletedAt).length;
+      console.log(`✅ Usuários sincronizados: ${antes} → ${depois} (${depois - antes} novos)`);
       salvarDB();
+
+      // Se a seção de cadastro estiver visível, recarrega a tabela
+      if (document.getElementById('secao-cadastro')?.classList.contains('section-active')) {
+        carregarUsuarios();
+      }
+    } else {
+      console.warn('⚠️ Resposta de listarUsuarios inválida:', resp);
     }
-  } catch (e) { console.warn('Erro ao sincronizar usuários:', e); }
+  } catch (e) {
+    console.error('❌ Erro ao sincronizar usuários da nuvem:', e);
+  }
 }
 async function sincronizarStatusFlagsDaNuvem() {
   try {
