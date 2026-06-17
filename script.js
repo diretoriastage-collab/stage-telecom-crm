@@ -2379,9 +2379,10 @@ setInterval(() => {
         Promise.all([
             buscarPendentesDaNuvem(),
             buscarVendasAprovadasDaNuvem()
-        ]).finally(() => { isPolling = false; });
+        ]).catch(e => console.warn('Polling falhou:', e))
+          .finally(() => { isPolling = false; });
     }
-}, 5000);
+}, 20000); // 20 segundos
 setInterval(() => {
     if (sessao && sessao.tipo === 'admin') {
         sincronizarUsuariosDaNuvem();
