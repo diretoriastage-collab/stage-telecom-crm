@@ -458,10 +458,15 @@ async function abrirModalAtivacao(id) {
     try {
         const resp = await fetchFromGS('consultarTratando', { uuid: a.id });
         const lockAtual = resp?.tratandoPor;
-        if (lockAtual && lockAtual !== sessao.nome) {
-            alert(`⚠️ Esta venda está sendo tratada por ${lockAtual}. Aguarde.`);
-            return;
-        }
+        if (lockAtual) {
+    if (lockAtual !== sessao.nome) {
+        alert(`⚠️ Esta venda está sendo tratada por ${lockAtual}. Aguarde.`);
+        return;
+    }
+    // Se o lock for o próprio admin, significa que a limpeza anterior falhou; forçamos a limpeza
+    console.warn('Lock residual do próprio admin, forçando liberação');
+    await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+}
     } catch (e) {
         console.warn('Erro ao verificar lock no GS, usando DB local', e);
         // fallback para o DB local
@@ -527,11 +532,17 @@ async function cancelarEdicaoAtivacao() {
     if (a) {
         a.tratandoPor = null;
         salvarDB();
-        postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+        try {
+            // Usa fetchFromGS para ter certeza da liberação
+            await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+        } catch (e) {
+            console.warn('Falha ao liberar lock, tentando POST fallback', e);
+            postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+        }
     }
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
-    carregarAtivacoes();   // atualiza a tabela para limpar o nome
+    carregarAtivacoes();
 }
 async function fecharModalAtivacao() {
     const a = DB.ativacoes.find(x => x.id === vendaSendoVisualizada);
@@ -635,13 +646,14 @@ async function fecharModalAtivacao() {
             a.status = novoStatus;
             salvarDB();
         }
-        a.tratandoPor = null;
-        salvarDB();
-        postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
-        if (novoStatus !== 'Aprovado') {
-            await buscarPendentesDaNuvem();
-            await buscarVendasAprovadasDaNuvem();
-        }
+       a.tratandoPor = null;
+salvarDB();
+try {
+    await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+} catch (e) {
+    console.warn('Erro ao liberar lock', e);
+    postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
+}
     }
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
