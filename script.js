@@ -1098,6 +1098,7 @@ function mostrarSecaoVendedor(e, secao) {
     if (e && e.currentTarget) e.currentTarget.classList.add('active');
     const titulos = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' };
     document.getElementById('tituloSecaoVendedor').innerHTML = titulos[secao] || secao;
+
     if (secao === 'inicio') {
         sincronizarMetasVendas().then(() => carregarInicioVendedor());
     }
@@ -1107,15 +1108,13 @@ function mostrarSecaoVendedor(e, secao) {
             carregarSelectProdutos();
         });
     }
-if (secao === 'controleVendas') {
-    buscarVendasAprovadasDaNuvem().then(() => carregarControleVendas()).catch(() => carregarControleVendas());
-}
-if (secao === 'instalacoes') {
-    buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
-}
-}
-}
-
+    if (secao === 'controleVendas') {
+        buscarVendasAprovadasDaNuvem().then(() => carregarControleVendas()).catch(() => carregarControleVendas());
+    }
+    if (secao === 'instalacoes') {
+        buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
+    }
+}  // <-- a função termina aqui
 function carregarInicioVendedor() {
     if (!sessao) return;
     const metaMensal = DB.metas.mensalVendas || 150;
