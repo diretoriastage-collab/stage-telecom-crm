@@ -448,7 +448,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 infoPeriodo: v['Período Inst.'] || '',
                 status: 'Aprovado',
                 vendedorNome: v.Vendedor || '',
-                vendedor_id: null,
+                vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,
                 data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : hojeBR(),
                 finalizada: true,
                 instalacaoStatus: v.Instalação || 'Aguardando',
@@ -1114,7 +1114,7 @@ function mostrarSecaoVendedor(e, secao) {
     if (secao === 'instalacoes') {
         buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
     }
-}  // <-- a função termina aqui
+}
 function carregarInicioVendedor() {
     if (!sessao) return;
     const metaMensal = DB.metas.mensalVendas || 150;
