@@ -85,7 +85,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzApn-htJxI8qf5-WEz6Q2P2NqhLt7PtUaf_FtuSKHEjmVisPGgkzh8MzlMPfeJHsPLIA/exec'; // ATUALIZE COM SUA URL
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzzhCJJj4mT7TUVoVBUiwWtf24K8ho0LTCibkufoNGc1A8uQAIsCMV_NFr53a3ubKwMTw/exec'; // ATUALIZE COM SUA URL
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -1107,11 +1107,12 @@ function mostrarSecaoVendedor(e, secao) {
             carregarSelectProdutos();
         });
     }
-  if (secao === 'controleVendas') {
-    buscarVendasAprovadasDaNuvem().then(() => carregarControleVendas());
+if (secao === 'controleVendas') {
+    buscarVendasAprovadasDaNuvem().then(() => carregarControleVendas()).catch(() => carregarControleVendas());
 }
 if (secao === 'instalacoes') {
-    buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes());
+    buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
+}
 }
 }
 
@@ -2408,8 +2409,12 @@ function mostrarVendedor() {
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
     iniciarChat();
-    buscarPendentesDaNuvem();
-    buscarVendasAprovadasDaNuvem();
+
+  Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]).then(() => {
+    if (document.getElementById('secao-inicio')?.classList.contains('section-active')) {
+        carregarInicioVendedor();
+    }
+}).catch(e => console.warn('Erro ao sincronizar vendas no login do vendedor:', e));
     sincronizarMetasVendas();
     sincronizarProdutos();
     sincronizarMetasProdutos();
