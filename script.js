@@ -476,11 +476,20 @@ async function abrirModalAtivacao(id) {
         }
     }
 
-    // ✅ Adquire o lock
-    vendaSendoVisualizada = a.id;
-    a.tratandoPor = sessao.nome;
+   // ✅ Adquire o lock (confirmado)
+vendaSendoVisualizada = a.id;
+a.tratandoPor = sessao.nome;
+salvarDB();
+try {
+    await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome });
+    console.log('Lock confirmado no Google Sheets');
+} catch (e) {
+    alert('Erro de comunicação ao travar a venda. Tente novamente.');
+    a.tratandoPor = null;
     salvarDB();
-    postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome });
+    vendaSendoVisualizada = null;
+    return;
+}
 
     // Restante do código para montar o modal (mantenha exatamente igual ao que já está)
     const statusOptions = DB.statusFlags.map(f =>
@@ -646,15 +655,14 @@ async function fecharModalAtivacao() {
             a.status = novoStatus;
             salvarDB();
         }
-       a.tratandoPor = null;
+a.tratandoPor = null;
 salvarDB();
 try {
     await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' });
 } catch (e) {
     console.warn('Erro ao liberar lock', e);
     postParaGoogleSheets('atualizarTratando', { uuid: a.id, tratandoPor: '' });
-}
-    }
+}   }
     document.getElementById('modalAtivacao').style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
