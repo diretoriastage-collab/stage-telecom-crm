@@ -135,6 +135,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-grad
 .meta-progress { height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff4757); border-radius: 10px; transition: width 1s ease; box-shadow: 0 0 15px rgba(231,76,60,0.5); }
 .meta-text { font-size: 11px; color: var(--text-secondary); }
 .meta-info { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
+.metas-vendedor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+.meta-vendedor-card { background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; min-height: 104px; }
+.meta-vendedor-card .meta-vendedor-label { display:block; color: var(--text-secondary); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 7px; }
+.meta-vendedor-card .meta-vendedor-value { display:block; color:#fff; font-size: 24px; font-weight: 800; line-height: 1; }
+.meta-vendedor-card .meta-vendedor-note { display:block; color: var(--primary-light); font-size: 11px; margin-top: 8px; }
 .ranking-section, .produtos-section { margin-top: 20px; }
 .ranking-section h4, .produtos-section h4 { font-size: 12px; color: var(--primary-light); margin-bottom: 15px; letter-spacing: 1px; }
 .ranking-list { display: flex; flex-direction: column; gap: 8px; }
