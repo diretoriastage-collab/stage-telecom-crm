@@ -102,7 +102,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzW5OV1Ud_BKe9OQfvrshBfb54PbaaO01XaSQovkXm6bGY_OZyBWBwymdBxcoqpbQJ3OA/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycby5PtcuPD9zgDr8tfNeybIy9_FtU08-2ZnYOiGycDq8pBbdhwnsGm1v-9g357G22ufCtA/exec';
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -1083,7 +1083,7 @@ function abrirModalVisualizacao(id) {
         ['Tel 1', a.telefone1, 'viewTelefone1'], ['Tel 2', a.telefone2, 'viewTelefone2'], ['CEP', a.cep, 'viewCep'],
         ['Logradouro', a.logradouro, 'viewLogradouro'], ['N°', a.numero, 'viewNumero'], ['Complemento', a.complemento, 'viewComplemento'],
         ['Bairro', a.bairro, 'viewBairro'], ['Estado', a.uf, 'viewUf'], ['Cidade', a.cidade, 'viewCidade'],
-        ['Ponto Ref.', a.pontoReferencia, 'viewPontoReferencia'], ['Ativado Por', a.ativadoPor || '—', 'viewAtivadoPor'],
+        ['Ponto Ref.', a.pontoReferencia, 'viewPontoReferencia'], ['Data da Venda', a.data || '', 'viewDataVenda'], ['Ativado Por', a.ativadoPor || '—', 'viewAtivadoPor'],
         ['Velocidade', a.velocidade, 'viewVelocidade'], ['Produto', a.produto || a.plano, 'viewProduto'],
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
@@ -1119,6 +1119,7 @@ async function salvarEdicaoVenda() {
     a.telefone2 = getVal('viewTelefone2'); a.cep = getVal('viewCep'); a.logradouro = getVal('viewLogradouro');
     a.numero = getVal('viewNumero'); a.complemento = getVal('viewComplemento'); a.bairro = getVal('viewBairro');
     a.uf = getVal('viewUf'); a.cidade = getVal('viewCidade'); a.pontoReferencia = getVal('viewPontoReferencia');
+a.data = getVal('viewDataVenda');
     a.velocidade = getVal('viewVelocidade'); a.produto = getVal('viewProduto'); a.plano = a.produto;
     a.ativadoPor = getVal('viewAtivadoPor'); a.valor = getVal('viewValor').replace(/R\$/gi, '').trim();
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
@@ -1131,7 +1132,7 @@ async function salvarEdicaoVenda() {
             rg: a.rg, orgaoExpedidor: a.orgaoExpeditor, dataExpedicao: a.dataExpedicao, email: a.email,
             telefone1: a.telefone1, telefone2: a.telefone2, cep: a.cep, logradouro: a.logradouro,
             numero: a.numero, complemento: a.complemento, bairro: a.bairro, uf: a.uf, cidade: a.cidade,
-            pontoReferencia: a.pontoReferencia, plano: a.produto, velocidade: a.velocidade, valor: a.valor,
+            pontoReferencia: a.pontoReferencia, data: a.data, plano: a.produto, velocidade: a.velocidade, valor: a.valor,
             vencimento: a.vencimento, formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade,
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
