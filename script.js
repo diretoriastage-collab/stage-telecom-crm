@@ -102,7 +102,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxlnf3MfUneSXrgEzNQGdSMR1KFVovLCjp3bCO0fCiL4Dwob9hfnlDIkvLlSoRw8OihuA/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzoA0XdB5Rg6nBVdwa0yJWN0D9QsO-8HbeXJ3EyxqupseonBjAtIqdJRdu4_YOmyWnzvA/exec';
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -214,7 +214,7 @@ function fetchFromGS(acao, params = {}) {
             if (document.body.contains(script)) document.body.removeChild(script);
             reject(new Error('Timeout na requisição JSONP'));
             setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 15000);
+        }, 8000);
         
         window[callbackName] = (res) => {
             clearTimeout(timeout);
@@ -813,33 +813,25 @@ async function abrirModalAtivacao(id) {
     if (!a) { alert('Venda não encontrada'); return; }
     if (a.newBadge) { a.newBadge = false; salvarDB(); }
 
-    try {
-        const resp = await fetchFromGS('consultarTratando', { uuid: a.id });
-        const lockAtual = resp ? resp.tratandoPor : null;
-        if (lockAtual && lockAtual !== sessao.nome) {
-            alert('⚠️ Esta venda está sendo tratada por ' + lockAtual + '. Aguarde.');
-            return;
-        }
-        if (lockAtual === sessao.nome) await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' });
-    } catch (e) {
-        if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
-            alert('⚠️ Esta venda está sendo tratada por ' + a.tratandoPor + '. Aguarde.');
-            return;
-        }
+    // Verificação rápida local primeiro (não bloqueia)
+    if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
+        alert('⚠️ Esta venda está sendo tratada por ' + a.tratandoPor + '. Aguarde.');
+        return;
     }
 
     vendaSendoVisualizada = a.id;
     a.tratandoPor = sessao.nome;
     salvarDB();
-    try { await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome }); } catch (e) {
-        alert('Erro de comunicação ao travar a venda.');
-        a.tratandoPor = null; salvarDB(); vendaSendoVisualizada = null; return;
-    }
 
+    // Dispara a trava em segundo plano (não bloqueia a abertura do modal)
+    fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome }).catch(() => {});
+
+    // Monta o HTML do status primeiro (leve)
     const statusOptions = DB.statusFlags.map(f =>
         '<option value="' + f.nome + '" ' + (a.status === f.nome ? 'selected' : '') + '>' + f.nome + '</option>'
     ).join('');
 
+    // Constrói o HTML com insertAdjacentHTML para performance
     const html = '' +
     '<div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">' +
         '<div class="input-group"><label>Status</label><select id="editStatus">' + statusOptions + '</select></div>' +
@@ -872,7 +864,12 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
-    document.getElementById('conteudoModalAtivacao').innerHTML = html;
+
+    // Usa insertAdjacentHTML para renderização mais rápida
+    const conteudo = document.getElementById('conteudoModalAtivacao');
+    conteudo.innerHTML = '';
+    conteudo.insertAdjacentHTML('beforeend', html);
+
     document.getElementById('infoContrato').value = a.contrato || '';
     document.getElementById('infoData').value = a.infoData || '';
     document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
@@ -1101,8 +1098,10 @@ function abrirModalVisualizacao(id) {
         '<button onclick="fecharModalVisualizacao()" class="btn-glass-sm" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);">Fechar</button>';
     if (sessao.tipo === 'admin') html += '<button onclick="salvarEdicaoVenda()" class="btn-glass-sm" style="background:#2ed573;color:#0b0b0b;">Salvar alterações</button>';
     html += '</div>';
-    document.getElementById('conteudoModalVisualizacao').innerHTML = html;
-    document.getElementById('modalVisualizacao').style.display = 'flex';
+    const conteudo = document.getElementById('conteudoModalVisualizacao');
+conteudo.innerHTML = '';
+conteudo.insertAdjacentHTML('beforeend', html);
+document.getElementById('modalVisualizacao').style.display = 'flex';
 }
 
 function fecharModalVisualizacao() { document.getElementById('modalVisualizacao').style.display = 'none'; }
