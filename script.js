@@ -214,7 +214,7 @@ function fetchFromGS(acao, params = {}) {
             if (document.body.contains(script)) document.body.removeChild(script);
             reject(new Error('Timeout na requisição JSONP'));
             setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 8000);
+        }, 15000);
         
         window[callbackName] = (res) => {
             clearTimeout(timeout);
