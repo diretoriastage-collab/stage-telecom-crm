@@ -1804,6 +1804,10 @@ function salvarMetas(){
     DB.metas.diariaEmpresa=diariaEmp; DB.metas.quinzenalEmpresa=quinzenalEmp; DB.metas.mensalEmpresa=mensalEmp;
     salvarDB();
     fetchFromGS('salvarMetasVendas',{diaria,quinzenal,mensal,diariaEmp,quinzenalEmp,mensalEmp});
+    
+    // 🚨 ESTA É A LINHA QUE FALTAVA:
+    delete CACHE_SYNC['metasVendas']; // Força o sistema a buscar os dados novos na próxima vez
+    
     alert('✅ Metas atualizadas!');
 }
 
