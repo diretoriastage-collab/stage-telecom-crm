@@ -1394,16 +1394,38 @@ function atualizarPainelInstalacoes() {
 }
 
 function buscarCep() {
-    const cep = document.getElementById('vCep').value.replace(/\D/g, '');
-    if (cep.length !== 8) return alert('Digite um CEP válido.');
-    fetch('https://viacep.com.br/ws/' + cep + '/json/').then(r => r.json()).then(d => {
-        if (d.erro) { alert('CEP não encontrado.'); return; }
-        document.getElementById('vLogradouro').value = d.logradouro || '';
-        document.getElementById('vBairro').value = d.bairro || '';
-        document.getElementById('vCidade').value = d.localidade || '';
-        document.getElementById('vUf').value = d.uf || '';
-        document.getElementById('vNumero').focus();
-    }).catch(() => alert('Erro ao buscar CEP.'));
+    const cepInput = document.getElementById('vCep');
+    const cep = cepInput.value.replace(/\D/g, '');
+    
+    // Se não tiver 8 dígitos, avisa e para
+    if (cep.length !== 8) {
+        alert('Digite um CEP com 8 dígitos.');
+        return;
+    }
+
+    // Faz a busca na API dos Correios
+    fetch('https://viacep.com.br/ws/' + cep + '/json/')
+        .then(r => r.json())
+        .then(d => {
+            // Se o CEP for inválido
+            if (d.erro) {
+                alert('❌ CEP não encontrado. Preencha os dados manualmente.');
+                // O CEP continua salvo no campo, e os outros campos continuam liberados para digitar.
+                return;
+            }
+            
+            // Se for válido, preenche automaticamente
+            document.getElementById('vLogradouro').value = d.logradouro || '';
+            document.getElementById('vBairro').value = d.bairro || '';
+            document.getElementById('vCidade').value = d.localidade || '';
+            document.getElementById('vUf').value = d.uf || '';
+            
+            // Após preencher, foca no campo de Número para agilizar
+            document.getElementById('vNumero').focus();
+        })
+        .catch(() => {
+            alert('❌ Erro de rede ao buscar CEP. Preencha os dados manualmente.');
+        });
 }
 
 // ===== DASHBOARD ADMIN =====
