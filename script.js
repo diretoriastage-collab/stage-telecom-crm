@@ -1302,13 +1302,24 @@ function carregarInicioVendedor() {
     if (!sessao) return;
     document.getElementById('metaMensalVendedor').textContent = DB.metas.mensalVendas || 150;
     document.getElementById('metaDiariaVendedor').textContent = DB.metas.diariaVendas || 10;
+    
     const vendas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
-    const total = vendas.length;
+    
+    // 🛑 CORREÇÃO: Filtrar apenas as vendas do MÊS ATUAL
+    const hoje = new Date();
+    const vendasMes = vendas.filter(v => {
+        const p = v.data.split('/');
+        return p.length === 3 && parseInt(p[2]) === hoje.getFullYear() && parseInt(p[1]) === (hoje.getMonth() + 1);
+    });
+    
+    const total = vendasMes.length;
     const pct = Math.min((total / (DB.metas.mensalVendas || 150)) * 100, 100).toFixed(1);
+    
     document.getElementById('realizadoVendedorMes').textContent = total;
     document.getElementById('faltamVendedorMes').textContent = Math.max((DB.metas.mensalVendas || 150) - total, 0);
     document.getElementById('totalVendasMesVendedor').textContent = total;
     document.getElementById('barraProgressoVendedor').style.width = pct + '%';
+    
     atualizarPainelInstalacoes();
     carregarMetasAtivasVendedor();
 }
@@ -1317,35 +1328,69 @@ function carregarMetasAtivasVendedor() {
     const container = document.getElementById('painelMetasVendedor');
     if (!container) return;
     let html = '';
-    const realizadoMes = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').length;
+    
+    const vendasAprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado');
+    const hoje = new Date();
+    
+    // 🛑 CORREÇÃO: Filtrar apenas as vendas do MÊS ATUAL
+    const vendasMes = vendasAprovadas.filter(v => {
+        const p = v.data.split('/');
+        return p.length === 3 && parseInt(p[2]) === hoje.getFullYear() && parseInt(p[1]) === (hoje.getMonth() + 1);
+    });
+    
+    const realizadoMes = vendasMes.length;
     const metaVendasMes = DB.metas.mensalVendas || 150;
     const pctVendas = Math.min((realizadoMes / metaVendasMes) * 100, 100).toFixed(1);
     html += '<div class="meta-vendedor-card"><span class="meta-vendedor-label">🎯 Minha Meta Mensal</span><span class="meta-vendedor-value">' + realizadoMes + '/' + metaVendasMes + '</span><div class="progresso-bar-container" style="height:8px;margin-top:6px;"><div class="progresso-bar-liquido" style="width:' + pctVendas + '%;"></div></div></div>';
+    
     DB.metas.produtos.forEach(p => {
-        const realizado = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.produto === p.produto && a.status === 'Aprovado').length;
-        const pctProd = Math.min((realizado / p.mensal) * 100, 100).toFixed(1);
-        html += '<div class="meta-vendedor-card"><span class="meta-vendedor-label">📦 ' + p.produto + '</span><span class="meta-vendedor-value">' + realizado + '/' + p.mensal + '</span><div class="progresso-bar-container" style="height:8px;margin-top:6px;"><div class="progresso-bar-liquido" style="width:' + pctProd + '%;"></div></div></div>';
+        const realizado = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.produto === p.produto && a.status === 'Aprovado');
+        // 🛑 CORREÇÃO: Filtrar pelo mês atual
+        const realizadoMesProd = realizado.filter(v => {
+            const pData = v.data.split('/');
+            return pData.length === 3 && parseInt(pData[2]) === hoje.getFullYear() && parseInt(pData[1]) === (hoje.getMonth() + 1);
+        }).length;
+        const pctProd = Math.min((realizadoMesProd / p.mensal) * 100, 100).toFixed(1);
+        html += '<div class="meta-vendedor-card"><span class="meta-vendedor-label">📦 ' + p.produto + '</span><span class="meta-vendedor-value">' + realizadoMesProd + '/' + p.mensal + '</span><div class="progresso-bar-container" style="height:8px;margin-top:6px;"><div class="progresso-bar-liquido" style="width:' + pctProd + '%;"></div></div></div>';
     });
+    
     DB.metas.instalacoes.forEach(i => {
         if (i.tipo === 'empresa' || (i.tipo === 'vendedor' && i.entidadeId === sessao.id)) {
-            const instaladas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.instalacaoStatus === 'Instalado').length;
-            const pctInst = Math.min((instaladas / i.mensal) * 100, 100).toFixed(1);
-            html += '<div class="meta-vendedor-card"><span class="meta-vendedor-label">🔧 Instalações' + (i.tipo === 'vendedor' ? ' (Individual)' : ' (Empresa)') + '</span><span class="meta-vendedor-value">' + instaladas + '/' + i.mensal + '</span><div class="progresso-bar-container" style="height:8px;margin-top:6px;"><div class="progresso-bar-liquido" style="width:' + pctInst + '%;"></div></div></div>';
+            const instaladas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.instalacaoStatus === 'Instalado');
+            // 🛑 CORREÇÃO: Filtrar pelo mês atual
+            const instaladasMes = instaladas.filter(v => {
+                const pData = v.data.split('/');
+                return pData.length === 3 && parseInt(pData[2]) === hoje.getFullYear() && parseInt(pData[1]) === (hoje.getMonth() + 1);
+            }).length;
+            const pctInst = Math.min((instaladasMes / i.mensal) * 100, 100).toFixed(1);
+            html += '<div class="meta-vendedor-card"><span class="meta-vendedor-label">🔧 Instalações' + (i.tipo === 'vendedor' ? ' (Individual)' : ' (Empresa)') + '</span><span class="meta-vendedor-value">' + instaladasMes + '/' + i.mensal + '</span><div class="progresso-bar-container" style="height:8px;margin-top:6px;"><div class="progresso-bar-liquido" style="width:' + pctInst + '%;"></div></div></div>';
         }
     });
+    
     container.innerHTML = html || '<div class="meta-vendedor-card"><span class="meta-vendedor-label">Nenhuma meta definida</span></div>';
 }
-
 function atualizarPainelInstalacoes() {
     const hoje = new Date();
     if (hoje.getDate() <= 10) {
-        let ano = hoje.getFullYear(), mes = hoje.getMonth();
-        if (mes === 0) { mes = 12; ano--; }
+        // Calcula o mês anterior (1 de Julho, mês anterior é Junho)
+        let mesAnterior = hoje.getMonth() - 1; 
+        let anoAnterior = hoje.getFullYear();
+        if (mesAnterior < 0) { mesAnterior = 11; anoAnterior--; }
+
         const vendasAnt = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
-        document.getElementById('instaladosCountVendedor').textContent = vendasAnt.filter(v => v.instalacaoStatus === 'Instalado').length;
-        document.getElementById('canceladosCountVendedor').textContent = vendasAnt.filter(v => v.instalacaoStatus === 'Cancelado').length;
+        
+        // 🛑 CORREÇÃO: Filtrar APENAS as vendas do MÊS ANTERIOR
+        const vendasAntMes = vendasAnt.filter(v => {
+            const p = v.data.split('/');
+            return p.length === 3 && parseInt(p[2]) === anoAnterior && parseInt(p[1]) === (mesAnterior + 1);
+        });
+        
+        document.getElementById('instaladosCountVendedor').textContent = vendasAntMes.filter(v => v.instalacaoStatus === 'Instalado').length;
+        document.getElementById('canceladosCountVendedor').textContent = vendasAntMes.filter(v => v.instalacaoStatus === 'Cancelado').length;
         document.getElementById('painelInstalacoesAnterior').style.display = 'block';
-    } else { document.getElementById('painelInstalacoesAnterior').style.display = 'none'; }
+    } else { 
+        document.getElementById('painelInstalacoesAnterior').style.display = 'none'; 
+    }
 }
 
 function buscarCep() {
