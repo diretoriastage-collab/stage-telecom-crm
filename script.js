@@ -704,6 +704,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 pontoReferencia: v['Ponto Ref.'] || '',
                 produto: v.Plano || '',
                 plano: v.Plano || '',
+                origem: v.Origem || '', // <-- ADICIONADO AQUI
                 velocidade: v.Velocidade || '',
                 valor: v['Valor (R$)'] || '0',
                 vencimento: v.Vencimento || '',
@@ -943,7 +944,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao
+                    observacao: a.observacao, origem: a.origem // <-- ADICIONADO ORIGEM
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -1124,6 +1125,7 @@ a.data = getVal('viewDataVenda');
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
+    a.origem = getVal('viewOrigem'); // <-- ADICIONADO ORIGEM
     salvarDB();
     try {
         const resp = await fetchFromGS('editarVenda', {
@@ -1135,7 +1137,8 @@ a.data = getVal('viewDataVenda');
             vencimento: a.vencimento, formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade,
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
-            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || ''
+            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
+            origem: a.origem || '' // <-- ADICIONADO ORIGEM
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -1162,7 +1165,7 @@ async function removerVenda(id) {
 
 // ===== FUNÇÕES DO VENDEDOR (ENVIAR VENDA) =====
 function limparFormularioVenda() {
-    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
+    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vOrigem','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const checkAtual = document.getElementById('checkDataAtual');
     const checkNova = document.getElementById('checkNovaData');
@@ -1191,6 +1194,7 @@ function enviarVenda() {
         telefone2: getVal('vTelefone2'), cep: getVal('vCep'), logradouro: getVal('vLogradouro'),
         numero: getVal('vNumero'), complemento: getVal('vComplemento'), bairro: getVal('vBairro'),
         uf: getVal('vUf'), cidade: getVal('vCidade'), pontoReferencia: getVal('vPontoReferencia'),
+        origem: getVal('vOrigem'), // <-- ADICIONADO ORIGEM
         velocidade: getVal('vVelocidade'), produto: getVal('vPlano'), plano: getVal('vPlano'),
         valor: getVal('vValor').replace(/R\$/gi, '').trim(), vencimento: getVal('vVencimento'),
         formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
@@ -2092,7 +2096,7 @@ function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
     document.getElementById('vendedorScreen').style.display = 'none';
-    document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
+    document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);;">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
     // carregarDashboard já busca pendentes + aprovadas + monta o dashboard
     carregarDashboard();
@@ -2114,7 +2118,7 @@ function mostrarVendedor() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'flex';
-    document.getElementById('userInfoVendedor').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
+    document.getElementById('userInfoVendedor').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);;">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
