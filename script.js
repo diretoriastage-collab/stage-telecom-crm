@@ -102,7 +102,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxfYTFHkAHFRle5NNdmG0ANZ8wxxoiFkb7mNggOwynyL_Eyzp3V0BezC_bP-MyWguauow/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzKPo9OCSLiAy12M4dRSnyXJYUpCuu7mt7xltUbdrNkSynOKOavNYKyfJ0n88JvD-RO/exec';
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -630,6 +630,7 @@ async function buscarPendentesDaNuvem() {
                     pontoReferencia: p['Ponto Ref.'] || '',
                     produto: p.Plano || '',
                     plano: p.Plano || '',
+                    origem: p.Origem || '', // <-- ADICIONADO AQUI
                     velocidade: p.Velocidade || '',
                     valor: p.Valor || '',
                     vencimento: p.Vencimento || '',
@@ -704,6 +705,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 pontoReferencia: v['Ponto Ref.'] || '',
                 produto: v.Plano || '',
                 plano: v.Plano || '',
+                origem: v.Origem || '',
                 velocidade: v.Velocidade || '',
                 valor: v['Valor (R$)'] || '0',
                 vencimento: v.Vencimento || '',
@@ -862,6 +864,7 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Viabilidade</label><input value="' + (a.viabilidade || '') + '" id="editViabilidade"></div>' +
         '<div class="input-group"><label>Plano Tipo</label><input value="' + (a.planoTipo || '') + '" id="editPlanoTipo"></div>' +
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
+        '<div class="input-group"><label>Origem</label><input value="' + (a.origem || '') + '" id="editOrigem"></div>' +
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
 
@@ -916,6 +919,7 @@ async function fecharModalAtivacao() {
         a.viabilidade = document.getElementById('editViabilidade') ? document.getElementById('editViabilidade').value : '';
         a.planoTipo = document.getElementById('editPlanoTipo') ? document.getElementById('editPlanoTipo').value : '';
         a.tipoAprovacao = document.getElementById('editTipoAprovacao') ? document.getElementById('editTipoAprovacao').value : '';
+        a.origem = document.getElementById('editOrigem') ? document.getElementById('editOrigem').value : '';
         a.observacao = document.getElementById('editObservacao') ? document.getElementById('editObservacao').value : '';
         a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : '';
         a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : '';
@@ -943,7 +947,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao
+                    observacao: a.observacao, origem: a.origem
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -1084,7 +1088,9 @@ function abrirModalVisualizacao(id) {
         ['Velocidade', a.velocidade, 'viewVelocidade'], ['Produto', a.produto || a.plano, 'viewProduto'],
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
-        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], ['Observação', a.observacao || '', 'viewObservacao']
+        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], 
+        ['Origem', a.origem || '', 'viewOrigem'],
+        ['Observação', a.observacao || '', 'viewObservacao']
     ];
     campos.forEach(([label, valor, id]) => {
         if (label === 'Observação') {
@@ -1124,6 +1130,7 @@ a.data = getVal('viewDataVenda');
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
+    a.origem = getVal('viewOrigem');
     salvarDB();
     try {
         const resp = await fetchFromGS('editarVenda', {
@@ -1135,7 +1142,8 @@ a.data = getVal('viewDataVenda');
             vencimento: a.vencimento, formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade,
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
-            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || ''
+            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
+            origem: a.origem || ''
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -1162,7 +1170,7 @@ async function removerVenda(id) {
 
 // ===== FUNÇÕES DO VENDEDOR (ENVIAR VENDA) =====
 function limparFormularioVenda() {
-    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
+    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vOrigem','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const checkAtual = document.getElementById('checkDataAtual');
     const checkNova = document.getElementById('checkNovaData');
@@ -1191,6 +1199,7 @@ function enviarVenda() {
         telefone2: getVal('vTelefone2'), cep: getVal('vCep'), logradouro: getVal('vLogradouro'),
         numero: getVal('vNumero'), complemento: getVal('vComplemento'), bairro: getVal('vBairro'),
         uf: getVal('vUf'), cidade: getVal('vCidade'), pontoReferencia: getVal('vPontoReferencia'),
+        origem: getVal('vOrigem'), // <-- ADICIONADO ORIGEM
         velocidade: getVal('vVelocidade'), produto: getVal('vPlano'), plano: getVal('vPlano'),
         valor: getVal('vValor').replace(/R\$/gi, '').trim(), vencimento: getVal('vVencimento'),
         formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
@@ -1230,7 +1239,11 @@ function enviarVenda() {
 }
 
 function carregarControleVendas() {
-    const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').reverse();
+    // Filtra as vendas do vendedor e ordena da MAIS RECENTE para a MAIS ANTIGA (igual ao Admin)
+    const minhas = DB.ativacoes
+        .filter(a => String(a.vendedor_id) === String(sessao.id) && a.status === 'Aprovado')
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = '';
@@ -1246,7 +1259,6 @@ function carregarControleVendas() {
         '</tr>';
     }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
 }
-
 function carregarInstalacoes() {
     const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').reverse();
     const tabela = document.getElementById('tabelaInstalacoes');
