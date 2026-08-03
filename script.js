@@ -704,7 +704,6 @@ async function buscarVendasAprovadasDaNuvem() {
                 pontoReferencia: v['Ponto Ref.'] || '',
                 produto: v.Plano || '',
                 plano: v.Plano || '',
-                origem: v.Origem || '',
                 velocidade: v.Velocidade || '',
                 valor: v['Valor (R$)'] || '0',
                 vencimento: v.Vencimento || '',
@@ -863,7 +862,6 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Viabilidade</label><input value="' + (a.viabilidade || '') + '" id="editViabilidade"></div>' +
         '<div class="input-group"><label>Plano Tipo</label><input value="' + (a.planoTipo || '') + '" id="editPlanoTipo"></div>' +
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
-        '<div class="input-group"><label>Origem</label><input value="' + (a.origem || '') + '" id="editOrigem"></div>' +  // <-- ADICIONADO AQUI
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
 
@@ -918,7 +916,6 @@ async function fecharModalAtivacao() {
         a.viabilidade = document.getElementById('editViabilidade') ? document.getElementById('editViabilidade').value : '';
         a.planoTipo = document.getElementById('editPlanoTipo') ? document.getElementById('editPlanoTipo').value : '';
         a.tipoAprovacao = document.getElementById('editTipoAprovacao') ? document.getElementById('editTipoAprovacao').value : '';
-        a.origem = document.getElementById('editOrigem') ? document.getElementById('editOrigem').value : ''; // <-- ADICIONADO AQUI
         a.observacao = document.getElementById('editObservacao') ? document.getElementById('editObservacao').value : '';
         a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : '';
         a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : '';
@@ -946,7 +943,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao, origem: a.origem
+                    observacao: a.observacao
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -1087,9 +1084,7 @@ function abrirModalVisualizacao(id) {
         ['Velocidade', a.velocidade, 'viewVelocidade'], ['Produto', a.produto || a.plano, 'viewProduto'],
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
-        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], 
-        ['Origem', a.origem || '', 'viewOrigem'], // <-- ADICIONADO AQUI
-        ['Observação', a.observacao || '', 'viewObservacao']
+        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], ['Observação', a.observacao || '', 'viewObservacao']
     ];
     campos.forEach(([label, valor, id]) => {
         if (label === 'Observação') {
@@ -1129,7 +1124,6 @@ a.data = getVal('viewDataVenda');
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
-    a.origem = getVal('viewOrigem'); // <-- ADICIONADO AQUI
     salvarDB();
     try {
         const resp = await fetchFromGS('editarVenda', {
@@ -1141,8 +1135,7 @@ a.data = getVal('viewDataVenda');
             vencimento: a.vencimento, formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade,
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
-            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
-            origem: a.origem || '' // <-- ADICIONADO AQUI
+            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || ''
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -1169,7 +1162,7 @@ async function removerVenda(id) {
 
 // ===== FUNÇÕES DO VENDEDOR (ENVIAR VENDA) =====
 function limparFormularioVenda() {
-    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vOrigem','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
+    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const checkAtual = document.getElementById('checkDataAtual');
     const checkNova = document.getElementById('checkNovaData');
@@ -1198,7 +1191,6 @@ function enviarVenda() {
         telefone2: getVal('vTelefone2'), cep: getVal('vCep'), logradouro: getVal('vLogradouro'),
         numero: getVal('vNumero'), complemento: getVal('vComplemento'), bairro: getVal('vBairro'),
         uf: getVal('vUf'), cidade: getVal('vCidade'), pontoReferencia: getVal('vPontoReferencia'),
-        origem: getVal('vOrigem'), // <-- ADICIONADO ORIGEM
         velocidade: getVal('vVelocidade'), produto: getVal('vPlano'), plano: getVal('vPlano'),
         valor: getVal('vValor').replace(/R\$/gi, '').trim(), vencimento: getVal('vVencimento'),
         formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
@@ -2100,7 +2092,7 @@ function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
     document.getElementById('vendedorScreen').style.display = 'none';
-    document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);;">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
+    document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
     // carregarDashboard já busca pendentes + aprovadas + monta o dashboard
     carregarDashboard();
@@ -2122,7 +2114,7 @@ function mostrarVendedor() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'flex';
-    document.getElementById('userInfoVendedor').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);;">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
+    document.getElementById('userInfoVendedor').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
@@ -2181,5 +2173,5 @@ document.addEventListener('DOMContentLoaded',()=>{
     verificarNotificacaoPendente();
     // Substitui o oninput por um event listener (debounce)
     const busca = document.getElementById('buscaAtivacao');
-    if (busca) busca.addEventListener('input', filtrarAtivacoes');
+    if (busca) busca.addEventListener('input', filtrarAtivacoes);
 });
