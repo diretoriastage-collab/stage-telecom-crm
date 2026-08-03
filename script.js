@@ -704,7 +704,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 pontoReferencia: v['Ponto Ref.'] || '',
                 produto: v.Plano || '',
                 plano: v.Plano || '',
-                origem: v.Origem || '', // <-- ADICIONADO AQUI
+                origem: v.Origem || '',
                 velocidade: v.Velocidade || '',
                 valor: v['Valor (R$)'] || '0',
                 vencimento: v.Vencimento || '',
@@ -863,6 +863,7 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Viabilidade</label><input value="' + (a.viabilidade || '') + '" id="editViabilidade"></div>' +
         '<div class="input-group"><label>Plano Tipo</label><input value="' + (a.planoTipo || '') + '" id="editPlanoTipo"></div>' +
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
+        '<div class="input-group"><label>Origem</label><input value="' + (a.origem || '') + '" id="editOrigem"></div>' +  // <-- ADICIONADO AQUI
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
 
@@ -917,6 +918,7 @@ async function fecharModalAtivacao() {
         a.viabilidade = document.getElementById('editViabilidade') ? document.getElementById('editViabilidade').value : '';
         a.planoTipo = document.getElementById('editPlanoTipo') ? document.getElementById('editPlanoTipo').value : '';
         a.tipoAprovacao = document.getElementById('editTipoAprovacao') ? document.getElementById('editTipoAprovacao').value : '';
+        a.origem = document.getElementById('editOrigem') ? document.getElementById('editOrigem').value : ''; // <-- ADICIONADO AQUI
         a.observacao = document.getElementById('editObservacao') ? document.getElementById('editObservacao').value : '';
         a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : '';
         a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : '';
@@ -944,7 +946,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao, origem: a.origem // <-- ADICIONADO ORIGEM
+                    observacao: a.observacao, origem: a.origem
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -1085,7 +1087,9 @@ function abrirModalVisualizacao(id) {
         ['Velocidade', a.velocidade, 'viewVelocidade'], ['Produto', a.produto || a.plano, 'viewProduto'],
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
-        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], ['Observação', a.observacao || '', 'viewObservacao']
+        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], 
+        ['Origem', a.origem || '', 'viewOrigem'], // <-- ADICIONADO AQUI
+        ['Observação', a.observacao || '', 'viewObservacao']
     ];
     campos.forEach(([label, valor, id]) => {
         if (label === 'Observação') {
@@ -1125,7 +1129,7 @@ a.data = getVal('viewDataVenda');
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
-    a.origem = getVal('viewOrigem'); // <-- ADICIONADO ORIGEM
+    a.origem = getVal('viewOrigem'); // <-- ADICIONADO AQUI
     salvarDB();
     try {
         const resp = await fetchFromGS('editarVenda', {
@@ -1138,7 +1142,7 @@ a.data = getVal('viewDataVenda');
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
             infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
-            origem: a.origem || '' // <-- ADICIONADO ORIGEM
+            origem: a.origem || '' // <-- ADICIONADO AQUI
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -2177,5 +2181,5 @@ document.addEventListener('DOMContentLoaded',()=>{
     verificarNotificacaoPendente();
     // Substitui o oninput por um event listener (debounce)
     const busca = document.getElementById('buscaAtivacao');
-    if (busca) busca.addEventListener('input', filtrarAtivacoes);
+    if (busca) busca.addEventListener('input', filtrarAtivacoes');
 });
