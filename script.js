@@ -1261,7 +1261,7 @@ function enviarVenda() {
 }
 
 function carregarControleVendas() {
-    const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').reverse();
+const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = '';
@@ -1280,7 +1280,7 @@ function carregarControleVendas() {
 }
 
 function carregarInstalacoes() {
-    const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').reverse();
+   const aprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
     tabela.innerHTML = '';
