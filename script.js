@@ -651,7 +651,7 @@ async function buscarPendentesDaNuvem() {
                     dataCriacao: p.DataCriacao || '',
                     createdAt: p.CreatedAt ? parseInt(p.CreatedAt) : (p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now()),
                     newBadge: original ? (original.newBadge || false) : true,
-                    origemVenda: p['Origem da Venda'] || ''  // <--- ADICIONADO
+                    origemVenda: p['Origem da Venda'] || ''
                 };
             });
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
@@ -726,7 +726,7 @@ async function buscarVendasAprovadasDaNuvem() {
                 observacao: v.Observacao || '',
                 ativadoPor: v['AtivadoPor'] || '',
                 createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now()),
-                origemVenda: v['Origem da Venda'] || ''  // <--- ADICIONADO
+                origemVenda: v['Origem da Venda'] || ''
             }));
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
@@ -831,7 +831,7 @@ async function abrirModalAtivacao(id) {
     ).join('');
 
     // ============================================================
-    // 🔥 ATUALIZADO: Adicionado o campo "Origem da Venda" (Dropdown)
+    // 🔥 MODAL ATIVAÇÃO COM ORIGEM DA VENDA (DROPDOWN)
     // ============================================================
     const html = '' +
     '<div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">' +
@@ -863,7 +863,7 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Viabilidade</label><input value="' + (a.viabilidade || '') + '" id="editViabilidade"></div>' +
         '<div class="input-group"><label>Plano Tipo</label><input value="' + (a.planoTipo || '') + '" id="editPlanoTipo"></div>' +
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
-        // <--- INICIO DA ALTERAÇÃO: ORIGEM DA VENDA
+        // <--- ADICIONADO ORIGEM DA VENDA
         '<div class="input-group"><label>Origem da Venda</label>' +
         '<select id="editOrigemVenda">' +
           '<option value="">Selecione</option>' +
@@ -872,7 +872,7 @@ async function abrirModalAtivacao(id) {
           '<option value="MAILING CONEXAO" ' + (a.origemVenda === 'MAILING CONEXAO' ? 'selected' : '') + '>MAILING CONEXAO</option>' +
           '<option value="META" ' + (a.origemVenda === 'META' ? 'selected' : '') + '>META</option>' +
         '</select></div>' +
-        // <--- FIM DA ALTERAÇÃO
+        // <--- FIM DA ADIÇÃO
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
 
@@ -932,7 +932,7 @@ async function fecharModalAtivacao() {
         a.infoPeriodo = document.getElementById('infoPeriodo') ? document.getElementById('infoPeriodo').value : '';
 
         // ============================================================
-        // 🔥 ATUALIZADO: Captura do campo Origem da Venda
+        // 🔥 CAPTURAR ORIGEM DA VENDA NO MODAL DE ATIVAÇÃO
         // ============================================================
         a.origemVenda = document.getElementById('editOrigemVenda') ? document.getElementById('editOrigemVenda').value : '';
 
@@ -949,7 +949,7 @@ async function fecharModalAtivacao() {
             }
             if (confirm('Aprovar esta venda?')) {
                 // ============================================================
-                // 🔥 ATUALIZADO: Enviar origemVenda para o GS
+                // 🔥 ENVIAR ORIGEM DA VENDA PARA O GS
                 // ============================================================
                 const resp = await fetchFromGS('aprovarVenda', {
                     uuid: a.id, status: 'APROVADO', cliente: a.nomeCompleto, cpf: a.cpf,
@@ -961,7 +961,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao, origemVenda: a.origemVenda // <--- ADICIONADO
+                    observacao: a.observacao, origemVenda: a.origemVenda // <--- ESSA LINHA É CRUCIAL
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -983,7 +983,7 @@ async function fecharModalAtivacao() {
                     infoData: a.infoData,
                     infoPeriodo: a.infoPeriodo,
                     ativadoPor: a.ativadoPor,
-                    origemVenda: a.origemVenda // <--- ADICIONADO
+                    origemVenda: a.origemVenda // <--- ESSA LINHA É CRUCIAL
                 });
             }
         }
@@ -1052,10 +1052,7 @@ function carregarVendasAprovadas(pagina) {
             '<td>' + nomeVendedor + '</td>' +
             '<td>R$ ' + (parseFloat(String(a.valor || '0').replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</td>' +
             '<td>' + dataFormatada + '</td>' +
-            // ============================================================
-            // 🔥 ATUALIZADO: Adicionado a coluna de Origem nas Vendas Aprovadas
-            // ============================================================
-            '<td>' + (a.origemVenda || '—') + '</td>' +
+            '<td>' + (a.origemVenda || '—') + '</td>' + // <--- COLUNA ORIGEM
             '<td>' +
                 '<button onclick="abrirModalVisualizacao(\'' + a.id + '\')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>' +
                 (sessao.tipo === 'admin' ? '<button onclick="removerVenda(\'' + a.id + '\')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>' : '') +
@@ -1107,9 +1104,7 @@ function abrirModalVisualizacao(id) {
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
         ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'],
-        // ============================================================
-        // 🔥 ATUALIZADO: Inserido Origem da Venda na Visualização
-        // ============================================================
+        // <--- ADICIONADO ORIGEM DA VENDA NO MODAL DE VISUALIZAÇÃO
         ['Origem da Venda', a.origemVenda || '—', 'viewOrigemVenda'],
         ['Observação', a.observacao || '', 'viewObservacao']
     ];
@@ -1152,9 +1147,7 @@ async function salvarEdicaoVenda() {
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
     
-    // ============================================================
-    // 🔥 ATUALIZADO: Capturar e salvar Origem da Venda na edição
-    // ============================================================
+    // <--- SALVAR ORIGEM DA VENDA NA EDIÇÃO
     a.origemVenda = getVal('viewOrigemVenda');
     
     salvarDB();
@@ -1169,7 +1162,7 @@ async function salvarEdicaoVenda() {
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
             infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
-            origemVenda: a.origemVenda // <--- ADICIONADO
+            origemVenda: a.origemVenda // <--- ESSA LINHA É CRUCIAL
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -1230,9 +1223,7 @@ function enviarVenda() {
         formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
     };
     
-    // ============================================================
-    // 🔥 ATUALIZADO: Capturar o campo Origem da Venda
-    // ============================================================
+    // <--- CAPTURAR ORIGEM DA VENDA NO ENVIO
     const origemVenda = document.getElementById('vOrigemVenda') ? document.getElementById('vOrigemVenda').value : '';
 
     const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento'];
@@ -1282,10 +1273,7 @@ function carregarControleVendas() {
             '<td>R$ ' + (parseFloat(String(a.valor || '0').replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</td>' +
             '<td><span style="color:' + flag.cor + ';font-weight:600;">● ' + a.status + '</span></td>' +
             '<td>' + (a.data ? formatarBR(a.data) : '—') + '</td>' +
-            // ============================================================
-            // 🔥 ATUALIZADO: Adicionado coluna Origem no Controle de Vendas
-            // ============================================================
-            '<td>' + (a.origemVenda || '—') + '</td>' +
+            '<td>' + (a.origemVenda || '—') + '</td>' + // <--- COLUNA ORIGEM
             '<td><button onclick="abrirModalVisualizacao(\'' + a.id + '\')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>' +
         '</tr>';
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
@@ -2188,6 +2176,60 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// ============================================================
+// 🧪 FUNÇÃO PARA PREENCHER O FORMULÁRIO DE TESTE AUTOMATICAMENTE
+// ============================================================
+function preencherFormularioTeste() {
+    document.getElementById('vNomeCompleto').value = 'Cliente Teste Automático';
+    document.getElementById('vCpf').value = '123.456.789-00';
+    document.getElementById('vDataNasc').value = '01/01/1990';
+    document.getElementById('vOrgaoExpeditor').value = 'DETRAN';
+    document.getElementById('vNomeMae').value = 'Maria da Silva Teste';
+    document.getElementById('vRg').value = '12345678-9';
+    document.getElementById('vDataExpedicao').value = '01/01/2010';
+    document.getElementById('vEmail').value = 'teste@automacao.com.br';
+    document.getElementById('vTelefone1').value = '(21) 99999-1111';
+    document.getElementById('vTelefone2').value = '(21) 98888-2222';
+    document.getElementById('vCep').value = '25011540';
+    document.getElementById('vLogradouro').value = 'Rua São José';
+    document.getElementById('vNumero').value = '123';
+    document.getElementById('vComplemento').value = 'Sala 101';
+    document.getElementById('vBairro').value = 'Parque Vila Nova';
+    document.getElementById('vUf').value = 'RJ';
+    document.getElementById('vCidade').value = 'Duque de Caxias';
+    document.getElementById('vPontoReferencia').value = 'Próximo ao mercado';
+    
+    // Seta os dropdowns se as opções existirem
+    const setSelect = (id, val) => {
+        const el = document.getElementById(id);
+        if(el) {
+            let opt = el.querySelector(`option[value="${val}"]`);
+            if(opt) el.value = val;
+            else if(el.options.length > 0) el.selectedIndex = 0;
+        }
+    };
+    setSelect('vVelocidade', '600MB + TV BOX');
+    setSelect('vPlano', '1 GIGA');
+    setSelect('vFormaPagamento', 'BOLETO');
+    setSelect('vOrigemVenda', 'MAILING PLANILHA');
+    
+    document.getElementById('vValor').value = '199.90';
+    document.getElementById('vVencimento').value = '25';
+    document.getElementById('vHp').value = 'ASDAS';
+    document.getElementById('vViabilidade').value = 'GPON';
+    document.getElementById('vPlanoTipo').value = 'MULTI';
+    document.getElementById('vTipoAprovacao').value = 'APROVADO';
+
+    const checkAtual = document.getElementById('checkDataAtual');
+    const checkNova = document.getElementById('checkNovaData');
+    const inputNovaData = document.getElementById('inputNovaData');
+    if (checkAtual) { checkAtual.checked = true; }
+    if (checkNova) { checkNova.checked = false; }
+    if (inputNovaData) { inputNovaData.style.display = 'none'; inputNovaData.value = ''; }
+    
+    alert('Formulário preenchido automaticamente para teste!');
+}
 
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded',()=>{
