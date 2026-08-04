@@ -102,7 +102,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzUFe5y445E7sM5-LB4MU6vhb-jEmJa0R_6ny_drVhew1uHbSO9USBfYJVP85spRXEybQ/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxFW1VjH5PNBgj-Gi_ZB9-rHvmmgXYbEtb0wOvmga4sfakIdtorZccRRHaDQW8rm9EKPg/exec';
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -650,7 +650,8 @@ async function buscarPendentesDaNuvem() {
                     infoPeriodo: p.PeriodoInstalacao || '',
                     dataCriacao: p.DataCriacao || '',
                     createdAt: p.CreatedAt ? parseInt(p.CreatedAt) : (p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now()),
-                    newBadge: original ? (original.newBadge || false) : true
+                    newBadge: original ? (original.newBadge || false) : true,
+                    origemVenda: p['Origem da Venda'] || ''  // <--- ADICIONADO
                 };
             });
             const pendentesAntigas = DB.ativacoes.filter(a => a.status !== 'Aprovado');
@@ -724,7 +725,8 @@ async function buscarVendasAprovadasDaNuvem() {
                 dataCriacao: v.DataCriacao || '',
                 observacao: v.Observacao || '',
                 ativadoPor: v['AtivadoPor'] || '',
-                createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now())
+                createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now()),
+                origemVenda: v['Origem da Venda'] || ''  // <--- ADICIONADO
             }));
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
             DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
@@ -813,7 +815,6 @@ async function abrirModalAtivacao(id) {
     if (!a) { alert('Venda não encontrada'); return; }
     if (a.newBadge) { a.newBadge = false; salvarDB(); }
 
-    // Verificação rápida local primeiro (não bloqueia)
     if (a.tratandoPor && a.tratandoPor !== sessao.nome) {
         alert('⚠️ Esta venda está sendo tratada por ' + a.tratandoPor + '. Aguarde.');
         return;
@@ -823,15 +824,15 @@ async function abrirModalAtivacao(id) {
     a.tratandoPor = sessao.nome;
     salvarDB();
 
-    // Dispara a trava em segundo plano (não bloqueia a abertura do modal)
     fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome }).catch(() => {});
 
-    // Monta o HTML do status primeiro (leve)
     const statusOptions = DB.statusFlags.map(f =>
         '<option value="' + f.nome + '" ' + (a.status === f.nome ? 'selected' : '') + '>' + f.nome + '</option>'
     ).join('');
 
-    // Constrói o HTML com insertAdjacentHTML para performance
+    // ============================================================
+    // 🔥 ATUALIZADO: Adicionado o campo "Origem da Venda" (Dropdown)
+    // ============================================================
     const html = '' +
     '<div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">' +
         '<div class="input-group"><label>Status</label><select id="editStatus">' + statusOptions + '</select></div>' +
@@ -862,10 +863,19 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Viabilidade</label><input value="' + (a.viabilidade || '') + '" id="editViabilidade"></div>' +
         '<div class="input-group"><label>Plano Tipo</label><input value="' + (a.planoTipo || '') + '" id="editPlanoTipo"></div>' +
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
+        // <--- INICIO DA ALTERAÇÃO: ORIGEM DA VENDA
+        '<div class="input-group"><label>Origem da Venda</label>' +
+        '<select id="editOrigemVenda">' +
+          '<option value="">Selecione</option>' +
+          '<option value="MAILING PLANILHA" ' + (a.origemVenda === 'MAILING PLANILHA' ? 'selected' : '') + '>MAILING PLANILHA</option>' +
+          '<option value="MARKETING PLACE" ' + (a.origemVenda === 'MARKETING PLACE' ? 'selected' : '') + '>MARKETING PLACE</option>' +
+          '<option value="MAILING CONEXAO" ' + (a.origemVenda === 'MAILING CONEXAO' ? 'selected' : '') + '>MAILING CONEXAO</option>' +
+          '<option value="META" ' + (a.origemVenda === 'META' ? 'selected' : '') + '>META</option>' +
+        '</select></div>' +
+        // <--- FIM DA ALTERAÇÃO
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
 
-    // Usa insertAdjacentHTML para renderização mais rápida
     const conteudo = document.getElementById('conteudoModalAtivacao');
     conteudo.innerHTML = '';
     conteudo.insertAdjacentHTML('beforeend', html);
@@ -920,7 +930,12 @@ async function fecharModalAtivacao() {
         a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : '';
         a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : '';
         a.infoPeriodo = document.getElementById('infoPeriodo') ? document.getElementById('infoPeriodo').value : '';
-        
+
+        // ============================================================
+        // 🔥 ATUALIZADO: Captura do campo Origem da Venda
+        // ============================================================
+        a.origemVenda = document.getElementById('editOrigemVenda') ? document.getElementById('editOrigemVenda').value : '';
+
         const elAtivadoPor = document.getElementById('infoAtivadoPor');
         if (elAtivadoPor && elAtivadoPor.value) {
             a.ativadoPor = elAtivadoPor.value;
@@ -933,6 +948,9 @@ async function fecharModalAtivacao() {
                 return; 
             }
             if (confirm('Aprovar esta venda?')) {
+                // ============================================================
+                // 🔥 ATUALIZADO: Enviar origemVenda para o GS
+                // ============================================================
                 const resp = await fetchFromGS('aprovarVenda', {
                     uuid: a.id, status: 'APROVADO', cliente: a.nomeCompleto, cpf: a.cpf,
                     dataNasc: a.dataNasc, nomeMae: a.nomeMae, rg: a.rg, orgaoExpeditor: a.orgaoExpeditor,
@@ -943,7 +961,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao
+                    observacao: a.observacao, origemVenda: a.origemVenda // <--- ADICIONADO
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -956,7 +974,6 @@ async function fecharModalAtivacao() {
         } else {
             a.status = novoStatus;
             salvarDB();
-            // Atualiza o status E a observação na planilha PENDENTES
             if (novoStatus !== 'Aprovado') {
                 fetchFromGS('atualizarPendente', {
                     uuid: a.id,
@@ -965,7 +982,8 @@ async function fecharModalAtivacao() {
                     contrato: a.contrato,
                     infoData: a.infoData,
                     infoPeriodo: a.infoPeriodo,
-                    ativadoPor: a.ativadoPor
+                    ativadoPor: a.ativadoPor,
+                    origemVenda: a.origemVenda // <--- ADICIONADO
                 });
             }
         }
@@ -1010,7 +1028,7 @@ function carregarVendasAprovadas(pagina) {
     if (!tabela) return;
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // mais novas primeiro
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     const elFiltroData = document.getElementById('filtroDataAprovadas');
     const filtroData = elFiltroData ? elFiltroData.value : null;
@@ -1034,12 +1052,16 @@ function carregarVendasAprovadas(pagina) {
             '<td>' + nomeVendedor + '</td>' +
             '<td>R$ ' + (parseFloat(String(a.valor || '0').replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</td>' +
             '<td>' + dataFormatada + '</td>' +
+            // ============================================================
+            // 🔥 ATUALIZADO: Adicionado a coluna de Origem nas Vendas Aprovadas
+            // ============================================================
+            '<td>' + (a.origemVenda || '—') + '</td>' +
             '<td>' +
                 '<button onclick="abrirModalVisualizacao(\'' + a.id + '\')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>' +
                 (sessao.tipo === 'admin' ? '<button onclick="removerVenda(\'' + a.id + '\')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>' : '') +
             '</td>' +
         '</tr>';
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
 function mudarPaginaVendasAprovadas(direcao) {
@@ -1084,7 +1106,12 @@ function abrirModalVisualizacao(id) {
         ['Velocidade', a.velocidade, 'viewVelocidade'], ['Produto', a.produto || a.plano, 'viewProduto'],
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
-        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'], ['Observação', a.observacao || '', 'viewObservacao']
+        ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'],
+        // ============================================================
+        // 🔥 ATUALIZADO: Inserido Origem da Venda na Visualização
+        // ============================================================
+        ['Origem da Venda', a.origemVenda || '—', 'viewOrigemVenda'],
+        ['Observação', a.observacao || '', 'viewObservacao']
     ];
     campos.forEach(([label, valor, id]) => {
         if (label === 'Observação') {
@@ -1099,9 +1126,9 @@ function abrirModalVisualizacao(id) {
     if (sessao.tipo === 'admin') html += '<button onclick="salvarEdicaoVenda()" class="btn-glass-sm" style="background:#2ed573;color:#0b0b0b;">Salvar alterações</button>';
     html += '</div>';
     const conteudo = document.getElementById('conteudoModalVisualizacao');
-conteudo.innerHTML = '';
-conteudo.insertAdjacentHTML('beforeend', html);
-document.getElementById('modalVisualizacao').style.display = 'flex';
+    conteudo.innerHTML = '';
+    conteudo.insertAdjacentHTML('beforeend', html);
+    document.getElementById('modalVisualizacao').style.display = 'flex';
 }
 
 function fecharModalVisualizacao() { document.getElementById('modalVisualizacao').style.display = 'none'; }
@@ -1118,12 +1145,18 @@ async function salvarEdicaoVenda() {
     a.telefone2 = getVal('viewTelefone2'); a.cep = getVal('viewCep'); a.logradouro = getVal('viewLogradouro');
     a.numero = getVal('viewNumero'); a.complemento = getVal('viewComplemento'); a.bairro = getVal('viewBairro');
     a.uf = getVal('viewUf'); a.cidade = getVal('viewCidade'); a.pontoReferencia = getVal('viewPontoReferencia');
-a.data = getVal('viewDataVenda');
+    a.data = getVal('viewDataVenda');
     a.velocidade = getVal('viewVelocidade'); a.produto = getVal('viewProduto'); a.plano = a.produto;
     a.ativadoPor = getVal('viewAtivadoPor'); a.valor = getVal('viewValor').replace(/R\$/gi, '').trim();
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
+    
+    // ============================================================
+    // 🔥 ATUALIZADO: Capturar e salvar Origem da Venda na edição
+    // ============================================================
+    a.origemVenda = getVal('viewOrigemVenda');
+    
     salvarDB();
     try {
         const resp = await fetchFromGS('editarVenda', {
@@ -1135,7 +1168,8 @@ a.data = getVal('viewDataVenda');
             vencimento: a.vencimento, formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade,
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
-            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || ''
+            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
+            origemVenda: a.origemVenda // <--- ADICIONADO
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -1195,6 +1229,12 @@ function enviarVenda() {
         valor: getVal('vValor').replace(/R\$/gi, '').trim(), vencimento: getVal('vVencimento'),
         formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
     };
+    
+    // ============================================================
+    // 🔥 ATUALIZADO: Capturar o campo Origem da Venda
+    // ============================================================
+    const origemVenda = document.getElementById('vOrigemVenda') ? document.getElementById('vOrigemVenda').value : '';
+
     const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento'];
     for (let c of obrigatorios) { if (!campos[c]) { alert('Preencha: ' + c); return; } }
     if (campos.dataNasc) { const d = parseDateBR(campos.dataNasc); campos.dataNasc = d ? dataParaBR(d) : campos.dataNasc; }
@@ -1202,7 +1242,7 @@ function enviarVenda() {
     
     const dataVenda = obterDataVenda();
     
-    const nova = { ...campos, vendedor_id: sessao.id, vendedorNome: sessao.nome, status: "Pendente", data: dataVenda, finalizada: false, createdAt: Date.now(), newBadge: true };
+    const nova = { ...campos, vendedor_id: sessao.id, vendedorNome: sessao.nome, status: "Pendente", data: dataVenda, finalizada: false, createdAt: Date.now(), newBadge: true, origemVenda: origemVenda };
     
     enviandoVenda = true;
     const btn = document.querySelector('#secao-enviarVenda .btn-glass-primary');
@@ -1242,9 +1282,13 @@ function carregarControleVendas() {
             '<td>R$ ' + (parseFloat(String(a.valor || '0').replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</td>' +
             '<td><span style="color:' + flag.cor + ';font-weight:600;">● ' + a.status + '</span></td>' +
             '<td>' + (a.data ? formatarBR(a.data) : '—') + '</td>' +
+            // ============================================================
+            // 🔥 ATUALIZADO: Adicionado coluna Origem no Controle de Vendas
+            // ============================================================
+            '<td>' + (a.origemVenda || '—') + '</td>' +
             '<td><button onclick="abrirModalVisualizacao(\'' + a.id + '\')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>' +
         '</tr>';
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
+    }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
 }
 
 function carregarInstalacoes() {
@@ -1305,7 +1349,6 @@ function carregarInicioVendedor() {
     
     const vendas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
     
-    // 🛑 CORREÇÃO: Filtrar apenas as vendas do MÊS ATUAL
     const hoje = new Date();
     const vendasMes = vendas.filter(v => {
         const p = v.data.split('/');
@@ -1332,7 +1375,6 @@ function carregarMetasAtivasVendedor() {
     const vendasAprovadas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado');
     const hoje = new Date();
     
-    // 🛑 CORREÇÃO: Filtrar apenas as vendas do MÊS ATUAL
     const vendasMes = vendasAprovadas.filter(v => {
         const p = v.data.split('/');
         return p.length === 3 && parseInt(p[2]) === hoje.getFullYear() && parseInt(p[1]) === (hoje.getMonth() + 1);
@@ -1345,7 +1387,6 @@ function carregarMetasAtivasVendedor() {
     
     DB.metas.produtos.forEach(p => {
         const realizado = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.produto === p.produto && a.status === 'Aprovado');
-        // 🛑 CORREÇÃO: Filtrar pelo mês atual
         const realizadoMesProd = realizado.filter(v => {
             const pData = v.data.split('/');
             return pData.length === 3 && parseInt(pData[2]) === hoje.getFullYear() && parseInt(pData[1]) === (hoje.getMonth() + 1);
@@ -1357,7 +1398,6 @@ function carregarMetasAtivasVendedor() {
     DB.metas.instalacoes.forEach(i => {
         if (i.tipo === 'empresa' || (i.tipo === 'vendedor' && i.entidadeId === sessao.id)) {
             const instaladas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.instalacaoStatus === 'Instalado');
-            // 🛑 CORREÇÃO: Filtrar pelo mês atual
             const instaladasMes = instaladas.filter(v => {
                 const pData = v.data.split('/');
                 return pData.length === 3 && parseInt(pData[2]) === hoje.getFullYear() && parseInt(pData[1]) === (hoje.getMonth() + 1);
@@ -1372,14 +1412,12 @@ function carregarMetasAtivasVendedor() {
 function atualizarPainelInstalacoes() {
     const hoje = new Date();
     if (hoje.getDate() <= 10) {
-        // Calcula o mês anterior (1 de Julho, mês anterior é Junho)
         let mesAnterior = hoje.getMonth() - 1; 
         let anoAnterior = hoje.getFullYear();
         if (mesAnterior < 0) { mesAnterior = 11; anoAnterior--; }
 
         const vendasAnt = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado' && a.finalizada !== false);
         
-        // 🛑 CORREÇÃO: Filtrar APENAS as vendas do MÊS ANTERIOR
         const vendasAntMes = vendasAnt.filter(v => {
             const p = v.data.split('/');
             return p.length === 3 && parseInt(p[2]) === anoAnterior && parseInt(p[1]) === (mesAnterior + 1);
@@ -1397,30 +1435,24 @@ function buscarCep() {
     const cepInput = document.getElementById('vCep');
     const cep = cepInput.value.replace(/\D/g, '');
     
-    // Se não tiver 8 dígitos, avisa e para
     if (cep.length !== 8) {
         alert('Digite um CEP com 8 dígitos.');
         return;
     }
 
-    // Faz a busca na API dos Correios
     fetch('https://viacep.com.br/ws/' + cep + '/json/')
         .then(r => r.json())
         .then(d => {
-            // Se o CEP for inválido
             if (d.erro) {
                 alert('❌ CEP não encontrado. Preencha os dados manualmente.');
-                // O CEP continua salvo no campo, e os outros campos continuam liberados para digitar.
                 return;
             }
             
-            // Se for válido, preenche automaticamente
             document.getElementById('vLogradouro').value = d.logradouro || '';
             document.getElementById('vBairro').value = d.bairro || '';
             document.getElementById('vCidade').value = d.localidade || '';
             document.getElementById('vUf').value = d.uf || '';
             
-            // Após preencher, foca no campo de Número para agilizar
             document.getElementById('vNumero').focus();
         })
         .catch(() => {
@@ -1588,7 +1620,7 @@ function cadastrarUsuario(){
     ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     carregarUsuarios(); alert('✅ Usuário cadastrado!');
 }
-// ===== TOGGLE USUARIO CORRIGIDO =====
+
 function toggleUsuario(id) {
     const u = DB.usuarios.find(u => u.id === id);
     if (!u) return;
@@ -1719,7 +1751,6 @@ function gerarPDF() {
         return;
     }
 
-    // Converte o canvas do gráfico em imagem para incluir no PDF
     const canvas = document.getElementById('graficoVendedores');
     if (canvas) {
         const img = document.createElement('img');
@@ -1737,7 +1768,6 @@ function gerarPDF() {
     const conteudo = document.getElementById('conteudoPDF');
     conteudo.innerHTML = '';
 
-    // Cria um container com fundo branco e texto escuro
     const container = document.createElement('div');
     container.style.background = '#ffffff';
     container.style.color = '#000000';
@@ -1745,7 +1775,6 @@ function gerarPDF() {
     container.style.width = '100%';
     container.appendChild(elemento.cloneNode(true));
 
-    // Garante que todas as tabelas e textos fiquem legíveis
     container.querySelectorAll('*').forEach(el => {
         if (el.style) {
             el.style.color = '#000000';
@@ -1872,8 +1901,7 @@ function salvarMetas(){
     salvarDB();
     fetchFromGS('salvarMetasVendas',{diaria,quinzenal,mensal,diariaEmp,quinzenalEmp,mensalEmp});
     
-    // 🚨 ESTA É A LINHA QUE FALTAVA:
-    delete CACHE_SYNC['metasVendas']; // Força o sistema a buscar os dados novos na próxima vez
+    delete CACHE_SYNC['metasVendas'];
     
     alert('✅ Metas atualizadas!');
 }
@@ -2066,7 +2094,8 @@ function gerarExcel(dados, nomeArquivo) {
         'Vendedor': v.vendedorNome || '',
         'Status': v.status || '',
         'Data': v.data || '',
-        'Instalação': v.instalacaoStatus || ''
+        'Instalação': v.instalacaoStatus || '',
+        'Origem da Venda': v.origemVenda || '' // <--- ADICIONADO
     }));
     const ws = XLSX.utils.json_to_sheet(dadosFormatados);
     const wb = XLSX.utils.book_new();
@@ -2094,11 +2123,9 @@ function mostrarAdmin() {
     document.getElementById('vendedorScreen').style.display = 'none';
     document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
-    // carregarDashboard já busca pendentes + aprovadas + monta o dashboard
     carregarDashboard();
     verificarPromocoesAdmin();
 
-    // As demais sincronizações podem rodar em paralelo (não dependem uma da outra)
     Promise.all([
         sincronizarUsuariosDaNuvem(),
         sincronizarStatusFlagsDaNuvem(),
@@ -2119,7 +2146,6 @@ function mostrarVendedor() {
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
 
-    // Busca dados principais e sincronizações em paralelo
     Promise.all([
         buscarPendentesDaNuvem(),
         buscarVendasAprovadasDaNuvem(),
@@ -2171,7 +2197,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(sessao){sessao.tipo==='admin'?mostrarAdmin():mostrarVendedor();}
     document.addEventListener('keypress',e=>{if(e.key==='Enter'&&document.getElementById('loginScreen').style.display!=='none')fazerLogin();});
     verificarNotificacaoPendente();
-    // Substitui o oninput por um event listener (debounce)
     const busca = document.getElementById('buscaAtivacao');
     if (busca) busca.addEventListener('input', filtrarAtivacoes);
 });
