@@ -1198,29 +1198,63 @@ function enviarVenda() {
     if (!sessao) { alert('Sessão expirada.'); return; }
     
     const getVal = function(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
-    const campos = {
-        viabilidade: getVal('vViabilidade'), planoTipo: getVal('vPlanoTipo'), tipoAprovacao: getVal('vTipoAprovacao'),
-        nomeCompleto: getVal('vNomeCompleto'), cpf: getVal('vCpf'), dataNasc: getVal('vDataNasc'),
-        orgaoExpeditor: getVal('vOrgaoExpeditor'), nomeMae: getVal('vNomeMae'), rg: getVal('vRg'),
-        dataExpedicao: getVal('vDataExpedicao'), email: getVal('vEmail'), telefone1: getVal('vTelefone1'),
-        telefone2: getVal('vTelefone2'), cep: getVal('vCep'), logradouro: getVal('vLogradouro'),
-        numero: getVal('vNumero'), complemento: getVal('vComplemento'), bairro: getVal('vBairro'),
-        uf: getVal('vUf'), cidade: getVal('vCidade'), pontoReferencia: getVal('vPontoReferencia'),
-        velocidade: getVal('vVelocidade'), produto: getVal('vPlano'), plano: getVal('vPlano'),
-        valor: getVal('vValor').replace(/R\$/gi, '').trim(), vencimento: getVal('vVencimento'),
-        formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
-    };
     
-    const origemVenda = document.getElementById('vOrigemVenda') ? document.getElementById('vOrigemVenda').value : '';
+    const campos = {
+        viabilidade: getVal('vViabilidade'), 
+        planoTipo: getVal('vPlanoTipo'), 
+        tipoAprovacao: getVal('vTipoAprovacao'),
+        nomeCompleto: getVal('vNomeCompleto'), 
+        cpf: getVal('vCpf'), 
+        dataNasc: getVal('vDataNasc'),
+        orgaoExpeditor: getVal('vOrgaoExpeditor'), 
+        nomeMae: getVal('vNomeMae'), 
+        rg: getVal('vRg'),
+        dataExpedicao: getVal('vDataExpedicao'), 
+        email: getVal('vEmail'), 
+        telefone1: getVal('vTelefone1'),
+        telefone2: getVal('vTelefone2'), 
+        cep: getVal('vCep'), 
+        logradouro: getVal('vLogradouro'),
+        numero: getVal('vNumero'), 
+        complemento: getVal('vComplemento'), 
+        bairro: getVal('vBairro'),
+        uf: getVal('vUf'), 
+        cidade: getVal('vCidade'), 
+        pontoReferencia: getVal('vPontoReferencia'),
+        velocidade: getVal('vVelocidade'), 
+        produto: getVal('vPlano'), 
+        plano: getVal('vPlano'),
+        valor: getVal('vValor').replace(/R\$/gi, '').trim(), 
+        vencimento: getVal('vVencimento'),
+        formaPagamento: getVal('vFormaPagamento'), 
+        hp: getVal('vHp')
+    };
 
-    const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento','origemVenda'];
-    for (let c of obrigatorios) { if (!campos[c]) { alert('Preencha: ' + c); return; } }
+    // 🔥 VERIFICAÇÃO ROBUSTA DO CAMPO ORIGEM DA VENDA
+    const elOrigem = document.getElementById('vOrigemVenda');
+    let origemVenda = elOrigem ? elOrigem.value.trim() : '';
+    // Se estiver vazio OU se o texto selecionado ainda for "Selecione", considera inválido
+    if (!origemVenda || origemVenda === "Selecione") {
+        alert('Preencha: origemVenda');
+        return;
+    }
+    campos.origemVenda = origemVenda; // Adiciona ao objeto campos
+
+    const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento'];
+    
+    for (let c of obrigatorios) { 
+        if (!campos[c]) { 
+            alert('Preencha: ' + c); 
+            return; 
+        } 
+    }
+    
     if (campos.dataNasc) { const d = parseDateBR(campos.dataNasc); campos.dataNasc = d ? dataParaBR(d) : campos.dataNasc; }
     if (campos.dataExpedicao) { const d = parseDateBR(campos.dataExpedicao); campos.dataExpedicao = d ? dataParaBR(d) : campos.dataExpedicao; }
     
     const dataVenda = obterDataVenda();
     
-    const nova = { ...campos, vendedor_id: sessao.id, vendedorNome: sessao.nome, status: "Pendente", data: dataVenda, finalizada: false, createdAt: Date.now(), newBadge: true, origemVenda: origemVenda };
+    const nova = { ...campos, vendedor_id: sessao.id, vendedorNome: sessao.nome, status: "Pendente", data: dataVenda, finalizada: false, createdAt: Date.now(), newBadge: true };
     
     enviandoVenda = true;
     const btn = document.querySelector('#secao-enviarVenda .btn-glass-primary');
@@ -1229,7 +1263,6 @@ function enviarVenda() {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     }
     
-    // Limpa qualquer timer antigo e seta o cooldown de 10s
     if (cooldownTimer) clearTimeout(cooldownTimer);
     
     fetchFromGS('adicionarPendente', { venda: JSON.stringify(nova) }).then(resp => {
@@ -1242,7 +1275,6 @@ function enviarVenda() {
         else alert('❌ Erro ao enviar.');
     }).catch(err => { alert('❌ Erro de comunicação.'); })
     .finally(() => {
-        // 🔥 TRAVA DE 10 SEGUNDOS
         cooldownTimer = setTimeout(() => {
             enviandoVenda = false;
             if (btn) {
@@ -1252,7 +1284,6 @@ function enviarVenda() {
         }, 10000);
     });
 }
-
 function carregarControleVendas() {
     const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const tabela = document.getElementById('tabelaControleVendas');
