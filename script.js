@@ -68,7 +68,7 @@ const CACHE_SYNC = {};
 const CACHE_DURATION = 60000; // 1 minuto
 let debounceTimer;
 
-// ===== FUNÇÕES AUXILIARES DE DATA (PADRÃO BR) =====
+// ===== FUNÇÕES AUXILIARES DE DATA =====
 function hojeBR() {
   const d = new Date();
   const day = String(d.getDate()).padStart(2, '0');
@@ -102,7 +102,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxZO2zNmZRwjoCgqX7JM-gXlDwpdGkFgS9twjHpDfLsvp6PPe3ImNzchJlweJJ71PfcVA/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxYhKWrcPYGDpKt0Ce9e2FCSc0wzb6VrHqOdakK4N3vMGJOMTrIWtsZEsY5FFDpbqt6mg/exec';
 
 let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
 let comparativoAtual = 'diario';
@@ -448,7 +448,7 @@ function obterDataVenda() {
     return hojeBR();
 }
 
-// ===== SINCRONIZAÇÕES GLOBAIS (COM CACHE) =====
+// ===== SINCRONIZAÇÕES GLOBAIS =====
 async function sincronizarUsuariosDaNuvem() {
   if (CACHE_SYNC['usuarios'] && (Date.now() - CACHE_SYNC['usuarios']) < CACHE_DURATION) return;
   try {
@@ -742,7 +742,7 @@ async function buscarVendasAprovadasDaNuvem() {
     } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
 }
 
-// ===== ATIVAÇÕES (TABELA) =====
+// ===== ATIVAÇÕES =====
 function carregarAtivacoes(pagina) {
     if (!pagina) pagina = paginaAtualAtivacoes;
     const tabela = document.getElementById('tabelaAtivacoes');
@@ -800,7 +800,6 @@ function atualizarControlesPaginacao(idContainer, pagina, totalPaginas, totalIte
     if (btnProximo) btnProximo.disabled = pagina >= totalPaginas || totalPaginas === 0;
 }
 
-// ===== FILTRAR ATIVAÇÕES COM DEBOUNCE =====
 function filtrarAtivacoes() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
@@ -809,7 +808,7 @@ function filtrarAtivacoes() {
     }, 300);
 }
 
-// ===== MODAL ATIVAÇÃO (COM TRAVA E APROVAÇÃO) =====
+// ===== MODAL ATIVAÇÃO =====
 async function abrirModalAtivacao(id) {
     const a = findAtivacaoById(id);
     if (!a) { alert('Venda não encontrada'); return; }
@@ -830,9 +829,6 @@ async function abrirModalAtivacao(id) {
         '<option value="' + f.nome + '" ' + (a.status === f.nome ? 'selected' : '') + '>' + f.nome + '</option>'
     ).join('');
 
-    // ============================================================
-    // 🔥 MODAL ATIVAÇÃO COM ORIGEM DA VENDA (DROPDOWN)
-    // ============================================================
     const html = '' +
     '<div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 10px;">' +
         '<div class="input-group"><label>Status</label><select id="editStatus">' + statusOptions + '</select></div>' +
@@ -863,7 +859,6 @@ async function abrirModalAtivacao(id) {
         '<div class="input-group"><label>Viabilidade</label><input value="' + (a.viabilidade || '') + '" id="editViabilidade"></div>' +
         '<div class="input-group"><label>Plano Tipo</label><input value="' + (a.planoTipo || '') + '" id="editPlanoTipo"></div>' +
         '<div class="input-group"><label>Tipo Aprov.</label><input value="' + (a.tipoAprovacao || '') + '" id="editTipoAprovacao"></div>' +
-        // <--- ADICIONADO ORIGEM DA VENDA
         '<div class="input-group"><label>Origem da Venda</label>' +
         '<select id="editOrigemVenda">' +
           '<option value="">Selecione</option>' +
@@ -872,7 +867,6 @@ async function abrirModalAtivacao(id) {
           '<option value="MAILING CONEXAO" ' + (a.origemVenda === 'MAILING CONEXAO' ? 'selected' : '') + '>MAILING CONEXAO</option>' +
           '<option value="META" ' + (a.origemVenda === 'META' ? 'selected' : '') + '>META</option>' +
         '</select></div>' +
-        // <--- FIM DA ADIÇÃO
         '<div class="input-group"><label>Observação</label><textarea id="editObservacao" style="height:38px;">' + (a.observacao || '') + '</textarea></div>' +
     '</div>';
 
@@ -930,10 +924,6 @@ async function fecharModalAtivacao() {
         a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : '';
         a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : '';
         a.infoPeriodo = document.getElementById('infoPeriodo') ? document.getElementById('infoPeriodo').value : '';
-
-        // ============================================================
-        // 🔥 CAPTURAR ORIGEM DA VENDA NO MODAL DE ATIVAÇÃO
-        // ============================================================
         a.origemVenda = document.getElementById('editOrigemVenda') ? document.getElementById('editOrigemVenda').value : '';
 
         const elAtivadoPor = document.getElementById('infoAtivadoPor');
@@ -948,9 +938,6 @@ async function fecharModalAtivacao() {
                 return; 
             }
             if (confirm('Aprovar esta venda?')) {
-                // ============================================================
-                // 🔥 ENVIAR ORIGEM DA VENDA PARA O GS
-                // ============================================================
                 const resp = await fetchFromGS('aprovarVenda', {
                     uuid: a.id, status: 'APROVADO', cliente: a.nomeCompleto, cpf: a.cpf,
                     dataNasc: a.dataNasc, nomeMae: a.nomeMae, rg: a.rg, orgaoExpeditor: a.orgaoExpeditor,
@@ -961,7 +948,7 @@ async function fecharModalAtivacao() {
                     formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
                     tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
                     vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao, origemVenda: a.origemVenda // <--- ESSA LINHA É CRUCIAL
+                    observacao: a.observacao, origemVenda: a.origemVenda
                 });
                 if (resp && resp.ok) {
                     alert('✅ Venda aprovada!');
@@ -983,7 +970,7 @@ async function fecharModalAtivacao() {
                     infoData: a.infoData,
                     infoPeriodo: a.infoPeriodo,
                     ativadoPor: a.ativadoPor,
-                    origemVenda: a.origemVenda // <--- ESSA LINHA É CRUCIAL
+                    origemVenda: a.origemVenda
                 });
             }
         }
@@ -997,6 +984,7 @@ async function fecharModalAtivacao() {
     if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas();
     if (sessao.tipo === 'admin') carregarDashboard();
 }
+
 function abrirModalInfoAdicional() {
     if (!vendaSendoVisualizada) { alert('Nenhuma venda selecionada.'); return; }
     carregarDropdownAtivadoPor();
@@ -1021,7 +1009,7 @@ function salvarInfoAdicional() {
     fecharModalInfoAdicional();
 }
 
-// ===== VENDAS APROVADAS (CORRIGIDO) =====
+// ===== VENDAS APROVADAS =====
 function carregarVendasAprovadas(pagina) {
     if (!pagina) pagina = paginaAtualVendasAprovadas;
     const tabela = document.getElementById('tabelaVendasAprovadas');
@@ -1052,7 +1040,7 @@ function carregarVendasAprovadas(pagina) {
             '<td>' + nomeVendedor + '</td>' +
             '<td>R$ ' + (parseFloat(String(a.valor || '0').replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</td>' +
             '<td>' + dataFormatada + '</td>' +
-            '<td>' + (a.origemVenda || '—') + '</td>' + // <--- COLUNA ORIGEM
+            '<td>' + (a.origemVenda || '—') + '</td>' +
             '<td>' +
                 '<button onclick="abrirModalVisualizacao(\'' + a.id + '\')" class="btn-glass-sm"><i class="fas fa-eye"></i></button>' +
                 (sessao.tipo === 'admin' ? '<button onclick="removerVenda(\'' + a.id + '\')" class="btn-glass-sm" style="background:rgba(255,71,87,0.2);border-color:#ff4757;color:#ff4757;"><i class="fas fa-trash"></i></button>' : '') +
@@ -1061,6 +1049,7 @@ function carregarVendasAprovadas(pagina) {
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
     atualizarControlesPaginacao('paginacaoVendasAprovadas', paginaAtualVendasAprovadas, totalPaginas, total);
 }
+
 function mudarPaginaVendasAprovadas(direcao) {
     if (direcao === 'anterior' && paginaAtualVendasAprovadas > 1) carregarVendasAprovadas(paginaAtualVendasAprovadas - 1);
     else if (direcao === 'proximo') {
@@ -1104,7 +1093,6 @@ function abrirModalVisualizacao(id) {
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
         ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'],
-        // <--- ADICIONADO ORIGEM DA VENDA NO MODAL DE VISUALIZAÇÃO
         ['Origem da Venda', a.origemVenda || '—', 'viewOrigemVenda'],
         ['Observação', a.observacao || '', 'viewObservacao']
     ];
@@ -1146,8 +1134,6 @@ async function salvarEdicaoVenda() {
     a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
     a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
     a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
-    
-    // <--- SALVAR ORIGEM DA VENDA NA EDIÇÃO
     a.origemVenda = getVal('viewOrigemVenda');
     
     salvarDB();
@@ -1162,7 +1148,7 @@ async function salvarEdicaoVenda() {
             planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
             observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
             infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
-            origemVenda: a.origemVenda // <--- ESSA LINHA É CRUCIAL
+            origemVenda: a.origemVenda
         });
         if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
     } catch (e) { alert('⚠️ Erro de comunicação.'); }
@@ -1187,9 +1173,9 @@ async function removerVenda(id) {
     } catch (err) { alert('❌ Erro de comunicação.'); }
 }
 
-// ===== FUNÇÕES DO VENDEDOR (ENVIAR VENDA) =====
+// ===== FUNÇÕES DO VENDEDOR =====
 function limparFormularioVenda() {
-    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao'];
+    const ids = ['vNomeCompleto','vCpf','vDataNasc','vOrgaoExpeditor','vNomeMae','vRg','vDataExpedicao','vEmail','vTelefone1','vTelefone2','vCep','vLogradouro','vNumero','vComplemento','vBairro','vUf','vCidade','vPontoReferencia','vVelocidade','vPlano','vValor','vVencimento','vFormaPagamento','vHp','vViabilidade','vPlanoTipo','vTipoAprovacao','vOrigemVenda'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     const checkAtual = document.getElementById('checkDataAtual');
     const checkNova = document.getElementById('checkNovaData');
@@ -1200,10 +1186,12 @@ function limparFormularioVenda() {
 }
 
 let enviandoVenda = false;
+let cooldownTimer = null;
 
+// 🔥 FUNÇÃO ENVIAR VENDA COM TRAVA DE 10 SEGUNDOS
 function enviarVenda() {
     if (enviandoVenda) {
-        alert('⏳ Aguarde, sua venda está sendo enviada...');
+        alert('⏳ Aguarde 10 segundos antes de enviar novamente.');
         return;
     }
     
@@ -1223,10 +1211,9 @@ function enviarVenda() {
         formaPagamento: getVal('vFormaPagamento'), hp: getVal('vHp')
     };
     
-    // <--- CAPTURAR ORIGEM DA VENDA NO ENVIO
     const origemVenda = document.getElementById('vOrigemVenda') ? document.getElementById('vOrigemVenda').value : '';
 
-    const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento'];
+    const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento','origemVenda'];
     for (let c of obrigatorios) { if (!campos[c]) { alert('Preencha: ' + c); return; } }
     if (campos.dataNasc) { const d = parseDateBR(campos.dataNasc); campos.dataNasc = d ? dataParaBR(d) : campos.dataNasc; }
     if (campos.dataExpedicao) { const d = parseDateBR(campos.dataExpedicao); campos.dataExpedicao = d ? dataParaBR(d) : campos.dataExpedicao; }
@@ -1242,6 +1229,9 @@ function enviarVenda() {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     }
     
+    // Limpa qualquer timer antigo e seta o cooldown de 10s
+    if (cooldownTimer) clearTimeout(cooldownTimer);
+    
     fetchFromGS('adicionarPendente', { venda: JSON.stringify(nova) }).then(resp => {
         if (resp && resp.ok) { 
             alert('✅ Venda enviada com data: ' + dataVenda); 
@@ -1252,16 +1242,19 @@ function enviarVenda() {
         else alert('❌ Erro ao enviar.');
     }).catch(err => { alert('❌ Erro de comunicação.'); })
     .finally(() => {
-        enviandoVenda = false;
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-check"></i> Enviar Venda';
-        }
+        // 🔥 TRAVA DE 10 SEGUNDOS
+        cooldownTimer = setTimeout(() => {
+            enviandoVenda = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Enviar Venda';
+            }
+        }, 10000);
     });
 }
 
 function carregarControleVendas() {
-const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = '';
@@ -1273,7 +1266,7 @@ const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status 
             '<td>R$ ' + (parseFloat(String(a.valor || '0').replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</td>' +
             '<td><span style="color:' + flag.cor + ';font-weight:600;">● ' + a.status + '</span></td>' +
             '<td>' + (a.data ? formatarBR(a.data) : '—') + '</td>' +
-            '<td>' + (a.origemVenda || '—') + '</td>' + // <--- COLUNA ORIGEM
+            '<td>' + (a.origemVenda || '—') + '</td>' +
             '<td><button onclick="abrirModalVisualizacao(\'' + a.id + '\')" class="btn-glass-sm"><i class="fas fa-eye"></i></button></td>' +
         '</tr>';
     }).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;">Nenhuma venda aprovada</td></tr>');
@@ -1397,6 +1390,7 @@ function carregarMetasAtivasVendedor() {
     
     container.innerHTML = html || '<div class="meta-vendedor-card"><span class="meta-vendedor-label">Nenhuma meta definida</span></div>';
 }
+
 function atualizarPainelInstalacoes() {
     const hoje = new Date();
     if (hoje.getDate() <= 10) {
@@ -1731,7 +1725,7 @@ function carregarRankingRelatorio(atual){
     document.getElementById('rankingRelatorio').innerHTML=h;
 }
 
-// ===== PDF FUNCIONANDO =====
+// ===== PDF =====
 function gerarPDF() {
     const elemento = document.getElementById('relatorioPrint');
     if (!elemento) {
@@ -1888,13 +1882,11 @@ function salvarMetas(){
     DB.metas.diariaEmpresa=diariaEmp; DB.metas.quinzenalEmpresa=quinzenalEmp; DB.metas.mensalEmpresa=mensalEmp;
     salvarDB();
     fetchFromGS('salvarMetasVendas',{diaria,quinzenal,mensal,diariaEmp,quinzenalEmp,mensalEmp});
-    
     delete CACHE_SYNC['metasVendas'];
-    
     alert('✅ Metas atualizadas!');
 }
 
-// ===== PRODUTOS 100% SINCRONIZADO =====
+// ===== PRODUTOS =====
 function carregarTabelaProdutos(){
     const t=document.getElementById('tabelaProdutos');if(!t)return;
     t.innerHTML='';
@@ -2083,7 +2075,7 @@ function gerarExcel(dados, nomeArquivo) {
         'Status': v.status || '',
         'Data': v.data || '',
         'Instalação': v.instalacaoStatus || '',
-        'Origem da Venda': v.origemVenda || '' // <--- ADICIONADO
+        'Origem da Venda': v.origemVenda || ''
     }));
     const ws = XLSX.utils.json_to_sheet(dadosFormatados);
     const wb = XLSX.utils.book_new();
@@ -2091,7 +2083,7 @@ function gerarExcel(dados, nomeArquivo) {
     XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
 }
 
-// ===== POLLING PRINCIPAL (SÓ COM ABA VISÍVEL) =====
+// ===== POLLING =====
 let isPolling=false;
 setInterval(()=>{
     if (document.visibilityState === 'visible' && sessao && !isPolling){
@@ -2103,7 +2095,7 @@ setInterval(()=>{
 },20000);
 setInterval(()=>{if(sessao&&sessao.tipo==='admin')sincronizarUsuariosDaNuvem();},10000);
 
-// ===== LOGOUT E EXIBIÇÃO =====
+// ===== LOGOUT =====
 function logout(){sessionStorage.removeItem('stage_session');sessionStorage.removeItem('stage_notificados_pendentes');sessao=null;document.getElementById('loginScreen').style.display='flex';document.getElementById('adminScreen').style.display='none';document.getElementById('vendedorScreen').style.display='none';}
 function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
@@ -2177,9 +2169,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// ============================================================
-// 🧪 FUNÇÃO PARA PREENCHER O FORMULÁRIO DE TESTE AUTOMATICAMENTE
-// ============================================================
+// ===== TESTE =====
 function preencherFormularioTeste() {
     document.getElementById('vNomeCompleto').value = 'Cliente Teste Automático';
     document.getElementById('vCpf').value = '123.456.789-00';
@@ -2200,7 +2190,6 @@ function preencherFormularioTeste() {
     document.getElementById('vCidade').value = 'Duque de Caxias';
     document.getElementById('vPontoReferencia').value = 'Próximo ao mercado';
     
-    // Seta os dropdowns se as opções existirem
     const setSelect = (id, val) => {
         const el = document.getElementById(id);
         if(el) {
