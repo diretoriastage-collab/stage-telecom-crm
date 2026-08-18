@@ -48,20 +48,36 @@ if (!DB) {
     };
 }
 
-DB.promocoes = DB.promocoes || [];
-DB.notificacoes = DB.notificacoes || [];
-DB.ativacoes = DB.ativacoes || [];
-DB.metas = DB.metas || { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150, produtos: [], instalacoes: [] };
-DB.metas.produtos = DB.metas.produtos || [];
-DB.metas.instalacoes = DB.metas.instalacoes || [];
-DB.metas.produtosEmpresa = DB.metas.produtosEmpresa || [];
-DB.metas.instalacoesEmpresa = DB.metas.instalacoesEmpresa || [];
-DB.produtos = DB.produtos || [{ id: 1, nome: "Básico" }, { id: 2, nome: "Empresarial" }, { id: 3, nome: "Premium" }, { id: 4, nome: "Ultra" }];
-DB.opcoesVenda = DB.opcoesVenda || { velocidades: [], formasPagamento: [], valores: [] };
-if (!DB.statusFlags.find(f => f.nome === 'Pendente')) {
+// ===== NORMALIZAÇÃO SEGURA DO CACHE LOCAL =====
+// O Google Sheets continua sendo a fonte de verdade. Esta normalização apenas
+// impede que caches de versões antigas/corrompidas quebrem o CRM em um navegador.
+DB.usuarios = Array.isArray(DB.usuarios) ? DB.usuarios : [];
+DB.clientes = Array.isArray(DB.clientes) ? DB.clientes : [];
+DB.promocoes = Array.isArray(DB.promocoes) ? DB.promocoes : [];
+DB.notificacoes = Array.isArray(DB.notificacoes) ? DB.notificacoes : [];
+DB.ativacoes = Array.isArray(DB.ativacoes) ? DB.ativacoes : [];
+DB.statusFlags = Array.isArray(DB.statusFlags) ? DB.statusFlags : [];
+DB.metas = DB.metas && typeof DB.metas === 'object' ? DB.metas : { diariaVendas: 10, quinzenalVendas: 75, mensalVendas: 150, produtos: [], instalacoes: [] };
+DB.metas.produtos = Array.isArray(DB.metas.produtos) ? DB.metas.produtos : [];
+DB.metas.instalacoes = Array.isArray(DB.metas.instalacoes) ? DB.metas.instalacoes : [];
+DB.metas.produtosEmpresa = Array.isArray(DB.metas.produtosEmpresa) ? DB.metas.produtosEmpresa : [];
+DB.metas.instalacoesEmpresa = Array.isArray(DB.metas.instalacoesEmpresa) ? DB.metas.instalacoesEmpresa : [];
+DB.produtos = Array.isArray(DB.produtos) ? DB.produtos : [{ id: 1, nome: "Básico" }, { id: 2, nome: "Empresarial" }, { id: 3, nome: "Premium" }, { id: 4, nome: "Ultra" }];
+DB.opcoesVenda = DB.opcoesVenda && typeof DB.opcoesVenda === 'object' ? DB.opcoesVenda : { velocidades: [], formasPagamento: [], valores: [] };
+DB.opcoesVenda.velocidades = Array.isArray(DB.opcoesVenda.velocidades) ? DB.opcoesVenda.velocidades : [];
+DB.opcoesVenda.formasPagamento = Array.isArray(DB.opcoesVenda.formasPagamento) ? DB.opcoesVenda.formasPagamento : [];
+DB.opcoesVenda.valores = Array.isArray(DB.opcoesVenda.valores) ? DB.opcoesVenda.valores : [];
+
+if (!DB.statusFlags.find(f => f && f.nome === 'Pendente')) {
     DB.statusFlags.unshift({ id: Date.now(), nome: 'Pendente', cor: '#ffa502' });
 }
-DB.usuarios.forEach(u => { if (!u.categoria) u.categoria = u.tipo || 'vendedor'; if (!u.equipe) u.equipe = 'Geral'; });
+
+DB.usuarios.forEach(u => {
+    if (!u || typeof u !== 'object') return;
+    if (!u.categoria) u.categoria = u.tipo || 'vendedor';
+    if (!u.tipo) u.tipo = u.categoria || 'vendedor';
+    if (!u.equipe) u.equipe = 'Geral';
+});
 
 // ===== CACHE DE SINCRONIZAÇÕES =====
 const CACHE_SYNC = {};
@@ -102,9 +118,19 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzXRhCAGECERlSOmlBZeuHrezUuGDMkKTHhzXdsR4Tfds8oYU8bH_QB9uZzkB5TnpXyNw/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyDYl1m2zC3T0ly4u351Xh0VfrL03dZz4pZ--U2X_4M5DU2tYLqzVLi8UB7uNAVcToJCw/exec';
+const STAGE_FRONTEND_VERSAO = '20260818-STABLE-2';
 
-let sessao = JSON.parse(sessionStorage.getItem('stage_session'));
+let sessao = null;
+try {
+    const sessaoRaw = sessionStorage.getItem('stage_session');
+    sessao = sessaoRaw ? JSON.parse(sessaoRaw) : null;
+    if (sessao && typeof sessao !== 'object') sessao = null;
+} catch (e) {
+    console.warn('Sessão local inválida. Limpando apenas a sessão deste navegador.', e);
+    try { sessionStorage.removeItem('stage_session'); } catch (_) {}
+    sessao = null;
+}
 let comparativoAtual = 'diario';
 let graficoVendedoresInstance = null;
 let vendaSendoVisualizada = null;
@@ -141,109 +167,426 @@ setInterval(() => {
 }, 1000);
 
 // ===== AUTENTICAÇÃO =====
+let loginEmAndamento = false;
+
 async function autenticarUsuario(usuario, senha) {
-    try {
-        const resp = await consultarSheetUsuarios(usuario, senha);
-        if (resp && resp.autorizado === true) {
-            return {
-                id: resp.id || Date.now(),
-                nome: resp.nome,
-                email: resp.email || '',
-                tipo: resp.categoria,
-                equipe: resp.equipe || 'Geral'
-            };
-        }
-    } catch (e) { console.warn('Erro ao consultar planilha:', e); }
-    const userLocal = DB.usuarios.find(u => u.usuario === usuario && u.ativo === true && !u.deletedAt && u.senha === senha);
-    if (userLocal) {
+    autenticarUsuario.ultimoResultado = null;
+
+    const resp = await consultarSheetUsuarios(usuario, senha);
+    autenticarUsuario.ultimoResultado = resp || null;
+
+    if (resp && resp.autorizado === true) {
         return {
-            id: userLocal.id,
-            nome: userLocal.nome,
-            email: userLocal.email,
-            tipo: userLocal.categoria || userLocal.tipo,
-            equipe: userLocal.equipe || 'Geral'
+            id: Number(resp.id) || resp.id || Date.now(),
+            usuario: resp.usuario || usuario,
+            nome: resp.nome || usuario,
+            email: resp.email || '',
+            tipo: resp.categoria || 'vendedor',
+            equipe: resp.equipe || 'Geral'
         };
     }
+
+    // IMPORTANTE: não existe mais fallback de senha pelo localStorage.
+    // Assim Chrome/Edge/Firefox não podem autenticar com caches diferentes.
     return null;
 }
 
 function consultarSheetUsuarios(usuario, senha) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'cbUsers' + Date.now();
-        const script = document.createElement('script');
-        script.src = `${GOOGLE_SHEET_VENDAS_URL}?acao=autenticar&usuario=${encodeURIComponent(usuario)}&senha=${encodeURIComponent(senha)}&callback=${callbackName}`;
-        const timeout = setTimeout(() => { document.body.removeChild(script); delete window[callbackName]; reject(new Error('Timeout')); }, 5000);
-        window[callbackName] = (res) => { clearTimeout(timeout); document.body.removeChild(script); delete window[callbackName]; resolve(res); };
-        script.onerror = () => { clearTimeout(timeout); document.body.removeChild(script); delete window[callbackName]; reject(new Error('Erro de rede')); };
-        document.body.appendChild(script);
-    });
+    return fetchFromGS(
+        'autenticar',
+        { usuario: String(usuario || '').trim(), senha: String(senha || '') },
+        {
+            timeoutMs: 18000,
+            retries: 1,
+            cache: false,
+            dedupe: false
+        }
+    );
 }
 
 async function fazerLogin() {
-    const usuario = document.getElementById('usuario').value.trim();
-    const senha = document.getElementById('senha').value.trim();
+    if (loginEmAndamento) return;
+
+    const usuarioEl = document.getElementById('usuario');
+    const senhaEl = document.getElementById('senha');
     const erro = document.getElementById('mensagemErro');
-    if (!usuario || !senha) { erro.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Preencha todos os campos!'; erro.style.color = '#ffa502'; return; }
-    const user = await autenticarUsuario(usuario, senha);
-    if (user) {
-        sessao = { id: user.id, nome: user.nome, email: user.email, tipo: user.tipo };
-        sessionStorage.setItem('stage_session', JSON.stringify(sessao));
-        erro.innerHTML = '<i class="fas fa-check-circle"></i> Login realizado! Redirecionando...';
-        erro.style.color = '#2ed573';
-        if (document.getElementById('lembrar') && document.getElementById('lembrar').checked) localStorage.setItem('stage_remember', usuario);
-        setTimeout(() => { if (user.tipo === 'admin') mostrarAdmin(); else mostrarVendedor(); }, 600);
-    } else {
-        erro.innerHTML = '<i class="fas fa-times-circle"></i> Usuário ou senha inválidos!';
-        erro.style.color = '#ff4757';
-        document.getElementById('senha').value = '';
-        document.getElementById('senha').focus();
+
+    const usuario = usuarioEl ? usuarioEl.value.trim() : '';
+    const senha = senhaEl ? senhaEl.value : '';
+
+    if (!usuario || !senha) {
+        if (erro) {
+            erro.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Preencha todos os campos!';
+            erro.style.color = '#ffa502';
+        }
+        return;
+    }
+
+    loginEmAndamento = true;
+    const btnLogin = document.querySelector('#loginScreen button[onclick*="fazerLogin"]');
+    const htmlBotaoOriginal = btnLogin ? btnLogin.innerHTML : '';
+
+    if (btnLogin) {
+        btnLogin.disabled = true;
+        btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando...';
+    }
+
+    if (erro) {
+        erro.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Validando acesso no servidor...';
+        erro.style.color = '#74b9ff';
+    }
+
+    try {
+        const user = await autenticarUsuario(usuario, senha);
+
+        if (user) {
+            sessao = {
+                id: user.id,
+                usuario: user.usuario || usuario,
+                nome: user.nome,
+                email: user.email || '',
+                tipo: user.tipo || 'vendedor',
+                equipe: user.equipe || 'Geral'
+            };
+
+            try {
+                sessionStorage.setItem('stage_session', JSON.stringify(sessao));
+            } catch (storageErr) {
+                console.warn('Não foi possível persistir a sessão neste navegador:', storageErr);
+            }
+
+            if (erro) {
+                erro.innerHTML = '<i class="fas fa-check-circle"></i> Login realizado! Redirecionando...';
+                erro.style.color = '#2ed573';
+            }
+
+            const lembrar = document.getElementById('lembrar');
+            if (lembrar && lembrar.checked) {
+                try { localStorage.setItem('stage_remember', usuario); } catch (_) {}
+            } else {
+                try { localStorage.removeItem('stage_remember'); } catch (_) {}
+            }
+
+            // Não precisamos esperar artificialmente 600 ms.
+            if (user.tipo === 'admin') mostrarAdmin();
+            else mostrarVendedor();
+            return;
+        }
+
+        const resultado = autenticarUsuario.ultimoResultado || {};
+        const motivo = resultado.motivo || resultado.erro || 'Usuário ou senha inválidos';
+
+        if (erro) {
+            erro.innerHTML = '<i class="fas fa-times-circle"></i> ' + stageEscapeHtml(motivo);
+            erro.style.color = '#ff4757';
+        }
+
+        // Só limpa senha quando o servidor RESPONDEU que o acesso é inválido.
+        if (senhaEl) {
+            senhaEl.value = '';
+            senhaEl.focus();
+        }
+
+    } catch (e) {
+        console.error('Falha de conexão durante o login:', e);
+
+        if (erro) {
+            const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+            erro.innerHTML = offline
+                ? '<i class="fas fa-wifi"></i> Sem conexão com a internet. Verifique sua rede.'
+                : '<i class="fas fa-server"></i> O servidor demorou para responder. Tente novamente.';
+            erro.style.color = '#ff9f43';
+        }
+        // Em erro de rede NÃO apagamos a senha digitada.
+    } finally {
+        loginEmAndamento = false;
+        if (btnLogin) {
+            btnLogin.disabled = false;
+            btnLogin.innerHTML = htmlBotaoOriginal || '<i class="fas fa-sign-in-alt"></i> Entrar';
+        }
     }
 }
 
 // ===== FUNÇÕES DE REDE =====
-function salvarDB() { localStorage.setItem('stage_db', JSON.stringify(DB)); }
+const STAGE_ACOES_LEITURA = new Set([
+    'statusBackend',
+    'autenticar',
+    'listarUsuarios',
+    'listarStatusFlags',
+    'listarMetasVendas',
+    'listarProdutos',
+    'listarMetasProdutos',
+    'listarOpcoesVenda',
+    'listarMetasInstalacoes',
+    'listarPromocoes',
+    'consultarTratando',
+    'listarPendentes',
+    'listarVendas',
+    'carregarDB'
+]);
 
-function fetchFromGS(acao, params = {}) {
+// Estas escritas são idempotentes no backend estabilizado e podem ser repetidas
+// uma única vez se a conexão cair antes de a resposta chegar.
+const STAGE_ACOES_ESCRITA_IDEMPOTENTE = new Set([
+    'adicionarPendente',
+    'atualizarTratando',
+    'atualizarInfoAdicional',
+    'atualizarPendente',
+    'aprovarVenda',
+    'editarVenda',
+    'atualizarInstalacao',
+    'excluirVenda'
+]);
+
+const STAGE_REDE_CACHE = new Map();
+const STAGE_REDE_EM_ANDAMENTO = new Map();
+let stageJsonpCounter = 0;
+
+const STAGE_CACHE_TTL = {
+    listarPendentes: 5000,
+    listarVendas: 5000,
+    listarUsuarios: 30000,
+    listarStatusFlags: 30000,
+    listarMetasVendas: 30000,
+    listarProdutos: 30000,
+    listarMetasProdutos: 30000,
+    listarOpcoesVenda: 30000,
+    listarMetasInstalacoes: 30000,
+    listarPromocoes: 30000,
+    carregarDB: 10000
+};
+
+function stageEscapeHtml(valor) {
+    return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function stageNormalizarTexto(valor) {
+    return String(valor || '')
+        .trim()
+        .toLocaleLowerCase('pt-BR');
+}
+
+function stageGerarUUID() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+    }
+
+    return 'stage-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+}
+
+function stageDormir(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function stageChaveRede(acao, params) {
+    const entries = Object.keys(params || {})
+        .sort()
+        .map(k => [k, String(params[k] == null ? '' : params[k])]);
+    return acao + '|' + JSON.stringify(entries);
+}
+
+function stageInvalidarCacheRede() {
+    STAGE_REDE_CACHE.clear();
+}
+
+function salvarDB() {
+    try {
+        localStorage.setItem('stage_db', JSON.stringify(DB));
+        return true;
+    } catch (e) {
+        // LocalStorage é apenas cache. Não derrubamos o CRM se um navegador
+        // estiver com quota cheia/bloqueada.
+        console.warn('Não foi possível atualizar o cache local stage_db:', e);
+        return false;
+    }
+}
+
+function stageJsonpUmaTentativa(acao, params, timeoutMs) {
     return new Promise((resolve, reject) => {
-        const callbackName = 'cb' + Date.now() + Math.random().toString(36).substr(2, 8);
-        const urlParams = new URLSearchParams({ acao, callback: callbackName, ...params });
+        const callbackName = 'stageCb_' + Date.now() + '_' + (++stageJsonpCounter) + '_' + Math.random().toString(36).slice(2, 8);
+        const urlParams = new URLSearchParams();
+        urlParams.set('acao', acao);
+        urlParams.set('callback', callbackName);
+        urlParams.set('_ts', String(Date.now()));
+
+        Object.keys(params || {}).forEach(key => {
+            const value = params[key];
+            if (value === undefined || value === null) return;
+            urlParams.set(key, String(value));
+        });
+
         const script = document.createElement('script');
+        script.async = true;
         script.src = GOOGLE_SHEET_VENDAS_URL + '?' + urlParams.toString();
-        
+
+        let finalizado = false;
+
+        const removerScript = () => {
+            try {
+                if (script.parentNode) script.parentNode.removeChild(script);
+            } catch (_) {}
+        };
+
+        const limparCallback = (atrasado) => {
+            if (atrasado) {
+                // Evita ReferenceError caso uma resposta antiga chegue logo após timeout.
+                window[callbackName] = function() {};
+                setTimeout(() => {
+                    try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+                }, 60000);
+            } else {
+                try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+            }
+        };
+
         const timeout = setTimeout(() => {
-            if (document.body.contains(script)) document.body.removeChild(script);
-            reject(new Error('Timeout na requisição JSONP'));
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-        }, 15000);
-        
+            if (finalizado) return;
+            finalizado = true;
+            removerScript();
+            limparCallback(true);
+            const erro = new Error('Tempo limite excedido ao comunicar com o Google Apps Script.');
+            erro.code = 'STAGE_TIMEOUT';
+            erro.acao = acao;
+            reject(erro);
+        }, Math.max(3000, Number(timeoutMs) || 20000));
+
         window[callbackName] = (res) => {
+            if (finalizado) return;
+            finalizado = true;
             clearTimeout(timeout);
-            if (document.body.contains(script)) document.body.removeChild(script);
+            removerScript();
+            limparCallback(false);
             resolve(res);
-            setTimeout(() => { delete window[callbackName]; }, 1000);
         };
-        
+
         script.onerror = () => {
+            if (finalizado) return;
+            finalizado = true;
             clearTimeout(timeout);
-            if (document.body.contains(script)) document.body.removeChild(script);
-            setTimeout(() => { delete window[callbackName]; }, 1000);
-            reject(new Error('Erro de rede na requisição JSONP'));
+            removerScript();
+            limparCallback(false);
+            const erro = new Error('Falha de rede ao carregar resposta do Google Apps Script.');
+            erro.code = 'STAGE_NETWORK';
+            erro.acao = acao;
+            reject(erro);
         };
-        
-        document.body.appendChild(script);
+
+        (document.head || document.body || document.documentElement).appendChild(script);
     });
 }
 
-async function postParaGoogleSheets(acao, dados = {}) {
-    try {
-        const formData = new URLSearchParams();
-        formData.append('acao', acao);
-        for (let key in dados) {
-            if (dados.hasOwnProperty(key)) formData.append(key, dados[key]);
+function fetchFromGS(acao, params = {}, opcoes = {}) {
+    const leitura = STAGE_ACOES_LEITURA.has(acao);
+    const idempotente = STAGE_ACOES_ESCRITA_IDEMPOTENTE.has(acao);
+    const autenticacao = acao === 'autenticar';
+    const chave = stageChaveRede(acao, params);
+
+    const ttlPadrao = STAGE_CACHE_TTL[acao] || 0;
+    const usarCache = opcoes.cache !== undefined ? !!opcoes.cache : (leitura && !autenticacao && ttlPadrao > 0);
+    const dedupe = opcoes.dedupe !== undefined ? !!opcoes.dedupe : (leitura && !autenticacao);
+    const timeoutMs = Number(opcoes.timeoutMs) || (autenticacao ? 18000 : (leitura ? 20000 : 25000));
+    const retries = opcoes.retries !== undefined
+        ? Math.max(0, Number(opcoes.retries) || 0)
+        : ((leitura || idempotente) ? 1 : 0);
+
+    if (usarCache) {
+        const cached = STAGE_REDE_CACHE.get(chave);
+        if (cached && cached.expira > Date.now()) {
+            return Promise.resolve(cached.valor);
         }
-        await fetch(GOOGLE_SHEET_VENDAS_URL, { method: 'POST', body: formData, mode: 'no-cors' });
-        console.log(`✅ POST '${acao}' enviado`);
-    } catch (e) { console.warn(`⚠️ Falha no POST '${acao}':`, e); }
+        if (cached) STAGE_REDE_CACHE.delete(chave);
+    }
+
+    if (dedupe && STAGE_REDE_EM_ANDAMENTO.has(chave)) {
+        return STAGE_REDE_EM_ANDAMENTO.get(chave);
+    }
+
+    const tarefa = (async () => {
+        let ultimoErro = null;
+
+        for (let tentativa = 0; tentativa <= retries; tentativa++) {
+            try {
+                if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                    const offlineErr = new Error('Sem conexão com a internet.');
+                    offlineErr.code = 'STAGE_OFFLINE';
+                    throw offlineErr;
+                }
+
+                const resp = await stageJsonpUmaTentativa(acao, params, timeoutMs);
+
+                if (usarCache) {
+                    const ttl = Number(opcoes.cacheTtlMs) || ttlPadrao;
+                    if (ttl > 0) {
+                        STAGE_REDE_CACHE.set(chave, { valor: resp, expira: Date.now() + ttl });
+                    }
+                }
+
+                if (!leitura) stageInvalidarCacheRede();
+                return resp;
+
+            } catch (erro) {
+                ultimoErro = erro;
+                if (tentativa >= retries) break;
+                // Pequeno backoff evita várias chamadas simultâneas durante cold start do Apps Script.
+                await stageDormir(450 * Math.pow(2, tentativa));
+            }
+        }
+
+        if (ultimoErro) {
+            ultimoErro.tentativas = retries + 1;
+            ultimoErro.acao = acao;
+        }
+        throw ultimoErro || new Error('Falha desconhecida de comunicação.');
+    })();
+
+    if (dedupe) STAGE_REDE_EM_ANDAMENTO.set(chave, tarefa);
+
+    return tarefa.finally(() => {
+        if (dedupe && STAGE_REDE_EM_ANDAMENTO.get(chave) === tarefa) {
+            STAGE_REDE_EM_ANDAMENTO.delete(chave);
+        }
+    });
+}
+
+// Mantém o nome antigo para não quebrar nenhuma chamada existente,
+// porém agora recebe confirmação real do Apps Script via JSONP.
+async function postParaGoogleSheets(acao, dados = {}) {
+    return fetchFromGS(acao, dados, {
+        cache: false,
+        dedupe: false,
+        retries: STAGE_ACOES_ESCRITA_IDEMPOTENTE.has(acao) ? 1 : 0,
+        timeoutMs: 25000
+    });
+}
+
+async function testarConexaoStage() {
+    const inicio = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    try {
+        const resposta = await fetchFromGS('statusBackend', {}, { cache: false, dedupe: false, retries: 1, timeoutMs: 12000 });
+        const fim = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const resultado = { ok: !!(resposta && resposta.ok), ms: Math.round(fim - inicio), resposta };
+        console.log('STAGE conexão:', resultado);
+        return resultado;
+    } catch (erro) {
+        const fim = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const resultado = { ok: false, ms: Math.round(fim - inicio), erro: erro && erro.message ? erro.message : String(erro) };
+        console.error('STAGE conexão:', resultado);
+        return resultado;
+    }
 }
 
 function getStatusBadge(status) {
@@ -399,15 +742,20 @@ function fecharModalBonusAtivo() {
 }
 
 // ===== CONTROLE DE DATA NA VENDA =====
-function toggleDataVenda() {
+function toggleDataVenda(evt) {
     const checkAtual = document.getElementById('checkDataAtual');
     const checkNova = document.getElementById('checkNovaData');
     const inputNovaData = document.getElementById('inputNovaData');
-    
+    if (!checkAtual || !checkNova || !inputNovaData) return;
+
+    const eventoSeguro = evt || ((typeof window !== 'undefined' && window.event) ? window.event : null);
+    const alvo = eventoSeguro && eventoSeguro.target ? eventoSeguro.target : document.activeElement;
+
     if (checkAtual.checked && checkNova.checked) {
-        if (event && event.target === checkAtual) {
+        if (alvo === checkAtual) {
             checkNova.checked = false;
             inputNovaData.style.display = 'none';
+            inputNovaData.value = '';
         } else {
             checkAtual.checked = false;
             inputNovaData.style.display = 'block';
@@ -424,6 +772,7 @@ function toggleDataVenda() {
     } else {
         checkAtual.checked = true;
         inputNovaData.style.display = 'none';
+        inputNovaData.value = '';
     }
 }
 
@@ -449,55 +798,82 @@ function obterDataVenda() {
 }
 
 // ===== SINCRONIZAÇÕES GLOBAIS =====
-async function sincronizarUsuariosDaNuvem() {
-  if (CACHE_SYNC['usuarios'] && (Date.now() - CACHE_SYNC['usuarios']) < CACHE_DURATION) return;
-  try {
-    const resp = await fetchFromGS('listarUsuarios');
-    console.log('📥 Usuários recebidos da nuvem:', resp);
-    if (resp && resp.usuarios && Array.isArray(resp.usuarios)) {
-      const usuariosDaNuvem = resp.usuarios.map(u => u.usuario.toUpperCase());
-      
-      DB.usuarios = DB.usuarios.filter(u => {
-        if (u.deletedAt) return true;
-        return usuariosDaNuvem.includes(u.usuario.toUpperCase());
-      });
+async function sincronizarUsuariosDaNuvem(force = false) {
+    const agora = Date.now();
+    if (!force && CACHE_SYNC['usuarios'] && (agora - CACHE_SYNC['usuarios']) < CACHE_DURATION) return;
+    if (!force && CACHE_SYNC['usuariosErro'] && (agora - CACHE_SYNC['usuariosErro']) < 20000) return;
 
-      resp.usuarios.forEach(uSheet => {
-        const login = uSheet.usuario.toUpperCase();
-        const existente = DB.usuarios.find(u => u.usuario.toUpperCase() === login && !u.deletedAt);
-        
-        if (existente) {
-          existente.nome = uSheet.nome;
-          existente.email = uSheet.email;
-          existente.categoria = uSheet.categoria || existente.categoria;
-          existente.tipo = uSheet.categoria || existente.tipo;
-          existente.ativo = uSheet.status === 'LIBERADO';
-          existente.equipe = uSheet.equipe || existente.equipe;
-        } else {
-          DB.usuarios.push({
-            id: Date.now() + Math.random(),
-            nome: uSheet.nome || '',
-            usuario: uSheet.usuario || '',
-            senha: '',
-            email: uSheet.email || '',
-            categoria: uSheet.categoria || 'vendedor',
-            tipo: uSheet.categoria || 'vendedor',
-            ativo: uSheet.status === 'LIBERADO',
-            deletedAt: null,
-            equipe: uSheet.equipe || 'Geral'
-          });
+    try {
+        const resp = await fetchFromGS('listarUsuarios', {}, {
+            cache: !force,
+            dedupe: true,
+            retries: 1,
+            timeoutMs: 18000
+        });
+
+        if (!resp || !Array.isArray(resp.usuarios)) {
+            throw new Error((resp && resp.erro) || 'Resposta inválida ao listar usuários');
         }
-      });
 
-      salvarDB();
-      CACHE_SYNC['usuarios'] = Date.now();
-      if (document.getElementById('secao-cadastro') && document.getElementById('secao-cadastro').classList.contains('section-active')) {
-        carregarUsuarios();
-      }
+        const usuariosValidos = resp.usuarios.filter(u => u && String(u.usuario || '').trim());
+        const usuariosDaNuvem = usuariosValidos.map(u => String(u.usuario).trim().toUpperCase());
+
+        // Mantém apenas usuários realmente existentes na nuvem, preservando itens
+        // marcados localmente como deletedAt até a próxima limpeza normal do CRM.
+        DB.usuarios = (DB.usuarios || []).filter(u => {
+            if (!u) return false;
+            if (u.deletedAt) return true;
+            return usuariosDaNuvem.includes(String(u.usuario || '').trim().toUpperCase());
+        });
+
+        usuariosValidos.forEach(uSheet => {
+            const login = String(uSheet.usuario || '').trim();
+            const loginUpper = login.toUpperCase();
+            const existente = DB.usuarios.find(u =>
+                u && !u.deletedAt && String(u.usuario || '').trim().toUpperCase() === loginUpper
+            );
+
+            const idServidor = Number(uSheet.id);
+
+            if (existente) {
+                if (Number.isFinite(idServidor) && idServidor > 0) existente.id = idServidor;
+                existente.nome = uSheet.nome || existente.nome || login;
+                existente.email = uSheet.email || '';
+                existente.categoria = uSheet.categoria || existente.categoria || 'vendedor';
+                existente.tipo = uSheet.categoria || existente.tipo || 'vendedor';
+                existente.ativo = String(uSheet.status || '').trim().toUpperCase() === 'LIBERADO';
+                existente.equipe = uSheet.equipe || existente.equipe || 'Geral';
+                // Nunca preenche senha local a partir da nuvem.
+                existente.senha = '';
+            } else {
+                DB.usuarios.push({
+                    id: (Number.isFinite(idServidor) && idServidor > 0) ? idServidor : (Date.now() + Math.random()),
+                    nome: uSheet.nome || login,
+                    usuario: login,
+                    senha: '',
+                    email: uSheet.email || '',
+                    categoria: uSheet.categoria || 'vendedor',
+                    tipo: uSheet.categoria || 'vendedor',
+                    ativo: String(uSheet.status || '').trim().toUpperCase() === 'LIBERADO',
+                    deletedAt: null,
+                    equipe: uSheet.equipe || 'Geral'
+                });
+            }
+        });
+
+        salvarDB();
+        CACHE_SYNC['usuarios'] = Date.now();
+        delete CACHE_SYNC['usuariosErro'];
+
+        if (document.getElementById('secao-cadastro') && document.getElementById('secao-cadastro').classList.contains('section-active')) {
+            carregarUsuarios();
+        }
+
+    } catch (e) {
+        CACHE_SYNC['usuariosErro'] = Date.now();
+        console.error('❌ Erro ao sincronizar usuários da nuvem:', e);
+        if (force) throw e;
     }
-  } catch (e) {
-    console.error('❌ Erro ao sincronizar usuários da nuvem:', e);
-  }
 }
 
 async function sincronizarStatusFlagsDaNuvem() {
@@ -891,78 +1267,139 @@ async function cancelarEdicaoAtivacao() {
 async function fecharModalAtivacao() {
     const a = findAtivacaoById(vendaSendoVisualizada);
     if (a) {
+        const snapshot = { ...a };
         const novoStatus = document.getElementById('editStatus') ? document.getElementById('editStatus').value : a.status;
-        a.nomeCompleto = document.getElementById('editNomeCompleto') ? document.getElementById('editNomeCompleto').value : '';
-        a.cpf = document.getElementById('editCpf') ? document.getElementById('editCpf').value : '';
-        a.dataNasc = document.getElementById('editDataNasc') ? document.getElementById('editDataNasc').value : '';
-        a.nomeMae = document.getElementById('editNomeMae') ? document.getElementById('editNomeMae').value : '';
-        a.rg = document.getElementById('editRg') ? document.getElementById('editRg').value : '';
-        a.orgaoExpeditor = document.getElementById('editOrgaoExpeditor') ? document.getElementById('editOrgaoExpeditor').value : '';
-        a.dataExpedicao = document.getElementById('editDataExpedicao') ? document.getElementById('editDataExpedicao').value : '';
-        a.email = document.getElementById('editEmail') ? document.getElementById('editEmail').value : '';
-        a.telefone1 = document.getElementById('editTelefone1') ? document.getElementById('editTelefone1').value : '';
-        a.telefone2 = document.getElementById('editTelefone2') ? document.getElementById('editTelefone2').value : '';
-        a.cep = document.getElementById('editCep') ? document.getElementById('editCep').value : '';
-        a.logradouro = document.getElementById('editLogradouro') ? document.getElementById('editLogradouro').value : '';
-        a.numero = document.getElementById('editNumero') ? document.getElementById('editNumero').value : '';
-        a.complemento = document.getElementById('editComplemento') ? document.getElementById('editComplemento').value : '';
-        a.bairro = document.getElementById('editBairro') ? document.getElementById('editBairro').value : '';
-        a.uf = document.getElementById('editUf') ? document.getElementById('editUf').value : '';
-        a.cidade = document.getElementById('editCidade') ? document.getElementById('editCidade').value : '';
-        a.pontoReferencia = document.getElementById('editPontoReferencia') ? document.getElementById('editPontoReferencia').value : '';
-        a.velocidade = document.getElementById('editVelocidade') ? document.getElementById('editVelocidade').value : '';
-        a.produto = document.getElementById('editProduto') ? document.getElementById('editProduto').value : '';
+
+        a.nomeCompleto = document.getElementById('editNomeCompleto') ? document.getElementById('editNomeCompleto').value : a.nomeCompleto || '';
+        a.cpf = document.getElementById('editCpf') ? document.getElementById('editCpf').value : a.cpf || '';
+        a.dataNasc = document.getElementById('editDataNasc') ? document.getElementById('editDataNasc').value : a.dataNasc || '';
+        a.nomeMae = document.getElementById('editNomeMae') ? document.getElementById('editNomeMae').value : a.nomeMae || '';
+        a.rg = document.getElementById('editRg') ? document.getElementById('editRg').value : a.rg || '';
+        a.orgaoExpedidor = document.getElementById('editOrgaoExpedidor') ? document.getElementById('editOrgaoExpedidor').value : a.orgaoExpedidor || '';
+        a.dataExpedicao = document.getElementById('editDataExpedicao') ? document.getElementById('editDataExpedicao').value : a.dataExpedicao || '';
+        a.email = document.getElementById('editEmail') ? document.getElementById('editEmail').value : a.email || '';
+        a.telefone1 = document.getElementById('editTelefone1') ? document.getElementById('editTelefone1').value : a.telefone1 || '';
+        a.telefone2 = document.getElementById('editTelefone2') ? document.getElementById('editTelefone2').value : a.telefone2 || '';
+        a.cep = document.getElementById('editCep') ? document.getElementById('editCep').value : a.cep || '';
+        a.logradouro = document.getElementById('editLogradouro') ? document.getElementById('editLogradouro').value : a.logradouro || '';
+        a.numero = document.getElementById('editNumero') ? document.getElementById('editNumero').value : a.numero || '';
+        a.complemento = document.getElementById('editComplemento') ? document.getElementById('editComplemento').value : a.complemento || '';
+        a.bairro = document.getElementById('editBairro') ? document.getElementById('editBairro').value : a.bairro || '';
+        a.uf = document.getElementById('editUf') ? document.getElementById('editUf').value : a.uf || '';
+        a.cidade = document.getElementById('editCidade') ? document.getElementById('editCidade').value : a.cidade || '';
+        a.pontoReferencia = document.getElementById('editPontoReferencia') ? document.getElementById('editPontoReferencia').value : a.pontoReferencia || '';
+        a.velocidade = document.getElementById('editVelocidade') ? document.getElementById('editVelocidade').value : a.velocidade || '';
+        a.produto = document.getElementById('editProduto') ? document.getElementById('editProduto').value : (a.produto || a.plano || '');
         a.plano = a.produto;
-        a.valor = document.getElementById('editValor') ? document.getElementById('editValor').value.replace(/R\$/gi, '').trim() : '';
-        a.vencimento = document.getElementById('editVencimento') ? document.getElementById('editVencimento').value : '';
-        a.formaPagamento = document.getElementById('editFormaPagamento') ? document.getElementById('editFormaPagamento').value : '';
-        a.hp = document.getElementById('editHp') ? document.getElementById('editHp').value : '';
-        a.viabilidade = document.getElementById('editViabilidade') ? document.getElementById('editViabilidade').value : '';
-        a.planoTipo = document.getElementById('editPlanoTipo') ? document.getElementById('editPlanoTipo').value : '';
-        a.tipoAprovacao = document.getElementById('editTipoAprovacao') ? document.getElementById('editTipoAprovacao').value : '';
-        a.observacao = document.getElementById('editObservacao') ? document.getElementById('editObservacao').value : '';
-        a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : '';
-        a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : '';
-        a.infoPeriodo = document.getElementById('infoPeriodo') ? document.getElementById('infoPeriodo').value : '';
-        a.origemVenda = document.getElementById('editOrigemVenda') ? document.getElementById('editOrigemVenda').value : '';
+        a.valor = document.getElementById('editValor') ? document.getElementById('editValor').value.replace(/R\$/gi, '').trim() : a.valor || '';
+        a.vencimento = document.getElementById('editVencimento') ? document.getElementById('editVencimento').value : a.vencimento || '';
+        a.formaPagamento = document.getElementById('editFormaPagamento') ? document.getElementById('editFormaPagamento').value : a.formaPagamento || '';
+        a.hp = document.getElementById('editHp') ? document.getElementById('editHp').value : a.hp || '';
+        a.viabilidade = document.getElementById('editViabilidade') ? document.getElementById('editViabilidade').value : a.viabilidade || '';
+        a.planoTipo = document.getElementById('editPlanoTipo') ? document.getElementById('editPlanoTipo').value : a.planoTipo || '';
+        a.tipoAprovacao = document.getElementById('editTipoAprovacao') ? document.getElementById('editTipoAprovacao').value : a.tipoAprovacao || '';
+        a.observacao = document.getElementById('editObservacao') ? document.getElementById('editObservacao').value : a.observacao || '';
+        a.contrato = document.getElementById('infoContrato') ? document.getElementById('infoContrato').value : a.contrato || '';
+        a.infoData = document.getElementById('infoData') ? document.getElementById('infoData').value : a.infoData || '';
+        a.infoPeriodo = document.getElementById('infoPeriodo') ? document.getElementById('infoPeriodo').value : a.infoPeriodo || '';
+        a.origemVenda = document.getElementById('editOrigemVenda') ? document.getElementById('editOrigemVenda').value : a.origemVenda || '';
 
         const elAtivadoPor = document.getElementById('infoAtivadoPor');
-        if (elAtivadoPor && elAtivadoPor.value) {
-            a.ativadoPor = elAtivadoPor.value;
-        }
+        if (elAtivadoPor) a.ativadoPor = elAtivadoPor.value || '';
         a.ativadoPor = a.ativadoPor || '';
 
-        if (novoStatus === 'Aprovado' && a.status !== 'Aprovado') {
-            if (!a.contrato || !a.infoData || !a.infoPeriodo) { 
-                alert('⚠️ Preencha Contrato, Data e Período de Instalação antes de aprovar.'); 
-                return; 
+        if (novoStatus === 'Aprovado' && snapshot.status !== 'Aprovado') {
+            if (!a.contrato || !a.infoData || !a.infoPeriodo) {
+                Object.assign(a, snapshot);
+                alert('⚠️ Preencha Contrato, Data e Período de Instalação antes de aprovar.');
+                return;
             }
-            if (confirm('Aprovar esta venda?')) {
+
+            if (!confirm('Aprovar esta venda?')) {
+                Object.assign(a, snapshot);
+                return;
+            }
+
+            try {
                 const resp = await fetchFromGS('aprovarVenda', {
-                    uuid: a.id, status: 'APROVADO', cliente: a.nomeCompleto, cpf: a.cpf,
-                    dataNasc: a.dataNasc, nomeMae: a.nomeMae, rg: a.rg, orgaoExpeditor: a.orgaoExpeditor,
-                    dataExpedicao: a.dataExpedicao, email: a.email, telefone1: a.telefone1, telefone2: a.telefone2,
-                    cep: a.cep, logradouro: a.logradouro, numero: a.numero, complemento: a.complemento,
-                    bairro: a.bairro, uf: a.uf, cidade: a.cidade, pontoReferencia: a.pontoReferencia,
-                    plano: a.produto, velocidade: a.velocidade, valor: a.valor, vencimento: a.vencimento,
-                    formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade, planoTipo: a.planoTipo,
-                    tipoAprovacao: a.tipoAprovacao, contrato: a.contrato, infoData: a.infoData, infoPeriodo: a.infoPeriodo,
-                    vendedorNome: a.vendedorNome, vendedorId: a.vendedor_id, ativadoPor: a.ativadoPor,
-                    observacao: a.observacao, origemVenda: a.origemVenda
-                });
-                if (resp && resp.ok) {
-                    alert('✅ Venda aprovada!');
-                    DB.ativacoes = DB.ativacoes.filter(item => item.id !== a.id);
-                    a.status = 'Aprovado'; a.finalizada = true; a.instalacaoStatus = 'Aguardando';
-                    DB.ativacoes.unshift(a); salvarDB();
-                    await buscarPendentesDaNuvem(); await buscarVendasAprovadasDaNuvem();
-                } else { alert('❌ Erro ao aprovar'); a.status = 'Pendente'; salvarDB(); }
-            } else { a.status = 'Pendente'; salvarDB(); }
+                    uuid: a.id,
+                    status: 'APROVADO',
+                    cliente: a.nomeCompleto,
+                    cpf: a.cpf,
+                    dataNasc: a.dataNasc,
+                    nomeMae: a.nomeMae,
+                    rg: a.rg,
+                    orgaoExpedidor: a.orgaoExpedidor,
+                    dataExpedicao: a.dataExpedicao,
+                    email: a.email,
+                    telefone1: a.telefone1,
+                    telefone2: a.telefone2,
+                    cep: a.cep,
+                    logradouro: a.logradouro,
+                    numero: a.numero,
+                    complemento: a.complemento,
+                    bairro: a.bairro,
+                    uf: a.uf,
+                    cidade: a.cidade,
+                    pontoReferencia: a.pontoReferencia,
+                    plano: a.produto,
+                    velocidade: a.velocidade,
+                    valor: a.valor,
+                    vencimento: a.vencimento,
+                    formaPagamento: a.formaPagamento,
+                    hp: a.hp,
+                    viabilidade: a.viabilidade,
+                    planoTipo: a.planoTipo,
+                    tipoAprovacao: a.tipoAprovacao,
+                    contrato: a.contrato,
+                    infoData: a.infoData,
+                    infoPeriodo: a.infoPeriodo,
+                    vendedorNome: a.vendedorNome,
+                    vendedorId: a.vendedor_id,
+                    ativadoPor: a.ativadoPor,
+                    observacao: a.observacao,
+                    origemVenda: a.origemVenda
+                }, { cache: false, dedupe: false, retries: 1, timeoutMs: 25000 });
+
+                if (!resp || !resp.ok) {
+                    throw new Error((resp && resp.erro) || 'O servidor não confirmou a aprovação.');
+                }
+
+                a.status = 'Aprovado';
+                a.finalizada = true;
+                a.instalacaoStatus = 'Aguardando';
+                a.tratandoPor = null;
+                salvarDB();
+                stageInvalidarCacheRede();
+
+                await Promise.all([
+                    buscarPendentesDaNuvem(),
+                    buscarVendasAprovadasDaNuvem()
+                ]);
+
+                alert(resp.reparadaUnificada
+                    ? '✅ Venda aprovada e UNIFICADA reparada!'
+                    : '✅ Venda aprovada!');
+
+            } catch (erroAprovacao) {
+                Object.assign(a, snapshot);
+                salvarDB();
+                console.error('Erro ao aprovar venda:', erroAprovacao);
+                alert('❌ Erro ao aprovar:\n' + (erroAprovacao && erroAprovacao.message ? erroAprovacao.message : String(erroAprovacao)));
+                return;
+            }
+
+        } else if (snapshot.status === 'Aprovado') {
+            // Venda já aprovada: o modal de ativação não deve reprocessar aprovação.
+            a.status = 'Aprovado';
+            salvarDB();
+
         } else {
             a.status = novoStatus;
             salvarDB();
-            if (novoStatus !== 'Aprovado') {
-                fetchFromGS('atualizarPendente', {
+
+            try {
+                const resp = await fetchFromGS('atualizarPendente', {
                     uuid: a.id,
                     status: novoStatus,
                     observacao: a.observacao,
@@ -971,18 +1408,34 @@ async function fecharModalAtivacao() {
                     infoPeriodo: a.infoPeriodo,
                     ativadoPor: a.ativadoPor,
                     origemVenda: a.origemVenda
-                });
+                }, { cache: false, dedupe: false, retries: 1, timeoutMs: 22000 });
+
+                if (resp && resp.ok === false) {
+                    throw new Error(resp.erro || 'Falha ao atualizar venda pendente.');
+                }
+            } catch (erroPendente) {
+                Object.assign(a, snapshot);
+                salvarDB();
+                alert('❌ Não foi possível atualizar a venda.\n' + (erroPendente && erroPendente.message ? erroPendente.message : String(erroPendente)));
+                return;
             }
         }
-        
-        a.tratandoPor = null; salvarDB();
-        try { await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' }); } catch (e) {}
+
+        a.tratandoPor = null;
+        salvarDB();
+        try {
+            await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' }, { cache: false, dedupe: false, retries: 1, timeoutMs: 15000 });
+        } catch (e) {
+            console.warn('Não foi possível liberar TratandoPor:', e);
+        }
     }
-    document.getElementById('modalAtivacao').style.display = 'none';
+
+    const modal = document.getElementById('modalAtivacao');
+    if (modal) modal.style.display = 'none';
     vendaSendoVisualizada = null;
     carregarAtivacoes();
     if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas();
-    if (sessao.tipo === 'admin') carregarDashboard();
+    if (sessao && sessao.tipo === 'admin') carregarDashboard().catch(e => console.warn(e));
 }
 
 function abrirModalInfoAdicional() {
@@ -1059,28 +1512,73 @@ function mudarPaginaVendasAprovadas(direcao) {
     }
 }
 
-function abrirModalVisualizacao(id) {
+async function abrirModalVisualizacao(id) {
     const idStr = String(id);
     const a = DB.ativacoes.find(x => String(x.id) === idStr);
     if (!a) { alert('Venda não encontrada'); return; }
-    if (sessao.tipo !== 'admin' && a.vendedor_id !== sessao.id) { alert('Você não tem permissão.'); return; }
+    if (sessao.tipo !== 'admin' && Number(a.vendedor_id) !== Number(sessao.id)) {
+        alert('Você não tem permissão.');
+        return;
+    }
+
     vendaSendoVisualizada = idStr;
     const flag = DB.statusFlags.find(f => f.nome === a.status) || { cor: '#fff' };
     const readonlyAttr = (sessao.tipo !== 'admin') ? 'readonly' : '';
     let html = '';
+
     if (a.contrato || a.infoData || a.infoPeriodo) {
         html += '<div class="instalacao-info-top">' +
-            '<div class="info-item"><span class="label">📄 Contrato</span><span class="value">' + (a.contrato || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label">📅 Data Instalação</span><span class="value">' + (a.infoData ? formatarBR(a.infoData) : '—') + '</span></div>' +
-            '<div class="info-item"><span class="label">⏰ Período</span><span class="value">' + (a.infoPeriodo || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label">📄 Contrato</span><span class="value">' + stageEscapeHtml(a.contrato || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label">📅 Data Instalação</span><span class="value">' + stageEscapeHtml(a.infoData ? formatarBR(a.infoData) : '—') + '</span></div>' +
+            '<div class="info-item"><span class="label">⏰ Período</span><span class="value">' + stageEscapeHtml(a.infoPeriodo || '—') + '</span></div>' +
         '</div>';
     }
+
     html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px;">' +
-        '<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Status:</strong> <span style="color:' + flag.cor + '">' + a.status + '</span></span>' +
-        '<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Plano:</strong> ' + (a.plano || a.produto) + '</span>' +
-        '<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ' + parseFloat(a.valor || 0).toFixed(2).replace('.', ',') + '</span>' +
+        '<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Status:</strong> <span style="color:' + stageEscapeHtml(flag.cor) + '">' + stageEscapeHtml(a.status) + '</span></span>' +
+        '<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Plano:</strong> ' + stageEscapeHtml(a.plano || a.produto || '') + '</span>' +
+        '<span style="background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;"><strong>Valor:</strong> R$ ' + (parseFloat(String(a.valor || 0).replace(/[R\$\s]/g, '').replace(',', '.')) || 0).toFixed(2).replace('.', ',') + '</span>' +
     '</div>' +
     '<div class="form-grid" style="grid-template-columns:1fr 1fr;gap:8px;">';
+
+    // ============================================================
+    // NOVO: CAMPO VENDEDOR — EDITÁVEL SOMENTE PELO ADM
+    // ============================================================
+    const vendedoresAtivos = (DB.usuarios || [])
+        .filter(u => u && !u.deletedAt && u.ativo === true && String(u.categoria || u.tipo || '').toLowerCase() === 'vendedor')
+        .sort((x, y) => String(x.nome || '').localeCompare(String(y.nome || ''), 'pt-BR'));
+
+    const vendedorAtual = vendedoresAtivos.find(u =>
+        Number(u.id) === Number(a.vendedor_id)
+    ) || vendedoresAtivos.find(u =>
+        stageNormalizarTexto(u.nome) === stageNormalizarTexto(a.vendedorNome)
+    );
+
+    if (sessao.tipo === 'admin') {
+        let optionsVendedor = '';
+        const loginAtual = vendedorAtual ? String(vendedorAtual.usuario || '').trim() : '';
+
+        if (!vendedorAtual && a.vendedorNome) {
+            optionsVendedor += '<option value="" selected>' + stageEscapeHtml(a.vendedorNome) + ' — atual</option>';
+        } else if (!a.vendedorNome) {
+            optionsVendedor += '<option value="" selected>Selecione um vendedor</option>';
+        }
+
+        vendedoresAtivos.forEach(u => {
+            const login = String(u.usuario || '').trim();
+            const selecionado = vendedorAtual && String(vendedorAtual.usuario || '').trim().toUpperCase() === login.toUpperCase();
+            optionsVendedor += '<option value="' + stageEscapeHtml(login) + '" ' + (selecionado ? 'selected' : '') + '>' + stageEscapeHtml(u.nome || login) + '</option>';
+        });
+
+        if (!optionsVendedor) optionsVendedor = '<option value="">Nenhum vendedor ativo encontrado</option>';
+
+        html += '<div class="input-group"><label>Vendedor <span style="font-size:10px;opacity:.6;">(ADM)</span></label>' +
+            '<select id="viewVendedorUsuario" data-vendedor-atual="' + stageEscapeHtml(loginAtual) + '">' + optionsVendedor + '</select>' +
+            '<small style="opacity:.6;display:block;margin-top:4px;">Sincroniza VENDAS e UNIFICADA pelo UUID.</small></div>';
+    } else {
+        html += '<div class="input-group"><label>Vendedor</label><input id="viewVendedorNome" value="' + stageEscapeHtml(a.vendedorNome || '') + '" readonly></div>';
+    }
+
     const campos = [
         ['Nome Completo', a.nomeCompleto, 'viewNomeCompleto'], ['CPF', a.cpf, 'viewCpf'], ['Data Nasc.', a.dataNasc ? formatarBR(a.dataNasc) : '', 'viewDataNasc'],
         ['Órgão Exp.', a.orgaoExpeditor, 'viewOrgaoExpeditor'], ['Nome da Mãe', a.nomeMae, 'viewNomeMae'], ['RG', a.rg, 'viewRg'],
@@ -1088,73 +1586,191 @@ function abrirModalVisualizacao(id) {
         ['Tel 1', a.telefone1, 'viewTelefone1'], ['Tel 2', a.telefone2, 'viewTelefone2'], ['CEP', a.cep, 'viewCep'],
         ['Logradouro', a.logradouro, 'viewLogradouro'], ['N°', a.numero, 'viewNumero'], ['Complemento', a.complemento, 'viewComplemento'],
         ['Bairro', a.bairro, 'viewBairro'], ['Estado', a.uf, 'viewUf'], ['Cidade', a.cidade, 'viewCidade'],
-        ['Ponto Ref.', a.pontoReferencia, 'viewPontoReferencia'], ['Data da Venda', a.data || '', 'viewDataVenda'], ['Ativado Por', a.ativadoPor || '—', 'viewAtivadoPor'],
+        ['Ponto Ref.', a.pontoReferencia, 'viewPontoReferencia'], ['Data da Venda', a.data || '', 'viewDataVenda'], ['Ativado Por', a.ativadoPor || '', 'viewAtivadoPor'],
         ['Velocidade', a.velocidade, 'viewVelocidade'], ['Produto', a.produto || a.plano, 'viewProduto'],
         ['Valor', a.valor, 'viewValor'], ['Vencimento', a.vencimento, 'viewVencimento'], ['Pagamento', a.formaPagamento, 'viewFormaPagamento'],
         ['HP', a.hp, 'viewHp'], ['Viabilidade', a.viabilidade, 'viewViabilidade'], ['Plano Tipo', a.planoTipo, 'viewPlanoTipo'],
         ['Tipo Aprov.', a.tipoAprovacao, 'viewTipoAprovacao'],
-        ['Origem da Venda', a.origemVenda || '—', 'viewOrigemVenda'],
+        ['Origem da Venda', a.origemVenda || '', 'viewOrigemVenda'],
         ['Observação', a.observacao || '', 'viewObservacao']
     ];
-    campos.forEach(([label, valor, id]) => {
+
+    campos.forEach(([label, valor, idCampo]) => {
         if (label === 'Observação') {
-            html += '<div class="input-group" style="grid-column:span 2;"><label>' + label + '</label><textarea id="' + id + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);min-height:80px;" ' + readonlyAttr + '>' + (valor || '') + '</textarea></div>';
+            html += '<div class="input-group" style="grid-column:span 2;"><label>' + stageEscapeHtml(label) + '</label><textarea id="' + idCampo + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);min-height:80px;" ' + readonlyAttr + '>' + stageEscapeHtml(valor || '') + '</textarea></div>';
         } else {
-            html += '<div class="input-group"><label>' + label + '</label><input id="' + id + '" value="' + (valor || '') + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);" ' + readonlyAttr + '></div>';
+            html += '<div class="input-group"><label>' + stageEscapeHtml(label) + '</label><input id="' + idCampo + '" value="' + stageEscapeHtml(valor || '') + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);" ' + readonlyAttr + '></div>';
         }
     });
+
     html += '</div>' +
     '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">' +
         '<button onclick="fecharModalVisualizacao()" class="btn-glass-sm" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);">Fechar</button>';
-    if (sessao.tipo === 'admin') html += '<button onclick="salvarEdicaoVenda()" class="btn-glass-sm" style="background:#2ed573;color:#0b0b0b;">Salvar alterações</button>';
+    if (sessao.tipo === 'admin') {
+        html += '<button id="btnSalvarVendaAprovada" onclick="salvarEdicaoVenda()" class="btn-glass-sm" style="background:#2ed573;color:#0b0b0b;">Salvar alterações</button>';
+    }
     html += '</div>';
+
     const conteudo = document.getElementById('conteudoModalVisualizacao');
     conteudo.innerHTML = '';
     conteudo.insertAdjacentHTML('beforeend', html);
     document.getElementById('modalVisualizacao').style.display = 'flex';
 }
 
-function fecharModalVisualizacao() { document.getElementById('modalVisualizacao').style.display = 'none'; }
+function fecharModalVisualizacao() {
+    const modal = document.getElementById('modalVisualizacao');
+    if (modal) modal.style.display = 'none';
+    vendaSendoVisualizada = null;
+}
 
 async function salvarEdicaoVenda() {
-    if (sessao.tipo !== 'admin') return;
-    const idStr = String(vendaSendoVisualizada);
+    if (!sessao || sessao.tipo !== 'admin') return;
+
+    const idStr = String(vendaSendoVisualizada || '');
     const a = DB.ativacoes.find(x => String(x.id) === idStr);
     if (!a) { alert('Venda não encontrada.'); return; }
-    const getVal = function(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
-    a.nomeCompleto = getVal('viewNomeCompleto'); a.cpf = getVal('viewCpf'); a.dataNasc = getVal('viewDataNasc');
-    a.orgaoExpeditor = getVal('viewOrgaoExpeditor'); a.nomeMae = getVal('viewNomeMae'); a.rg = getVal('viewRg');
-    a.dataExpedicao = getVal('viewDataExpedicao'); a.email = getVal('viewEmail'); a.telefone1 = getVal('viewTelefone1');
-    a.telefone2 = getVal('viewTelefone2'); a.cep = getVal('viewCep'); a.logradouro = getVal('viewLogradouro');
-    a.numero = getVal('viewNumero'); a.complemento = getVal('viewComplemento'); a.bairro = getVal('viewBairro');
-    a.uf = getVal('viewUf'); a.cidade = getVal('viewCidade'); a.pontoReferencia = getVal('viewPontoReferencia');
-    a.data = getVal('viewDataVenda');
-    a.velocidade = getVal('viewVelocidade'); a.produto = getVal('viewProduto'); a.plano = a.produto;
-    a.ativadoPor = getVal('viewAtivadoPor'); a.valor = getVal('viewValor').replace(/R\$/gi, '').trim();
-    a.vencimento = getVal('viewVencimento'); a.formaPagamento = getVal('viewFormaPagamento');
-    a.hp = getVal('viewHp'); a.viabilidade = getVal('viewViabilidade'); a.planoTipo = getVal('viewPlanoTipo');
-    a.tipoAprovacao = getVal('viewTipoAprovacao'); a.observacao = getVal('viewObservacao');
-    a.origemVenda = getVal('viewOrigemVenda');
-    
-    salvarDB();
+
+    const snapshot = { ...a };
+    const getVal = function(idCampo, fallback) {
+        const el = document.getElementById(idCampo);
+        return el ? String(el.value || '').trim() : String(fallback || '');
+    };
+
+    // Atualiza a cópia local; se o backend falhar, fazemos rollback do objeto.
+    a.nomeCompleto = getVal('viewNomeCompleto', a.nomeCompleto);
+    a.cpf = getVal('viewCpf', a.cpf);
+    a.dataNasc = getVal('viewDataNasc', a.dataNasc);
+    a.orgaoExpedidor = getVal('viewOrgaoExpeditor', a.orgaoExpedidor);
+    a.nomeMae = getVal('viewNomeMae', a.nomeMae);
+    a.rg = getVal('viewRg', a.rg);
+    a.dataExpedicao = getVal('viewDataExpedicao', a.dataExpedicao);
+    a.email = getVal('viewEmail', a.email);
+    a.telefone1 = getVal('viewTelefone1', a.telefone1);
+    a.telefone2 = getVal('viewTelefone2', a.telefone2);
+    a.cep = getVal('viewCep', a.cep);
+    a.logradouro = getVal('viewLogradouro', a.logradouro);
+    a.numero = getVal('viewNumero', a.numero);
+    a.complemento = getVal('viewComplemento', a.complemento);
+    a.bairro = getVal('viewBairro', a.bairro);
+    a.uf = getVal('viewUf', a.uf);
+    a.cidade = getVal('viewCidade', a.cidade);
+    a.pontoReferencia = getVal('viewPontoReferencia', a.pontoReferencia);
+    a.data = getVal('viewDataVenda', a.data);
+    a.velocidade = getVal('viewVelocidade', a.velocidade);
+    a.produto = getVal('viewProduto', a.produto || a.plano);
+    a.plano = a.produto;
+    a.ativadoPor = getVal('viewAtivadoPor', a.ativadoPor);
+    a.valor = getVal('viewValor', a.valor).replace(/R\$/gi, '').trim();
+    a.vencimento = getVal('viewVencimento', a.vencimento);
+    a.formaPagamento = getVal('viewFormaPagamento', a.formaPagamento);
+    a.hp = getVal('viewHp', a.hp);
+    a.viabilidade = getVal('viewViabilidade', a.viabilidade);
+    a.planoTipo = getVal('viewPlanoTipo', a.planoTipo);
+    a.tipoAprovacao = getVal('viewTipoAprovacao', a.tipoAprovacao);
+    a.observacao = getVal('viewObservacao', a.observacao);
+    a.origemVenda = getVal('viewOrigemVenda', a.origemVenda);
+
+    const dadosEdicao = {
+        uuid: a.id,
+        cliente: a.nomeCompleto,
+        cpf: a.cpf,
+        dataNasc: a.dataNasc,
+        nomeMae: a.nomeMae,
+        rg: a.rg,
+        orgaoExpedidor: a.orgaoExpedidor,
+        dataExpedicao: a.dataExpedicao,
+        email: a.email,
+        telefone1: a.telefone1,
+        telefone2: a.telefone2,
+        cep: a.cep,
+        logradouro: a.logradouro,
+        numero: a.numero,
+        complemento: a.complemento,
+        bairro: a.bairro,
+        uf: a.uf,
+        cidade: a.cidade,
+        pontoReferencia: a.pontoReferencia,
+        data: a.data,
+        plano: a.produto,
+        velocidade: a.velocidade,
+        valor: a.valor,
+        vencimento: a.vencimento,
+        formaPagamento: a.formaPagamento,
+        hp: a.hp,
+        viabilidade: a.viabilidade,
+        planoTipo: a.planoTipo,
+        tipoAprovacao: a.tipoAprovacao,
+        ativadoPor: a.ativadoPor || '',
+        observacao: a.observacao,
+        contrato: a.contrato || '',
+        infoData: a.infoData || '',
+        infoPeriodo: a.infoPeriodo || '',
+        origemVenda: a.origemVenda
+    };
+
+    const vendedorSelect = document.getElementById('viewVendedorUsuario');
+    let alterouVendedor = false;
+    if (vendedorSelect) {
+        const vendedorNovo = String(vendedorSelect.value || '').trim();
+        const vendedorAtual = String(vendedorSelect.dataset.vendedorAtual || '').trim();
+        if (vendedorNovo && vendedorNovo.toUpperCase() !== vendedorAtual.toUpperCase()) {
+            dadosEdicao.vendedorUsuario = vendedorNovo;
+            alterouVendedor = true;
+        }
+    }
+
+    const btn = document.getElementById('btnSalvarVendaAprovada');
+    const btnHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    }
+
     try {
-        const resp = await fetchFromGS('editarVenda', {
-            uuid: a.id, cliente: a.nomeCompleto, cpf: a.cpf, dataNasc: a.dataNasc, nomeMae: a.nomeMae,
-            rg: a.rg, orgaoExpedidor: a.orgaoExpeditor, dataExpedicao: a.dataExpedicao, email: a.email,
-            telefone1: a.telefone1, telefone2: a.telefone2, cep: a.cep, logradouro: a.logradouro,
-            numero: a.numero, complemento: a.complemento, bairro: a.bairro, uf: a.uf, cidade: a.cidade,
-            pontoReferencia: a.pontoReferencia, data: a.data, plano: a.produto, velocidade: a.velocidade, valor: a.valor,
-            vencimento: a.vencimento, formaPagamento: a.formaPagamento, hp: a.hp, viabilidade: a.viabilidade,
-            planoTipo: a.planoTipo, tipoAprovacao: a.tipoAprovacao, ativadoPor: a.ativadoPor || '',
-            observacao: a.observacao, contrato: a.contrato || '', infoData: a.infoData || '',
-            infoPeriodo: a.infoPeriodo || '', vendedorNome: a.vendedorNome || '', vendedorId: a.vendedor_id || '',
-            origemVenda: a.origemVenda
+        const resp = await fetchFromGS('editarVenda', dadosEdicao, {
+            cache: false,
+            dedupe: false,
+            retries: 1,
+            timeoutMs: 25000
         });
-        if (resp && resp.ok) alert('✅ Dados atualizados!'); else alert('⚠️ Falha ao sincronizar.');
-    } catch (e) { alert('⚠️ Erro de comunicação.'); }
-    carregarVendasAprovadas();
-    if (sessao && sessao.tipo === 'admin') carregarDashboard();
-    document.getElementById('modalVisualizacao').style.display = 'none';
+
+        if (!resp || !resp.ok) {
+            throw new Error((resp && resp.erro) || 'O servidor não confirmou a alteração.');
+        }
+
+        if (resp.vendedorAlterado && resp.vendedorNome) {
+            a.vendedorNome = resp.vendedorNome;
+            if (resp.vendedorId !== undefined && resp.vendedorId !== null && resp.vendedorId !== '') {
+                a.vendedor_id = Number(resp.vendedorId);
+            }
+        }
+
+        salvarDB();
+        stageInvalidarCacheRede();
+        await buscarVendasAprovadasDaNuvem();
+
+        alert(alterouVendedor
+            ? '✅ Venda atualizada e vendedor sincronizado em VENDAS + UNIFICADA!'
+            : '✅ Dados atualizados!');
+
+        carregarVendasAprovadas();
+        if (sessao && sessao.tipo === 'admin') carregarDashboard().catch(e => console.warn(e));
+
+        const modal = document.getElementById('modalVisualizacao');
+        if (modal) modal.style.display = 'none';
+        vendaSendoVisualizada = null;
+
+    } catch (e) {
+        Object.assign(a, snapshot);
+        salvarDB();
+        console.error('Erro ao editar venda aprovada:', e);
+        alert('❌ Não foi possível salvar a venda.\n' + (e && e.message ? e.message : String(e)));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btnHtml || 'Salvar alterações';
+        }
+    }
 }
 
 // ===== REMOVER VENDA =====
@@ -1189,101 +1805,175 @@ let enviandoVenda = false;
 let cooldownTimer = null;
 
 // 🔥 FUNÇÃO ENVIAR VENDA COM TRAVA DE 10 SEGUNDOS
+function stageFingerprintEnvioVenda(campos, dataVenda) {
+    const base = {
+        vendedorId: sessao ? sessao.id : '',
+        dataVenda: dataVenda || '',
+        nomeCompleto: campos.nomeCompleto || '',
+        cpf: campos.cpf || '',
+        telefone1: campos.telefone1 || '',
+        cep: campos.cep || '',
+        numero: campos.numero || '',
+        produto: campos.produto || '',
+        valor: campos.valor || '',
+        origemVenda: campos.origemVenda || ''
+    };
+    return JSON.stringify(base);
+}
+
+function stageObterUuidEnvio(fingerprint) {
+    const storageKey = 'stage_envio_pendente_idempotencia';
+    try {
+        const raw = sessionStorage.getItem(storageKey);
+        if (raw) {
+            const salvo = JSON.parse(raw);
+            if (salvo && salvo.fingerprint === fingerprint && salvo.uuid && (Date.now() - Number(salvo.criadoEm || 0)) < 5 * 60 * 1000) {
+                return salvo.uuid;
+            }
+        }
+    } catch (_) {}
+
+    const uuid = stageGerarUUID();
+    try {
+        sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, uuid, criadoEm: Date.now() }));
+    } catch (_) {}
+    return uuid;
+}
+
+function stageLimparUuidEnvio() {
+    try { sessionStorage.removeItem('stage_envio_pendente_idempotencia'); } catch (_) {}
+}
+
 function enviarVenda() {
     if (enviandoVenda) {
-        alert('⏳ Aguarde 10 segundos antes de enviar novamente.');
+        alert('⏳ Aguarde a confirmação do envio atual.');
         return;
     }
-    
+
     if (!sessao) { alert('Sessão expirada.'); return; }
-    
-    const getVal = function(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
-    
+
+    const getVal = function(id) {
+        const el = document.getElementById(id);
+        return el ? String(el.value || '').trim() : '';
+    };
+
     const campos = {
-        viabilidade: getVal('vViabilidade'), 
-        planoTipo: getVal('vPlanoTipo'), 
+        viabilidade: getVal('vViabilidade'),
+        planoTipo: getVal('vPlanoTipo'),
         tipoAprovacao: getVal('vTipoAprovacao'),
-        nomeCompleto: getVal('vNomeCompleto'), 
-        cpf: getVal('vCpf'), 
+        nomeCompleto: getVal('vNomeCompleto'),
+        cpf: getVal('vCpf'),
         dataNasc: getVal('vDataNasc'),
-        orgaoExpeditor: getVal('vOrgaoExpeditor'), 
-        nomeMae: getVal('vNomeMae'), 
+        orgaoExpedidor: getVal('vOrgaoExpeditor'),
+        nomeMae: getVal('vNomeMae'),
         rg: getVal('vRg'),
-        dataExpedicao: getVal('vDataExpedicao'), 
-        email: getVal('vEmail'), 
+        dataExpedicao: getVal('vDataExpedicao'),
+        email: getVal('vEmail'),
         telefone1: getVal('vTelefone1'),
-        telefone2: getVal('vTelefone2'), 
-        cep: getVal('vCep'), 
+        telefone2: getVal('vTelefone2'),
+        cep: getVal('vCep'),
         logradouro: getVal('vLogradouro'),
-        numero: getVal('vNumero'), 
-        complemento: getVal('vComplemento'), 
+        numero: getVal('vNumero'),
+        complemento: getVal('vComplemento'),
         bairro: getVal('vBairro'),
-        uf: getVal('vUf'), 
-        cidade: getVal('vCidade'), 
+        uf: getVal('vUf'),
+        cidade: getVal('vCidade'),
         pontoReferencia: getVal('vPontoReferencia'),
-        velocidade: getVal('vVelocidade'), 
-        produto: getVal('vPlano'), 
+        velocidade: getVal('vVelocidade'),
+        produto: getVal('vPlano'),
         plano: getVal('vPlano'),
-        valor: getVal('vValor').replace(/R\$/gi, '').trim(), 
+        valor: getVal('vValor').replace(/R\$/gi, '').trim(),
         vencimento: getVal('vVencimento'),
-        formaPagamento: getVal('vFormaPagamento'), 
+        formaPagamento: getVal('vFormaPagamento'),
         hp: getVal('vHp')
     };
 
-    // 🔥 VERIFICAÇÃO ROBUSTA DO CAMPO ORIGEM DA VENDA
     const elOrigem = document.getElementById('vOrigemVenda');
-    let origemVenda = elOrigem ? elOrigem.value.trim() : '';
-    // Se estiver vazio OU se o texto selecionado ainda for "Selecione", considera inválido
-    if (!origemVenda || origemVenda === "Selecione") {
+    const origemVenda = elOrigem ? String(elOrigem.value || '').trim() : '';
+    if (!origemVenda || origemVenda === 'Selecione') {
         alert('Preencha: origemVenda');
         return;
     }
-    campos.origemVenda = origemVenda; // Adiciona ao objeto campos
+    campos.origemVenda = origemVenda;
 
     const obrigatorios = ['nomeCompleto','cpf','dataNasc','email','telefone1','cep','logradouro','numero','bairro','uf','cidade','velocidade','produto','valor','vencimento','formaPagamento'];
-    
-    for (let c of obrigatorios) { 
-        if (!campos[c]) { 
-            alert('Preencha: ' + c); 
-            return; 
-        } 
+    for (let c of obrigatorios) {
+        if (!campos[c]) {
+            alert('Preencha: ' + c);
+            return;
+        }
     }
-    
-    if (campos.dataNasc) { const d = parseDateBR(campos.dataNasc); campos.dataNasc = d ? dataParaBR(d) : campos.dataNasc; }
-    if (campos.dataExpedicao) { const d = parseDateBR(campos.dataExpedicao); campos.dataExpedicao = d ? dataParaBR(d) : campos.dataExpedicao; }
-    
+
+    if (campos.dataNasc) {
+        const d = parseDateBR(campos.dataNasc);
+        campos.dataNasc = d ? dataParaBR(d) : campos.dataNasc;
+    }
+    if (campos.dataExpedicao) {
+        const d = parseDateBR(campos.dataExpedicao);
+        campos.dataExpedicao = d ? dataParaBR(d) : campos.dataExpedicao;
+    }
+
     const dataVenda = obterDataVenda();
-    
-    const nova = { ...campos, vendedor_id: sessao.id, vendedorNome: sessao.nome, status: "Pendente", data: dataVenda, finalizada: false, createdAt: Date.now(), newBadge: true };
-    
+    const fingerprint = stageFingerprintEnvioVenda(campos, dataVenda);
+    const uuidEnvio = stageObterUuidEnvio(fingerprint);
+
+    const nova = {
+        ...campos,
+        uuid: uuidEnvio,
+        vendedor_id: sessao.id,
+        vendedorNome: sessao.nome,
+        status: 'Pendente',
+        data: dataVenda,
+        finalizada: false,
+        createdAt: Date.now(),
+        newBadge: true
+    };
+
     enviandoVenda = true;
     const btn = document.querySelector('#secao-enviarVenda .btn-glass-primary');
+    const btnOriginal = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
     }
-    
+
     if (cooldownTimer) clearTimeout(cooldownTimer);
-    
-    fetchFromGS('adicionarPendente', { venda: JSON.stringify(nova) }).then(resp => {
-        if (resp && resp.ok) { 
-            alert('✅ Venda enviada com data: ' + dataVenda); 
-            limparFormularioVenda(); 
-            DB.ativacoes.unshift({ ...nova, id: resp.id }); 
-            salvarDB(); 
+
+    fetchFromGS('adicionarPendente', { venda: JSON.stringify(nova) }, {
+        cache: false,
+        dedupe: false,
+        retries: 1,
+        timeoutMs: 25000
+    }).then(resp => {
+        if (resp && resp.ok) {
+            stageLimparUuidEnvio();
+            alert(resp.jaExistia
+                ? '✅ Venda já havia sido recebida pelo servidor. Nenhuma duplicação foi criada.'
+                : '✅ Venda enviada com data: ' + dataVenda);
+            limparFormularioVenda();
+
+            const idFinal = resp.id || uuidEnvio;
+            const jaLocal = DB.ativacoes.some(x => String(x.id) === String(idFinal));
+            if (!jaLocal) DB.ativacoes.unshift({ ...nova, id: idFinal });
+            salvarDB();
+            stageInvalidarCacheRede();
+        } else {
+            alert('❌ Erro ao enviar.\n' + ((resp && resp.erro) || 'O servidor não confirmou o recebimento.'));
         }
-        else alert('❌ Erro ao enviar.');
-    }).catch(err => { alert('❌ Erro de comunicação.'); })
-    .finally(() => {
+    }).catch(err => {
+        console.error('Erro ao enviar venda:', err);
+        alert('❌ Falha de comunicação ao enviar a venda.\nO mesmo envio poderá ser repetido sem duplicar o UUID.');
+    }).finally(() => {
         cooldownTimer = setTimeout(() => {
             enviandoVenda = false;
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check"></i> Enviar Venda';
+                btn.innerHTML = btnOriginal || '<i class="fas fa-check"></i> Enviar Venda';
             }
-        }, 10000);
+        }, 1500);
     });
 }
+
 function carregarControleVendas() {
     const minhas = DB.ativacoes.filter(a => a.vendedor_id === sessao.id && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const tabela = document.getElementById('tabelaControleVendas');
@@ -2114,20 +2804,60 @@ function gerarExcel(dados, nomeArquivo) {
     XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
 }
 
-// ===== POLLING =====
-let isPolling=false;
-setInterval(()=>{
-    if (document.visibilityState === 'visible' && sessao && !isPolling){
-        isPolling=true;
-        Promise.all([buscarPendentesDaNuvem(),buscarVendasAprovadasDaNuvem()])
-            .catch(e=>console.warn(e))
-            .finally(()=>{isPolling=false;});
+// ===== POLLING ESTABILIZADO =====
+let isPolling = false;
+let stageUltimoPolling = 0;
+const STAGE_POLL_MS = 30000;
+const STAGE_USUARIOS_POLL_MS = 60000;
+
+async function stageExecutarPolling(force = false) {
+    if (!sessao || isPolling) return;
+    if (!force && document.visibilityState !== 'visible') return;
+
+    const agora = Date.now();
+    if (!force && (agora - stageUltimoPolling) < 10000) return;
+
+    isPolling = true;
+    stageUltimoPolling = agora;
+    try {
+        await Promise.all([
+            buscarPendentesDaNuvem(),
+            buscarVendasAprovadasDaNuvem()
+        ]);
+    } catch (e) {
+        console.warn('Polling Stage:', e);
+    } finally {
+        isPolling = false;
     }
-},20000);
-setInterval(()=>{if(sessao&&sessao.tipo==='admin')sincronizarUsuariosDaNuvem();},10000);
+}
+
+setInterval(() => {
+    stageExecutarPolling(false);
+}, STAGE_POLL_MS);
+
+setInterval(() => {
+    if (document.visibilityState === 'visible' && sessao && sessao.tipo === 'admin') {
+        sincronizarUsuariosDaNuvem(false);
+    }
+}, STAGE_USUARIOS_POLL_MS);
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sessao) {
+        stageExecutarPolling(true);
+    }
+});
+
+window.addEventListener('online', () => {
+    console.log('✅ Conexão restabelecida. Atualizando CRM...');
+    if (sessao) stageExecutarPolling(true);
+});
+
+window.addEventListener('offline', () => {
+    console.warn('⚠️ Navegador está offline. O CRM manterá apenas o cache local até a conexão voltar.');
+});
 
 // ===== LOGOUT =====
-function logout(){sessionStorage.removeItem('stage_session');sessionStorage.removeItem('stage_notificados_pendentes');sessao=null;document.getElementById('loginScreen').style.display='flex';document.getElementById('adminScreen').style.display='none';document.getElementById('vendedorScreen').style.display='none';}
+function logout(){try{sessionStorage.removeItem('stage_session');sessionStorage.removeItem('stage_notificados_pendentes');}catch(e){}sessao=null;stageInvalidarCacheRede();document.getElementById('loginScreen').style.display='flex';document.getElementById('adminScreen').style.display='none';document.getElementById('vendedorScreen').style.display='none';}
 function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
@@ -2254,11 +2984,34 @@ function preencherFormularioTeste() {
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded',()=>{
     ensureStageBadgeStyles();
-    const lembrar=localStorage.getItem('stage_remember');
-    if(lembrar){document.getElementById('usuario').value=lembrar;document.getElementById('lembrar').checked=true;}
-    if(sessao){sessao.tipo==='admin'?mostrarAdmin():mostrarVendedor();}
-    document.addEventListener('keypress',e=>{if(e.key==='Enter'&&document.getElementById('loginScreen').style.display!=='none')fazerLogin();});
+
+    try {
+        const lembrar = localStorage.getItem('stage_remember');
+        if (lembrar) {
+            const usuarioEl = document.getElementById('usuario');
+            const lembrarEl = document.getElementById('lembrar');
+            if (usuarioEl) usuarioEl.value = lembrar;
+            if (lembrarEl) lembrarEl.checked = true;
+        }
+    } catch (e) {
+        console.warn('Lembrete de usuário indisponível neste navegador:', e);
+    }
+
+    if (sessao) {
+        sessao.tipo === 'admin' ? mostrarAdmin() : mostrarVendedor();
+    }
+
+    document.addEventListener('keydown', e => {
+        const loginScreen = document.getElementById('loginScreen');
+        if (e.key === 'Enter' && loginScreen && loginScreen.style.display !== 'none') {
+            e.preventDefault();
+            fazerLogin();
+        }
+    });
+
     verificarNotificacaoPendente();
     const busca = document.getElementById('buscaAtivacao');
     if (busca) busca.addEventListener('input', filtrarAtivacoes);
+
+    console.log('STAGE CRM carregado:', STAGE_FRONTEND_VERSAO);
 });
