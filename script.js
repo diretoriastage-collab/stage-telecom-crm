@@ -1095,13 +1095,13 @@ async function buscarVendasAprovadasDaNuvem() {
                 status: 'Aprovado',
                 vendedorNome: v.Vendedor || '',
                 vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,
-                data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : hojeBR(),
+               data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : '',
                 finalizada: true,
                 instalacaoStatus: v.Instalação || 'Aguardando',
                 dataCriacao: v.DataCriacao || '',
                 observacao: v.Observacao || '',
                 ativadoPor: v['AtivadoPor'] || '',
-                createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : Date.now()),
+                createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : 0),
                 origemVenda: v['Origem da Venda'] || ''
             }));
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
