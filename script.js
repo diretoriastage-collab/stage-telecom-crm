@@ -1,10 +1,4 @@
 // ============================================
-// STAGE TELECOM CRM - FAST FIX
-// Correção de desempenho: dashboard sem recursão,
-// inicialização em fila leve e rede menos agressiva.
-// ============================================
-
-// ============================================
 // STAGE TELECOM CRM - MULTIUSUÁRIO (Google Sheets)
 // ============================================
 
@@ -124,7 +118,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbykBWQxmDDD_kT6xmW95vUv0uBNkwNCjK46hw3DSVA4RneFVWguvdt2IbtQg3ByvyAIfQ/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyXmhoLffkl_mBZvlYYhSnGb_q_NTRW_C9MQQ_39Hn_ekuYj7a5F2XvSx_aJL6VZJY7cg/exec';
 const STAGE_FRONTEND_VERSAO = '20260818-STABLE-2';
 
 let sessao = null;
@@ -349,20 +343,17 @@ const STAGE_REDE_EM_ANDAMENTO = new Map();
 let stageJsonpCounter = 0;
 
 const STAGE_CACHE_TTL = {
-    // Vendas continuam relativamente frescas.
-    listarPendentes: 10000,
-    listarVendas: 10000,
-
-    // Configurações mudam pouco: manter cache reduz muito as chamadas ao Apps Script.
-    listarUsuarios: 120000,
-    listarStatusFlags: 300000,
-    listarMetasVendas: 120000,
-    listarProdutos: 300000,
-    listarMetasProdutos: 120000,
-    listarOpcoesVenda: 300000,
-    listarMetasInstalacoes: 120000,
-    listarPromocoes: 120000,
-    carregarDB: 30000
+    listarPendentes: 5000,
+    listarVendas: 5000,
+    listarUsuarios: 30000,
+    listarStatusFlags: 30000,
+    listarMetasVendas: 30000,
+    listarProdutos: 30000,
+    listarMetasProdutos: 30000,
+    listarOpcoesVenda: 30000,
+    listarMetasInstalacoes: 30000,
+    listarPromocoes: 30000,
+    carregarDB: 10000
 };
 
 function stageEscapeHtml(valor) {
@@ -507,14 +498,10 @@ function fetchFromGS(acao, params = {}, opcoes = {}) {
     const ttlPadrao = STAGE_CACHE_TTL[acao] || 0;
     const usarCache = opcoes.cache !== undefined ? !!opcoes.cache : (leitura && !autenticacao && ttlPadrao > 0);
     const dedupe = opcoes.dedupe !== undefined ? !!opcoes.dedupe : (leitura && !autenticacao);
-    const timeoutMs = Number(opcoes.timeoutMs) || (autenticacao ? 18000 : (leitura ? 12000 : 18000));
-
-    // PERFORMANCE:
-    // Leituras comuns não repetem automaticamente.
-    // O login mantém retry explícito e escritas idempotentes continuam protegidas em postParaGoogleSheets().
+    const timeoutMs = Number(opcoes.timeoutMs) || (autenticacao ? 18000 : (leitura ? 20000 : 25000));
     const retries = opcoes.retries !== undefined
         ? Math.max(0, Number(opcoes.retries) || 0)
-        : 0;
+        : ((leitura || idempotente) ? 1 : 0);
 
     if (usarCache) {
         const cached = STAGE_REDE_CACHE.get(chave);
@@ -820,8 +807,8 @@ async function sincronizarUsuariosDaNuvem(force = false) {
         const resp = await fetchFromGS('listarUsuarios', {}, {
             cache: !force,
             dedupe: true,
-            retries: 0,
-            timeoutMs: 10000
+            retries: 1,
+            timeoutMs: 18000
         });
 
         if (!resp || !Array.isArray(resp.usuarios)) {
@@ -1122,17 +1109,7 @@ async function buscarVendasAprovadasDaNuvem() {
             DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
             salvarDB();
             if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas();
-            // PERFORMANCE: não chamar carregarDashboard() daqui.
-            // carregarDashboard() já consulta VENDAS/PENDENTES e isso criava um loop recursivo.
-            // Se o dashboard estiver aberto, apenas redesenha usando o DB que acabou de ser atualizado.
-            if (
-                sessao.tipo === 'admin' &&
-                document.getElementById('secao-dashboard') &&
-                document.getElementById('secao-dashboard').classList.contains('section-active') &&
-                typeof renderizarDashboardLocal === 'function'
-            ) {
-                renderizarDashboardLocal();
-            }
+            if (sessao.tipo === 'admin') carregarDashboard();
             if (sessao.tipo === 'vendedor') {
                 if (document.getElementById('secao-controleVendas') && document.getElementById('secao-controleVendas').classList.contains('section-active')) carregarControleVendas();
                 if (document.getElementById('secao-instalacoes') && document.getElementById('secao-instalacoes').classList.contains('section-active')) carregarInstalacoes();
@@ -2198,62 +2175,19 @@ function obterVendasAprovadasMesAtual() {
 }
 function gerarDadosVendas() { return obterVendasAprovadasHoje().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor)||0, data: v.data })); }
 
-let stageDashboardCarregando = false;
-
-function renderizarDashboardLocal() {
+async function carregarDashboard() {
+    await Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]);
     const vendasMes = obterVendasAprovadasMesAtual();
     const realizado = vendasMes.length;
     const metaMensal = DB.metas.mensalEmpresa || DB.metas.mensalVendas || 150;
-    const pct = Math.min((realizado / metaMensal) * 100, 100).toFixed(1);
-
-    const setText = (id, valor) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = valor;
-    };
-
-    const barra = document.getElementById('barraLiquida');
-    if (barra) barra.style.width = pct + '%';
-
-    setText('metaMensalCard', metaMensal);
-    setText('realizadoMeta', realizado);
-    setText('faltamMeta', Math.max(metaMensal - realizado, 0));
-    setText('percentualMeta', pct + '%');
-
-    // Só renderiza componentes se o Dashboard existir/estiver montado.
-    if (document.getElementById('totalVendasHoje')) {
-        carregarVendasDiarias();
-    }
-
-    if (
-        document.getElementById('btnDiario') &&
-        document.getElementById('comparativoDiario')
-    ) {
-        mostrarComparativo(comparativoAtual);
-    }
-}
-
-async function carregarDashboard() {
-    // Mostra imediatamente o que já existe no cache/localStorage.
-    renderizarDashboardLocal();
-
-    // Impede duas cargas completas do dashboard ao mesmo tempo.
-    if (stageDashboardCarregando || !sessao || sessao.tipo !== 'admin') return;
-
-    stageDashboardCarregando = true;
-
-    try {
-        await Promise.all([
-            buscarPendentesDaNuvem(),
-            buscarVendasAprovadasDaNuvem()
-        ]);
-    } catch (e) {
-        console.warn('Dashboard: falha ao atualizar dados da nuvem:', e);
-    } finally {
-        stageDashboardCarregando = false;
-    }
-
-    // Redesenha uma única vez após sincronizar.
-    renderizarDashboardLocal();
+    const pct = Math.min((realizado/metaMensal)*100,100).toFixed(1);
+    document.getElementById('metaMensalCard').textContent = metaMensal;
+    document.getElementById('realizadoMeta').textContent = realizado;
+    document.getElementById('faltamMeta').textContent = Math.max(metaMensal-realizado,0);
+    document.getElementById('percentualMeta').textContent = pct+'%';
+    document.getElementById('barraLiquida').style.width = pct+'%';
+    carregarVendasDiarias();
+    mostrarComparativo(comparativoAtual);
 }
 
 function carregarVendasDiarias() {
@@ -2873,8 +2807,8 @@ function gerarExcel(dados, nomeArquivo) {
 // ===== POLLING ESTABILIZADO =====
 let isPolling = false;
 let stageUltimoPolling = 0;
-const STAGE_POLL_MS = 45000;
-const STAGE_USUARIOS_POLL_MS = 180000;
+const STAGE_POLL_MS = 30000;
+const STAGE_USUARIOS_POLL_MS = 60000;
 
 async function stageExecutarPolling(force = false) {
     if (!sessao || isPolling) return;
@@ -2909,9 +2843,7 @@ setInterval(() => {
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && sessao) {
-        // Não força nova consulta se acabamos de sincronizar.
-        const passouTempo = (Date.now() - stageUltimoPolling) >= 20000;
-        if (passouTempo) stageExecutarPolling(false);
+        stageExecutarPolling(true);
     }
 });
 
@@ -2926,102 +2858,50 @@ window.addEventListener('offline', () => {
 
 // ===== LOGOUT =====
 function logout(){try{sessionStorage.removeItem('stage_session');sessionStorage.removeItem('stage_notificados_pendentes');}catch(e){}sessao=null;stageInvalidarCacheRede();document.getElementById('loginScreen').style.display='flex';document.getElementById('adminScreen').style.display='none';document.getElementById('vendedorScreen').style.display='none';}
-async function stageFilaLeve(funcoes, pausaMs = 180) {
-    for (const fn of funcoes) {
-        if (!sessao) return;
-
-        try {
-            await fn();
-        } catch (e) {
-            console.warn('Sincronização secundária:', e);
-        }
-
-        if (pausaMs > 0) {
-            await stageDormir(pausaMs);
-        }
-    }
-}
-
 function mostrarAdmin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
     document.getElementById('vendedorScreen').style.display = 'none';
+    document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
-    document.getElementById('userInfoAdmin').innerHTML =
-        '<div style="font-weight:700;">' + sessao.nome + '</div>' +
-        '<div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div>' +
-        '<div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
-
-    // Abre a interface primeiro.
-    renderizarDashboardLocal();
+    carregarDashboard();
     verificarPromocoesAdmin();
 
-    // Dados críticos: somente 2 consultas, sem bloquear a abertura da tela.
-    setTimeout(() => {
-        carregarDashboard().catch(e => console.warn('Dashboard inicial:', e));
-    }, 60);
-
-    // Configurações secundárias: uma por vez e em segundo plano.
-    setTimeout(() => {
-        stageFilaLeve([
-            () => sincronizarUsuariosDaNuvem(),
-            () => sincronizarMetasVendas(),
-            () => sincronizarProdutos(),
-            () => sincronizarOpcoesVenda(),
-            () => sincronizarPromocoes(),
-            () => sincronizarStatusFlagsDaNuvem(),
-            () => sincronizarMetasProdutos(),
-            () => sincronizarMetasInstalacoes()
-        ], 220);
-    }, 800);
+    Promise.all([
+        sincronizarUsuariosDaNuvem(),
+        sincronizarStatusFlagsDaNuvem(),
+        sincronizarMetasVendas(),
+        sincronizarProdutos(),
+        sincronizarMetasProdutos(),
+        sincronizarOpcoesVenda(),
+        sincronizarMetasInstalacoes(),
+        sincronizarPromocoes()
+    ]);
 }
-
 function mostrarVendedor() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'none';
     document.getElementById('vendedorScreen').style.display = 'flex';
+    document.getElementById('userInfoVendedor').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">💼 Vendedor</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
-    document.getElementById('userInfoVendedor').innerHTML =
-        '<div style="font-weight:700;">' + sessao.nome + '</div>' +
-        '<div style="font-size:11px;color:var(--primary-light);">💼 Vendedor</div>' +
-        '<div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
-
-    // Mostra imediatamente os dados locais.
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
 
-    // Primeiro atualiza somente o que é importante para vendas.
-    setTimeout(async () => {
-        try {
-            await Promise.all([
-                buscarPendentesDaNuvem(),
-                buscarVendasAprovadasDaNuvem()
-            ]);
-
-            if (
-                document.getElementById('secao-inicio') &&
-                document.getElementById('secao-inicio').classList.contains('section-active')
-            ) {
-                carregarInicioVendedor();
-            }
-        } catch (e) {
-            console.warn('Carga inicial vendedor:', e);
+    Promise.all([
+        buscarPendentesDaNuvem(),
+        buscarVendasAprovadasDaNuvem(),
+        sincronizarMetasVendas(),
+        sincronizarProdutos(),
+        sincronizarMetasProdutos(),
+        sincronizarOpcoesVenda(),
+        sincronizarMetasInstalacoes(),
+        sincronizarPromocoes()
+    ]).then(() => {
+        if (document.getElementById('secao-inicio') && document.getElementById('secao-inicio').classList.contains('section-active')) {
+            carregarInicioVendedor();
         }
-
         renderBonusAtivoWidget();
-    }, 60);
-
-    // Demais configurações carregam depois, sem congestionamento.
-    setTimeout(() => {
-        stageFilaLeve([
-            () => sincronizarMetasVendas(),
-            () => sincronizarProdutos(),
-            () => sincronizarOpcoesVenda(),
-            () => sincronizarPromocoes(),
-            () => sincronizarMetasProdutos(),
-            () => sincronizarMetasInstalacoes()
-        ], 220);
-    }, 800);
+    }).catch(e => console.warn(e));
 }
 
 // ===== FECHAR MODAIS COM ESC =====
