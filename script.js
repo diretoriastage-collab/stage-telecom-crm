@@ -118,7 +118,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbyXmhoLffkl_mBZvlYYhSnGb_q_NTRW_C9MQQ_39Hn_ekuYj7a5F2XvSx_aJL6VZJY7cg/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbzyfzxx3DcBVoOl-d3IRXc-RO7E4aXeCvWZCEta5Mdtsw0nuxyiLjyfDR8ygTZ9CO6nUg/exec';
 const STAGE_FRONTEND_VERSAO = '20260818-STABLE-2';
 
 let sessao = null;
@@ -371,6 +371,38 @@ function stageNormalizarTexto(valor) {
         .toLocaleLowerCase('pt-BR');
 }
 
+// ===== PROTEÇÃO CONTRA VENDAS DUPLICADAS =====
+// UUID é a chave principal. Para registros antigos sem UUID confiável,
+// usa CPF + Contrato como segunda proteção.
+function stageDeduplicarVendas(lista) {
+    const uuids = new Set();
+    const chavesSecundarias = new Set();
+    const resultado = [];
+
+    (Array.isArray(lista) ? lista : []).forEach(v => {
+        if (!v || typeof v !== 'object') return;
+
+        const uuid = String(v.UUID || v.id || '').trim().toLowerCase();
+        const cpf = String(v.CPF || v.cpf || '').replace(/\D/g, '');
+        const contrato = String(v.Contrato || v.contrato || '').trim().toUpperCase();
+
+        if (uuid && uuids.has(uuid)) return;
+
+        const chaveSecundaria = (cpf && contrato)
+            ? cpf + '|' + contrato
+            : '';
+
+        if (chaveSecundaria && chavesSecundarias.has(chaveSecundaria)) return;
+
+        if (uuid) uuids.add(uuid);
+        if (chaveSecundaria) chavesSecundarias.add(chaveSecundaria);
+
+        resultado.push(v);
+    });
+
+    return resultado;
+}
+
 function stageGerarUUID() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
         return crypto.randomUUID();
@@ -403,9 +435,18 @@ function stageInvalidarCacheRede() {
     STAGE_REDE_CACHE.clear();
 }
 
-function salvarDB() {
+let stageSalvarDBTimer = null;
+let stageSalvarDBPendente = false;
+
+function stagePersistirDBAgora() {
+    if (stageSalvarDBTimer) {
+        clearTimeout(stageSalvarDBTimer);
+        stageSalvarDBTimer = null;
+    }
+
     try {
         localStorage.setItem('stage_db', JSON.stringify(DB));
+        stageSalvarDBPendente = false;
         return true;
     } catch (e) {
         // LocalStorage é apenas cache. Não derrubamos o CRM se um navegador
@@ -414,6 +455,30 @@ function salvarDB() {
         return false;
     }
 }
+
+function salvarDB(imediato = false) {
+    stageSalvarDBPendente = true;
+
+    if (imediato) {
+        return stagePersistirDBAgora();
+    }
+
+    // Evita dezenas de JSON.stringify/localStorage seguidos durante sincronizações.
+    // O estado em memória (DB) continua atualizado imediatamente.
+    if (stageSalvarDBTimer) clearTimeout(stageSalvarDBTimer);
+    stageSalvarDBTimer = setTimeout(stagePersistirDBAgora, 180);
+    return true;
+}
+
+window.addEventListener('pagehide', () => {
+    if (stageSalvarDBPendente) stagePersistirDBAgora();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && stageSalvarDBPendente) {
+        stagePersistirDBAgora();
+    }
+});
 
 function stageJsonpUmaTentativa(acao, params, timeoutMs) {
     return new Promise((resolve, reject) => {
@@ -1055,12 +1120,18 @@ async function buscarPendentesDaNuvem() {
 
 // ===== BUSCAR VENDAS APROVADAS =====
 async function buscarVendasAprovadasDaNuvem() {
-    if (!sessao) return;
+    if (!sessao) return false;
+
     try {
         const resp = await fetchFromGS('listarVendas');
+
         if (resp && resp.vendas && Array.isArray(resp.vendas)) {
-            const aprovadasNuvem = resp.vendas.map(v => ({
-                id: v.UUID || (v.Cliente + Date.now()),
+            // Segunda camada de proteção: mesmo que uma implantação antiga do
+            // Apps Script devolva duplicatas, o navegador não conta duas vezes.
+            const vendasUnicas = stageDeduplicarVendas(resp.vendas);
+
+            const aprovadasNuvem = vendasUnicas.map(v => ({
+                id: v.UUID || ('legacy-' + String(v.CPF || '') + '-' + String(v.Contrato || '') + '-' + String(v.Cliente || '')),
                 nomeCompleto: v.Cliente || '',
                 cpf: v.CPF || '',
                 dataNasc: v['Data Nasc.'] ? formatarBR(v['Data Nasc.']) : '',
@@ -1095,27 +1166,63 @@ async function buscarVendasAprovadasDaNuvem() {
                 status: 'Aprovado',
                 vendedorNome: v.Vendedor || '',
                 vendedor_id: v.VendedorId ? parseInt(v.VendedorId) : null,
-               data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : '',
+
+                // IMPORTANTE: venda antiga sem data NÃO pode virar "hoje".
+                data: v['Data Aprovação'] ? formatarBR(v['Data Aprovação']) : '',
+
                 finalizada: true,
                 instalacaoStatus: v.Instalação || 'Aguardando',
                 dataCriacao: v.DataCriacao || '',
                 observacao: v.Observacao || '',
                 ativadoPor: v['AtivadoPor'] || '',
-                createdAt: v.CreatedAt ? parseInt(v.CreatedAt) : (v['Data Aprovação'] ? new Date(v['Data Aprovação']).getTime() : 0),
+                createdAt: v.CreatedAt
+                    ? parseInt(v.CreatedAt)
+                    : (v['Data Aprovação'] ? (parseDateBR(formatarBR(v['Data Aprovação'])) || new Date(0)).getTime() : 0),
                 origemVenda: v['Origem da Venda'] || ''
             }));
+
             const pendentesLocais = DB.ativacoes.filter(a => a.status !== 'Aprovado');
-            DB.ativacoes = [...pendentesLocais, ...aprovadasNuvem];
+
+            // Substitui a lista aprovada pela resposta atual da planilha.
+            // Isso também elimina qualquer duplicata aprovada presa no cache local.
+            DB.ativacoes = [...pendentesLocais, ...stageDeduplicarVendas(aprovadasNuvem)];
             DB.ativacoes.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+
             salvarDB();
-            if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas();
-            if (sessao.tipo === 'admin') carregarDashboard();
-            if (sessao.tipo === 'vendedor') {
-                if (document.getElementById('secao-controleVendas') && document.getElementById('secao-controleVendas').classList.contains('section-active')) carregarControleVendas();
-                if (document.getElementById('secao-instalacoes') && document.getElementById('secao-instalacoes').classList.contains('section-active')) carregarInstalacoes();
+
+            if (
+                document.getElementById('secao-vendasAprovadas') &&
+                document.getElementById('secao-vendasAprovadas').classList.contains('section-active')
+            ) {
+                carregarVendasAprovadas();
             }
+
+            if (sessao.tipo === 'vendedor') {
+                if (
+                    document.getElementById('secao-controleVendas') &&
+                    document.getElementById('secao-controleVendas').classList.contains('section-active')
+                ) {
+                    carregarControleVendas();
+                }
+
+                if (
+                    document.getElementById('secao-instalacoes') &&
+                    document.getElementById('secao-instalacoes').classList.contains('section-active')
+                ) {
+                    carregarInstalacoes();
+                }
+            }
+
+            // NÃO chama carregarDashboard() daqui.
+            // Isso evitava uma recursão infinita:
+            // carregarDashboard -> buscarVendas -> carregarDashboard -> ...
+            return true;
         }
-    } catch (err) { console.warn('Erro ao buscar vendas aprovadas:', err); }
+    } catch (err) {
+        console.warn('Erro ao buscar vendas aprovadas:', err);
+    }
+
+    return false;
 }
 
 // ===== ATIVAÇÕES =====
@@ -1435,7 +1542,7 @@ async function fecharModalAtivacao() {
     vendaSendoVisualizada = null;
     carregarAtivacoes();
     if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas();
-    if (sessao && sessao.tipo === 'admin') carregarDashboard().catch(e => console.warn(e));
+    if (sessao && sessao.tipo === 'admin') renderizarDashboardLocal();
 }
 
 function abrirModalInfoAdicional() {
@@ -1599,7 +1706,9 @@ async function abrirModalVisualizacao(id) {
         if (label === 'Observação') {
             html += '<div class="input-group" style="grid-column:span 2;"><label>' + stageEscapeHtml(label) + '</label><textarea id="' + idCampo + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);min-height:80px;" ' + readonlyAttr + '>' + stageEscapeHtml(valor || '') + '</textarea></div>';
         } else {
-            html += '<div class="input-group"><label>' + stageEscapeHtml(label) + '</label><input id="' + idCampo + '" value="' + stageEscapeHtml(valor || '') + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);" ' + readonlyAttr + '></div>';
+            // A data da venda aprovada é histórica e não pode ser alterada por edição comum.
+            const somenteLeituraCampo = (idCampo === 'viewDataVenda') ? 'readonly' : readonlyAttr;
+            html += '<div class="input-group"><label>' + stageEscapeHtml(label) + '</label><input id="' + idCampo + '" value="' + stageEscapeHtml(valor || '') + '" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);" ' + somenteLeituraCampo + '></div>';
         }
     });
 
@@ -1655,7 +1764,6 @@ async function salvarEdicaoVenda() {
     a.uf = getVal('viewUf', a.uf);
     a.cidade = getVal('viewCidade', a.cidade);
     a.pontoReferencia = getVal('viewPontoReferencia', a.pontoReferencia);
-    a.data = getVal('viewDataVenda', a.data);
     a.velocidade = getVal('viewVelocidade', a.velocidade);
     a.produto = getVal('viewProduto', a.produto || a.plano);
     a.plano = a.produto;
@@ -1690,7 +1798,6 @@ async function salvarEdicaoVenda() {
         uf: a.uf,
         cidade: a.cidade,
         pontoReferencia: a.pontoReferencia,
-        data: a.data,
         plano: a.produto,
         velocidade: a.velocidade,
         valor: a.valor,
@@ -1754,7 +1861,7 @@ async function salvarEdicaoVenda() {
             : '✅ Dados atualizados!');
 
         carregarVendasAprovadas();
-        if (sessao && sessao.tipo === 'admin') carregarDashboard().catch(e => console.warn(e));
+        if (sessao && sessao.tipo === 'admin') renderizarDashboardLocal();
 
         const modal = document.getElementById('modalVisualizacao');
         if (modal) modal.style.display = 'none';
@@ -2164,7 +2271,7 @@ function buscarCep() {
 }
 
 // ===== DASHBOARD ADMIN =====
-function obterVendasAprovadas() { return DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false); }
+function obterVendasAprovadas() { return stageDeduplicarVendas(DB.ativacoes.filter(a => a.status === 'Aprovado' && a.finalizada !== false)); }
 function obterVendasAprovadasHoje() { return obterVendasAprovadas().filter(a => a.data === hojeBR()); }
 function obterVendasAprovadasMesAtual() {
     const hoje = new Date();
@@ -2175,19 +2282,47 @@ function obterVendasAprovadasMesAtual() {
 }
 function gerarDadosVendas() { return obterVendasAprovadasHoje().map(v => ({ id: v.id, vendedor_id: v.vendedor_id, vendedor_nome: v.vendedorNome, plano: v.produto, valor: parseFloat(v.valor)||0, data: v.data })); }
 
-async function carregarDashboard() {
-    await Promise.all([buscarPendentesDaNuvem(), buscarVendasAprovadasDaNuvem()]);
+function renderizarDashboardLocal() {
     const vendasMes = obterVendasAprovadasMesAtual();
     const realizado = vendasMes.length;
     const metaMensal = DB.metas.mensalEmpresa || DB.metas.mensalVendas || 150;
     const pct = Math.min((realizado/metaMensal)*100,100).toFixed(1);
-    document.getElementById('metaMensalCard').textContent = metaMensal;
-    document.getElementById('realizadoMeta').textContent = realizado;
-    document.getElementById('faltamMeta').textContent = Math.max(metaMensal-realizado,0);
-    document.getElementById('percentualMeta').textContent = pct+'%';
-    document.getElementById('barraLiquida').style.width = pct+'%';
+
+    const metaMensalCard = document.getElementById('metaMensalCard');
+    const realizadoMeta = document.getElementById('realizadoMeta');
+    const faltamMeta = document.getElementById('faltamMeta');
+    const percentualMeta = document.getElementById('percentualMeta');
+    const barraLiquida = document.getElementById('barraLiquida');
+
+    if (metaMensalCard) metaMensalCard.textContent = metaMensal;
+    if (realizadoMeta) realizadoMeta.textContent = realizado;
+    if (faltamMeta) faltamMeta.textContent = Math.max(metaMensal-realizado,0);
+    if (percentualMeta) percentualMeta.textContent = pct+'%';
+    if (barraLiquida) barraLiquida.style.width = pct+'%';
+
     carregarVendasDiarias();
     mostrarComparativo(comparativoAtual);
+}
+
+let stageDashboardEmAndamento = null;
+
+async function carregarDashboard() {
+    if (stageDashboardEmAndamento) return stageDashboardEmAndamento;
+
+    stageDashboardEmAndamento = (async () => {
+        await Promise.all([
+            buscarPendentesDaNuvem(),
+            buscarVendasAprovadasDaNuvem()
+        ]);
+
+        renderizarDashboardLocal();
+    })();
+
+    try {
+        await stageDashboardEmAndamento;
+    } finally {
+        stageDashboardEmAndamento = null;
+    }
 }
 
 function carregarVendasDiarias() {
@@ -2824,6 +2959,10 @@ async function stageExecutarPolling(force = false) {
             buscarPendentesDaNuvem(),
             buscarVendasAprovadasDaNuvem()
         ]);
+
+        if (sessao && sessao.tipo === 'admin') {
+            renderizarDashboardLocal();
+        }
     } catch (e) {
         console.warn('Polling Stage:', e);
     } finally {
@@ -2864,7 +3003,7 @@ function mostrarAdmin() {
     document.getElementById('vendedorScreen').style.display = 'none';
     document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
-    carregarDashboard();
+    carregarDashboard().catch(e => console.warn('Dashboard:', e));
     verificarPromocoesAdmin();
 
     Promise.all([
@@ -3014,4 +3153,4 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (busca) busca.addEventListener('input', filtrarAtivacoes);
 
     console.log('STAGE CRM carregado:', STAGE_FRONTEND_VERSAO);
-});
+});s
