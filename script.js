@@ -118,8 +118,8 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxtWL-vVimoqP07049hQVVzJXIQVaPxA9JBMhdbbaQ55XgCoO1jtdy9hCXGi3SA90_PNg/exec';
-const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FINAL-3';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxAEDNOdrLA6m1dJjL39loHNLNid4dbddtA4oR43rueu9nqq7fqO0SxX_Rj6eeJF1Oj9w/exec';
+const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FINAL-4';
 
 let sessao = null;
 try {
@@ -324,6 +324,7 @@ const STAGE_ACOES_LEITURA = new Set([
     'consultarTratando',
     'listarPendentes',
     'listarVendas',
+    'listarVendasRecentes',
     'carregarDB'
 ]);
 
@@ -433,21 +434,25 @@ function stageDeduplicarVendas(lista) {
     (Array.isArray(lista) ? lista : []).forEach(v => {
         if (!v || typeof v !== 'object') return;
 
-        const uuid = String(v.UUID || v.id || '').trim().toLowerCase();
+        const uuid = String(v.UUID || v.uuid || v.id || '').trim().toLowerCase();
         const cpf = String(v.CPF || v.cpf || '').replace(/\D/g, '');
         const contrato = String(v.Contrato || v.contrato || '').trim().toUpperCase();
+        const chaveSecundaria = (cpf && contrato) ? cpf + '|' + contrato : '';
 
-        if (uuid && uuids.has(uuid)) return;
+        // Registros modernos possuem UUID. Nesse caso, UUID é a ÚNICA chave
+        // capaz de declarar duplicidade. Duas vendas válidas nunca podem sumir
+        // só porque têm o mesmo CPF/Contrato.
+        if (uuid) {
+            if (uuids.has(uuid)) return;
+            uuids.add(uuid);
+            if (chaveSecundaria) chavesSecundarias.add(chaveSecundaria);
+            resultado.push(v);
+            return;
+        }
 
-        const chaveSecundaria = (cpf && contrato)
-            ? cpf + '|' + contrato
-            : '';
-
+        // Somente registros legados, realmente sem UUID, usam CPF+Contrato.
         if (chaveSecundaria && chavesSecundarias.has(chaveSecundaria)) return;
-
-        if (uuid) uuids.add(uuid);
         if (chaveSecundaria) chavesSecundarias.add(chaveSecundaria);
-
         resultado.push(v);
     });
 
@@ -1542,8 +1547,8 @@ async function sincronizarOperacionalDaNuvem(force = false) {
             const resp = await fetchFromGS('snapshotOperacional', {}, {
                 cache: false,
                 dedupe: !force,
-                retries: 2,
-                timeoutMs: 30000
+                retries: 1,
+                timeoutMs: 18000
             });
 
             if (!resp || resp.ok === false || !Array.isArray(resp.pendentes) || !Array.isArray(resp.vendas)) {
@@ -1577,6 +1582,80 @@ async function buscarPendentesDaNuvem(force = false) {
 
 async function buscarVendasAprovadasDaNuvem(force = false) {
     return sincronizarOperacionalDaNuvem(force);
+}
+
+// ===== SINCRONIZAÇÃO RÁPIDA DE VENDAS APROVADAS =====
+// Não depende do snapshot completo. Ao abrir Vendas Aprovadas/Controle,
+// busca somente as últimas linhas físicas de VENDAS e as mescla por UUID.
+// Isso garante que uma aprovação recém-gravada apareça mesmo se um snapshot
+// completo anterior tiver sofrido timeout.
+let stageRecentesEmAndamento = null;
+
+function stageMesclarVendasAprovadasRecentes(vendasRaw) {
+    const recentes = stageDeduplicarVendas(Array.isArray(vendasRaw) ? vendasRaw : [])
+        .map(stageMapearVendaAprovadaNuvem);
+
+    const idsRecentes = new Set(recentes.map(v => String(v.id || '')));
+
+    // Remove cópia pendente/local do mesmo UUID e preserva histórico que não
+    // veio nessa janela recente.
+    const restantes = DB.ativacoes.filter(v => !idsRecentes.has(String(v.id || '')));
+
+    DB.ativacoes = stageDeduplicarVendas([
+        ...recentes,
+        ...restantes
+    ]);
+
+    DB.ativacoes.sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
+    salvarDB(true);
+    return recentes.length;
+}
+
+async function sincronizarVendasRecentesDaNuvem(force = false) {
+    if (!sessao) return false;
+    if (!force && stageRecentesEmAndamento) return stageRecentesEmAndamento;
+
+    const tarefa = (async () => {
+        try {
+            const resp = await fetchFromGS('listarVendasRecentes', { limite: 180 }, {
+                cache: false,
+                dedupe: !force,
+                retries: 1,
+                timeoutMs: 16000
+            });
+
+            if (!resp || resp.ok === false || !Array.isArray(resp.vendas)) {
+                throw new Error((resp && resp.erro) || 'Resposta inválida ao buscar vendas recentes.');
+            }
+
+            stageMesclarVendasAprovadasRecentes(resp.vendas);
+            return true;
+        } catch (e) {
+            console.warn('Sincronização rápida de vendas recentes:', e);
+            return false;
+        }
+    })();
+
+    if (!force) stageRecentesEmAndamento = tarefa;
+    try {
+        return await tarefa;
+    } finally {
+        if (!force && stageRecentesEmAndamento === tarefa) stageRecentesEmAndamento = null;
+    }
+}
+
+function stageMesclarVendaAprovadaResposta(vendaRaw) {
+    if (!vendaRaw || typeof vendaRaw !== 'object') return false;
+    const venda = stageMapearVendaAprovadaNuvem(vendaRaw);
+    const id = String(venda.id || '');
+    if (!id) return false;
+
+    DB.ativacoes = DB.ativacoes.filter(x => String(x.id || '') !== id);
+    DB.ativacoes.unshift(venda);
+    DB.ativacoes = stageDeduplicarVendas(DB.ativacoes);
+    DB.ativacoes.sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
+    salvarDB(true);
+    return true;
 }
 
 // ===== ATIVAÇÕES =====
@@ -1861,8 +1940,16 @@ async function fecharModalAtivacao() {
                 salvarDB();
                 stageInvalidarCacheRede();
 
-                await sincronizarOperacionalDaNuvem(true);
-                // Garante atualização visual imediata após a transação atômica.
+                // A própria resposta da aprovação já traz a venda aprovada.
+                // Portanto ela aparece imediatamente sem depender de um snapshot grande.
+                if (resp.venda) {
+                    stageMesclarVendaAprovadaResposta(resp.venda);
+                }
+
+                // Sincronizações posteriores são reconciliação, não bloqueiam a aprovação.
+                sincronizarVendasRecentesDaNuvem(true).catch(() => {});
+                sincronizarOperacionalDaNuvem(true).catch(() => {});
+
                 if (document.getElementById('secao-ativacoes') && document.getElementById('secao-ativacoes').classList.contains('section-active')) carregarAtivacoes(1);
                 if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas(1);
 
@@ -1883,7 +1970,8 @@ async function fecharModalAtivacao() {
                     a.tratandoPor = null;
                     salvarDB();
                     stageInvalidarCacheRede();
-                    try { await sincronizarOperacionalDaNuvem(true); } catch (_) {}
+                    try { await sincronizarVendasRecentesDaNuvem(true); } catch (_) {}
+                    sincronizarOperacionalDaNuvem(true).catch(() => {});
                     alert('✅ A venda foi aprovada no servidor. A confirmação demorou, mas nenhum dado foi perdido.');
                 } else {
                     Object.assign(a, snapshot);
@@ -2600,8 +2688,14 @@ function mostrarSecaoVendedor(e, secao) {
     document.getElementById('tituloSecaoVendedor').innerHTML = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' }[secao] || secao;
     if (secao === 'inicio') { sincronizarMetasVendas().then(() => carregarInicioVendedor()); }
     if (secao === 'enviarVenda') { sincronizarOpcoesVenda().then(() => { carregarOpcoesVenda(); carregarSelectProdutos(); }); }
-    if (secao === 'controleVendas') { buscarVendasAprovadasDaNuvem().then(() => carregarControleVendas()).catch(() => carregarControleVendas()); }
-    if (secao === 'instalacoes') { buscarVendasAprovadasDaNuvem().then(() => carregarInstalacoes()).catch(() => carregarInstalacoes()); }
+    if (secao === 'controleVendas') {
+        sincronizarVendasRecentesDaNuvem(true).then(() => carregarControleVendas()).catch(() => carregarControleVendas());
+        sincronizarOperacionalDaNuvem(false).catch(()=>{});
+    }
+    if (secao === 'instalacoes') {
+        sincronizarVendasRecentesDaNuvem(true).then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
+        sincronizarOperacionalDaNuvem(false).catch(()=>{});
+    }
 }
 
 function carregarInicioVendedor() {
@@ -2864,7 +2958,13 @@ function mostrarSecao(secao) {
     document.getElementById('tituloSecao').innerHTML = {dashboard:'📊 Dashboard',cadastro:'👥 Cadastro',ativacoes:'⚡ Ativações',vendasAprovadas:'✅ Vendas Aprovadas',relatorios:'📈 Relatórios',metas:'🎯 Metas',promocoes:'🏆 Promoções'}[secao]||secao;
     if(secao==='cadastro'){sincronizarUsuariosDaNuvem().then(()=>carregarUsuarios());}
     if(secao==='ativacoes'){paginaAtualAtivacoes=1;buscarPendentesDaNuvem().then(()=>carregarAtivacoes());}
-    if(secao==='vendasAprovadas'){paginaAtualVendasAprovadas=1;buscarVendasAprovadasDaNuvem().then(()=>carregarVendasAprovadas());}
+    if(secao==='vendasAprovadas'){
+        paginaAtualVendasAprovadas=1;
+        sincronizarVendasRecentesDaNuvem(true)
+            .then(()=>carregarVendasAprovadas(1))
+            .catch(()=>carregarVendasAprovadas(1));
+        sincronizarOperacionalDaNuvem(false).catch(()=>{});
+    }
     if(secao==='relatorios')carregarRelatorios();
     if(secao==='metas'){Promise.all([sincronizarMetasVendas(),sincronizarProdutos(),sincronizarMetasProdutos(),sincronizarMetasInstalacoes()]).then(()=>carregarMetas());}
     if(secao==='promocoes'){sincronizarPromocoes().then(()=>carregarPromocoes());}
