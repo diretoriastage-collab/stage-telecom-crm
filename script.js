@@ -118,7 +118,7 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbw5EKAHOzYpITzedRgVuX5QODkjcUq51deKY047hE_E3DLvAb2g7jMsnUbj49nP0I6XEg/exec';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbywSRUesHSyJPnkjlfH761euGDgj6mHvFL8RSioYqNgZ9TSuP9_xBj0XHO-HhhRjOi8/exec';
 const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FINAL-1';
 
 let sessao = null;
