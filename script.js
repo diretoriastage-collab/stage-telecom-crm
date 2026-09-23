@@ -118,8 +118,8 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxAEDNOdrLA6m1dJjL39loHNLNid4dbddtA4oR43rueu9nqq7fqO0SxX_Rj6eeJF1Oj9w/exec';
-const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FINAL-4';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxi-Bo75RQrqNueuvtuGtZ0W4xYtgZs3072trYFsDboL_oPqCC9J6hNvHPMbBOhNo-7vA/exec';
+const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FASTLANE-5';
 
 let sessao = null;
 try {
@@ -798,7 +798,82 @@ async function testarConexaoStage() {
 
 
 const STAGE_OUTBOX_VENDAS_KEY = 'stage_outbox_vendas_v2';
+const STAGE_OUTBOX_EXCLUSOES_KEY = 'stage_outbox_exclusoes_v1';
+
 let stageProcessandoOutbox = false;
+let stageProcessandoExclusoes = false;
+let stageMutacoesAtivas = 0;
+let stageExclusoesRetryTimer = null;
+
+function stageEntrarMutacao() {
+    stageMutacoesAtivas++;
+}
+
+function stageSairMutacao() {
+    stageMutacoesAtivas = Math.max(0, stageMutacoesAtivas - 1);
+}
+
+function stageLerOutboxExclusoes() {
+    try {
+        const raw = localStorage.getItem(STAGE_OUTBOX_EXCLUSOES_KEY);
+        const lista = raw ? JSON.parse(raw) : [];
+        return Array.isArray(lista) ? lista : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function stageSalvarOutboxExclusoes(lista) {
+    try {
+        localStorage.setItem(STAGE_OUTBOX_EXCLUSOES_KEY, JSON.stringify(Array.isArray(lista) ? lista : []));
+        return true;
+    } catch (e) {
+        console.warn('Não foi possível salvar fila local de exclusões:', e);
+        return false;
+    }
+}
+
+function stageEnfileirarExclusao(uuid) {
+    const id = String(uuid || '').trim();
+    if (!id) return false;
+    const lista = stageLerOutboxExclusoes();
+    if (!lista.some(x => x && String(x.uuid) === id)) {
+        lista.push({ uuid: id, criadoEm: Date.now(), tentativas: 0 });
+    }
+    return stageSalvarOutboxExclusoes(lista);
+}
+
+function stageRemoverOutboxExclusao(uuid) {
+    const id = String(uuid || '').trim();
+    return stageSalvarOutboxExclusoes(
+        stageLerOutboxExclusoes().filter(x => x && String(x.uuid) !== id)
+    );
+}
+
+function stageUuidsExclusaoPendente() {
+    return new Set(
+        stageLerOutboxExclusoes()
+            .map(x => String(x && x.uuid || ''))
+            .filter(Boolean)
+    );
+}
+
+function stageFiltrarExclusoesPendentes(lista) {
+    const ids = stageUuidsExclusaoPendente();
+    if (!ids.size) return Array.isArray(lista) ? lista : [];
+    return (Array.isArray(lista) ? lista : []).filter(v => {
+        const id = String(v && (v.UUID || v.uuid || v.id) || '');
+        return !ids.has(id);
+    });
+}
+
+function stageAgendarExclusoes(delayMs = 2500) {
+    if (stageExclusoesRetryTimer) clearTimeout(stageExclusoesRetryTimer);
+    stageExclusoesRetryTimer = setTimeout(() => {
+        stageExclusoesRetryTimer = null;
+        stageProcessarOutboxExclusoes().catch(() => {});
+    }, Math.max(800, Number(delayMs) || 2500));
+}
 
 function stageLerOutboxVendas() {
     try {
@@ -962,6 +1037,71 @@ async function stageProcessarOutboxVendas(silencioso = true) {
     if (stageLerOutboxVendas().length) {
         stageAgendarOutbox(10000);
     }
+}
+
+
+async function stageConfirmarExclusaoServidor(uuid) {
+    const estado = await stageConsultarVendaServidor(uuid, {
+        retries: 0,
+        silencioso: true,
+        timeoutMs: 4500
+    });
+    return !!(estado && estado.ok && estado.estado === 'NAO_ENCONTRADA');
+}
+
+async function stageProcessarOutboxExclusoes() {
+    if (stageProcessandoExclusoes || !sessao) return false;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+
+    const fila = stageLerOutboxExclusoes();
+    if (!fila.length) return true;
+
+    stageProcessandoExclusoes = true;
+    stageEntrarMutacao();
+
+    let alterou = false;
+
+    try {
+        for (const item of fila.slice(0, 4)) {
+            const uuid = String(item && item.uuid || '').trim();
+            if (!uuid) continue;
+
+            if (await stageConfirmarExclusaoServidor(uuid)) {
+                stageRemoverOutboxExclusao(uuid);
+                alterou = true;
+                continue;
+            }
+
+            // A exclusão é idempotente. Se a resposta do Apps Script demorar,
+            // esta mesma operação pode ser reenviada sem risco de duplicidade.
+            stagePostSemResposta('excluirVenda', { uuid }, 8000).catch(e => {
+                console.warn('POST de exclusão aguardará nova tentativa:', e);
+            });
+
+            await stageDormir(350);
+
+            if (await stageConfirmarExclusaoServidor(uuid)) {
+                stageRemoverOutboxExclusao(uuid);
+                alterou = true;
+            } else {
+                const atual = stageLerOutboxExclusoes();
+                const pos = atual.findIndex(x => x && String(x.uuid) === uuid);
+                if (pos !== -1) {
+                    atual[pos].tentativas = Number(atual[pos].tentativas || 0) + 1;
+                    atual[pos].ultimaTentativa = Date.now();
+                    stageSalvarOutboxExclusoes(atual);
+                }
+            }
+        }
+    } finally {
+        stageSairMutacao();
+        stageProcessandoExclusoes = false;
+    }
+
+    if (alterou) stageInvalidarCacheRede();
+    if (stageLerOutboxExclusoes().length) stageAgendarExclusoes(9000);
+
+    return true;
 }
 
 function stageVendaPertenceUsuario(venda, usuario) {
@@ -1472,8 +1612,12 @@ function stageAplicarSnapshotOperacional(resp) {
     const pendentesRaw = Array.isArray(resp && resp.pendentes) ? resp.pendentes : [];
     const vendasRaw = Array.isArray(resp && resp.vendas) ? resp.vendas : [];
 
-    const pendentesNuvem = pendentesRaw.map(stageMapearPendenteNuvem);
-    const aprovadasNuvem = stageDeduplicarVendas(vendasRaw).map(stageMapearVendaAprovadaNuvem);
+    const pendentesNuvem = stageFiltrarExclusoesPendentes(
+        pendentesRaw.map(stageMapearPendenteNuvem)
+    );
+    const aprovadasNuvem = stageFiltrarExclusoesPendentes(
+        stageDeduplicarVendas(vendasRaw)
+    ).map(stageMapearVendaAprovadaNuvem);
 
     const idsServidor = new Set([
         ...pendentesNuvem.map(x => String(x.id || '')),
@@ -1592,8 +1736,9 @@ async function buscarVendasAprovadasDaNuvem(force = false) {
 let stageRecentesEmAndamento = null;
 
 function stageMesclarVendasAprovadasRecentes(vendasRaw) {
-    const recentes = stageDeduplicarVendas(Array.isArray(vendasRaw) ? vendasRaw : [])
-        .map(stageMapearVendaAprovadaNuvem);
+    const recentes = stageFiltrarExclusoesPendentes(
+        stageDeduplicarVendas(Array.isArray(vendasRaw) ? vendasRaw : [])
+    ).map(stageMapearVendaAprovadaNuvem);
 
     const idsRecentes = new Set(recentes.map(v => String(v.id || '')));
 
@@ -2398,18 +2543,57 @@ async function salvarEdicaoVenda() {
 
 // ===== REMOVER VENDA =====
 async function removerVenda(id) {
-    if (sessao.tipo !== 'admin') { alert('Apenas administradores podem remover vendas.'); return; }
-    const venda = DB.ativacoes.find(a => a.id === id);
-    if (!venda) { alert('Venda não encontrada!'); return; }
+    if (!sessao || sessao.tipo !== 'admin') {
+        alert('Apenas administradores podem remover vendas.');
+        return;
+    }
+
+    const idStr = String(id || '');
+    const venda = DB.ativacoes.find(a => String(a.id) === idStr);
+
+    if (!venda) {
+        alert('Venda não encontrada!');
+        return;
+    }
+
     if (!confirm('Remover permanentemente a venda de "' + (venda.nomeCompleto || '') + '"?')) return;
+
+    if (!stageEnfileirarExclusao(idStr)) {
+        alert('❌ Não foi possível criar a fila segura de exclusão neste navegador. Tente novamente.');
+        return;
+    }
+
+    // Some IMEDIATAMENTE da interface. O backend será confirmado pelo UUID.
+    DB.ativacoes = DB.ativacoes.filter(a => String(a.id) !== idStr);
+    salvarDB(true);
+    stageInvalidarCacheRede();
+
+    carregarVendasAprovadas(1);
+    if (sessao && sessao.tipo === 'admin') renderizarDashboardLocal();
+
+    stageEntrarMutacao();
+
     try {
-        const resp = await fetchFromGS('excluirVenda', { uuid: venda.id });
-        if (resp && resp.ok) {
-            DB.ativacoes = DB.ativacoes.filter(a => a.id !== id); salvarDB();
-            await sincronizarOperacionalDaNuvem(true);
+        stagePostSemResposta('excluirVenda', { uuid: idStr }, 8000).catch(e => {
+            console.warn('Exclusão enviada para nova tentativa automática:', e);
+        });
+
+        await stageDormir(300);
+
+        if (await stageConfirmarExclusaoServidor(idStr)) {
+            stageRemoverOutboxExclusao(idStr);
             alert('✅ Venda removida!');
-        } else alert('❌ Erro ao excluir.');
-    } catch (err) { alert('❌ Erro de comunicação.'); }
+        } else {
+            stageAgendarExclusoes(2500);
+            alert('✅ Exclusão registrada. O Google está demorando para responder, mas o CRM continuará confirmando automaticamente em segundo plano. Não precisa excluir novamente.');
+        }
+    } catch (err) {
+        console.warn('Exclusão seguirá em segundo plano:', err);
+        stageAgendarExclusoes(2500);
+        alert('✅ Exclusão registrada com segurança e continuará em segundo plano.');
+    } finally {
+        stageSairMutacao();
+    }
 }
 
 // ===== FUNÇÕES DO VENDEDOR =====
@@ -3596,20 +3780,22 @@ function gerarExcel(dados, nomeArquivo) {
 // ===== POLLING ESTABILIZADO =====
 let isPolling = false;
 let stageUltimoPolling = 0;
-const STAGE_POLL_MS = 30000;
+const STAGE_POLL_MS = 45000;
 const STAGE_USUARIOS_POLL_MS = 60000;
 
 async function stageExecutarPolling(force = false) {
     if (!sessao || isPolling) return;
     if (!force && document.visibilityState !== 'visible') return;
+    if (!force && stageMutacoesAtivas > 0) return;
 
     const agora = Date.now();
-    if (!force && (agora - stageUltimoPolling) < 10000) return;
+    if (!force && (agora - stageUltimoPolling) < 15000) return;
 
     isPolling = true;
     stageUltimoPolling = agora;
     try {
         await stageProcessarOutboxVendas(true);
+        await stageProcessarOutboxExclusoes();
         await sincronizarOperacionalDaNuvem(force);
 
         if (sessao && sessao.tipo === 'admin') {
@@ -3642,8 +3828,10 @@ window.addEventListener('online', () => {
     console.log('✅ Conexão restabelecida. Atualizando CRM...');
     stageSetConnectionState('reconnecting', 'Conexão voltou. Sincronizando...');
     if (sessao) {
-        stageProcessarOutboxVendas(true)
-            .finally(() => stageExecutarPolling(true));
+        Promise.allSettled([
+            stageProcessarOutboxVendas(true),
+            stageProcessarOutboxExclusoes()
+        ]).finally(() => stageExecutarPolling(true));
     } else {
         testarConexaoStage();
     }
