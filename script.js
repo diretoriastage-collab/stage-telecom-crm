@@ -118,8 +118,8 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbywSRUesHSyJPnkjlfH761euGDgj6mHvFL8RSioYqNgZ9TSuP9_xBj0XHO-HhhRjOi8/exec';
-const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FINAL-1';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxtWL-vVimoqP07049hQVVzJXIQVaPxA9JBMhdbbaQ55XgCoO1jtdy9hCXGi3SA90_PNg/exec';
+const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FINAL-3';
 
 let sessao = null;
 try {
@@ -379,6 +379,47 @@ function stageNormalizarTexto(valor) {
     return String(valor || '')
         .trim()
         .toLocaleLowerCase('pt-BR');
+}
+
+
+// ===== ORDEM CRONOLÓGICA ROBUSTA =====
+// O Google Sheets pode exibir CreatedAt como número, notação científica,
+// data formatada ou texto. Esta função transforma qualquer formato válido
+// em timestamp sem deixar uma venda recém-aprovada cair para o fim da lista.
+function stageNormalizarTimestamp(valor, dataFallback) {
+    if (valor instanceof Date && !isNaN(valor.getTime())) return valor.getTime();
+
+    if (typeof valor === 'number' && Number.isFinite(valor)) {
+        // Epoch em ms (padrão do CRM).
+        if (valor > 100000000000) return valor;
+        // Epoch em segundos, caso algum legado tenha sido salvo assim.
+        if (valor > 1000000000) return valor * 1000;
+        // Serial de data do Google Sheets/Excel.
+        if (valor > 20000 && valor < 100000) {
+            return Math.round((valor - 25569) * 86400000);
+        }
+    }
+
+    const texto = String(valor == null ? '' : valor).trim();
+    if (texto) {
+        const numero = Number(texto.replace(',', '.'));
+        if (Number.isFinite(numero)) {
+            if (numero > 100000000000) return numero;
+            if (numero > 1000000000) return numero * 1000;
+            if (numero > 20000 && numero < 100000) return Math.round((numero - 25569) * 86400000);
+        }
+
+        const dataBR = parseDateBR(texto);
+        if (dataBR && !isNaN(dataBR.getTime())) return dataBR.getTime();
+    }
+
+    const fallback = parseDateBR(dataFallback || '');
+    return fallback && !isNaN(fallback.getTime()) ? fallback.getTime() : 0;
+}
+
+function stageOrdemVenda(venda) {
+    if (!venda) return 0;
+    return stageNormalizarTimestamp(venda.createdAt, venda.data);
 }
 
 // ===== PROTEÇÃO CONTRA VENDAS DUPLICADAS =====
@@ -767,20 +808,22 @@ function stageLerOutboxVendas() {
 function stageSalvarOutboxVendas(lista) {
     try {
         localStorage.setItem(STAGE_OUTBOX_VENDAS_KEY, JSON.stringify(Array.isArray(lista) ? lista : []));
+        return true;
     } catch (e) {
         console.warn('Não foi possível salvar fila local de vendas:', e);
+        return false;
     }
 }
 
 function stageEnfileirarVenda(venda) {
-    if (!venda || !venda.uuid) return;
+    if (!venda || !venda.uuid) return false;
     const lista = stageLerOutboxVendas();
     const uuid = String(venda.uuid);
     const idx = lista.findIndex(x => x && String(x.uuid) === uuid);
     const item = { uuid, venda, criadoEm: Date.now(), tentativas: idx >= 0 ? Number(lista[idx].tentativas || 0) : 0 };
     if (idx >= 0) lista[idx] = { ...lista[idx], ...item };
     else lista.push(item);
-    stageSalvarOutboxVendas(lista);
+    return stageSalvarOutboxVendas(lista);
 }
 
 function stageRemoverOutboxVenda(uuid) {
@@ -796,8 +839,8 @@ async function stageConsultarVendaServidor(uuid, opcoes = {}) {
         return await fetchFromGS('consultarVendaPorUuid', { uuid: id }, {
             cache: false,
             dedupe: false,
-            retries: opcoes.retries !== undefined ? opcoes.retries : 2,
-            timeoutMs: opcoes.timeoutMs || 18000
+            retries: opcoes.retries !== undefined ? opcoes.retries : 0,
+            timeoutMs: opcoes.timeoutMs || 5000
         });
     } catch (e) {
         if (!opcoes.silencioso) console.warn('Não foi possível confirmar UUID no servidor:', e);
@@ -805,12 +848,16 @@ async function stageConsultarVendaServidor(uuid, opcoes = {}) {
     }
 }
 
-async function stageEsperarVendaNoServidor(uuid, tentativas = 6, intervalo = 900) {
+async function stageEsperarVendaNoServidor(uuid, tentativas = 2, intervalo = 450, timeoutMs = 4500) {
     let ultimo = null;
     for (let i = 0; i < tentativas; i++) {
-        ultimo = await stageConsultarVendaServidor(uuid, { retries: i === 0 ? 1 : 0, silencioso: true, timeoutMs: 15000 });
+        ultimo = await stageConsultarVendaServidor(uuid, {
+            retries: 0,
+            silencioso: true,
+            timeoutMs
+        });
         if (ultimo && ultimo.ok && ultimo.estado && ultimo.estado !== 'NAO_ENCONTRADA') return ultimo;
-        if (i < tentativas - 1) await stageDormir(intervalo * (i < 2 ? 1 : 1.5));
+        if (i < tentativas - 1) await stageDormir(intervalo);
     }
     return ultimo;
 }
@@ -818,38 +865,53 @@ async function stageEsperarVendaNoServidor(uuid, tentativas = 6, intervalo = 900
 async function stageEnviarPendenteRobusto(venda) {
     if (!venda || !venda.uuid) throw new Error('Venda sem UUID.');
 
-    let erroPost = null;
-    try {
-        // POST evita URL gigante com CPF/endereço/dados completos.
-        await stagePostSemResposta('adicionarPendente', { venda: JSON.stringify(venda) }, 30000);
-    } catch (e) {
-        erroPost = e;
-        console.warn('POST de venda não confirmou transporte; tentando rota alternativa:', e);
+    // Dispara o POST imediatamente. Não esperamos 30+ segundos pela resposta opaca.
+    // A confirmação é feita por UUID numa chamada curta em paralelo.
+    const envioPost = stagePostSemResposta(
+        'adicionarPendente',
+        { venda: JSON.stringify(venda) },
+        12000
+    ).catch(e => {
+        console.warn('POST da venda ainda não foi confirmado pelo navegador:', e);
+        return false;
+    });
+
+    // Dá um pequeno tempo para o Apps Script começar a gravação.
+    await stageDormir(550);
+
+    const confirmado = await stageEsperarVendaNoServidor(venda.uuid, 1, 0, 5000);
+    if (confirmado && confirmado.ok && confirmado.estado !== 'NAO_ENCONTRADA') {
+        return confirmado;
     }
 
-    let confirmado = await stageEsperarVendaNoServidor(venda.uuid, 5, 800);
-    if (confirmado && confirmado.ok && confirmado.estado !== 'NAO_ENCONTRADA') return confirmado;
+    // Não deixa o vendedor preso no botão "Enviando..." enquanto o Apps Script
+    // está em cold start ou a rede oscila. O POST continua e a outbox confirma
+    // em segundo plano com o MESMO UUID.
+    envioPost.catch(() => {});
+    const erro = new Error('Venda aguardando confirmação em segundo plano.');
+    erro.code = 'STAGE_PENDING_CONFIRMATION';
+    throw erro;
+}
 
-    // Fallback compatível com navegadores/rede que bloqueiem o POST opaco.
-    try {
-        const resp = await fetchFromGS('adicionarPendente', { venda: JSON.stringify(venda) }, {
-            cache: false,
-            dedupe: false,
-            retries: 2,
-            timeoutMs: 32000
-        });
-        if (resp && resp.ok) {
-            confirmado = await stageEsperarVendaNoServidor(venda.uuid, 3, 650);
-            return confirmado && confirmado.ok ? confirmado : { ok: true, estado: resp.jaAprovada ? 'APROVADA' : 'PENDENTE', id: resp.id || venda.uuid };
+let stageOutboxRetryTimer = null;
+
+function stageAgendarOutbox(delayMs = 3500) {
+    if (stageOutboxRetryTimer) clearTimeout(stageOutboxRetryTimer);
+    stageOutboxRetryTimer = setTimeout(async () => {
+        stageOutboxRetryTimer = null;
+        if (!sessao || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+        if (!stageLerOutboxVendas().length) return;
+
+        try {
+            await stageProcessarOutboxVendas(true);
+        } catch (_) {}
+
+        // Se ainda houver venda pendente de confirmação, tenta de novo sem
+        // bloquear a interface. Intervalo maior para não sobrecarregar o GAS.
+        if (stageLerOutboxVendas().length) {
+            stageAgendarOutbox(10000);
         }
-    } catch (e) {
-        if (!erroPost) erroPost = e;
-    }
-
-    confirmado = await stageEsperarVendaNoServidor(venda.uuid, 3, 1000);
-    if (confirmado && confirmado.ok && confirmado.estado !== 'NAO_ENCONTRADA') return confirmado;
-
-    throw erroPost || new Error('O servidor não confirmou o recebimento da venda.');
+    }, Math.max(1000, Number(delayMs) || 3500));
 }
 
 async function stageProcessarOutboxVendas(silencioso = true) {
@@ -890,6 +952,10 @@ async function stageProcessarOutboxVendas(silencioso = true) {
     if (alterou) {
         stageInvalidarCacheRede();
         try { await sincronizarOperacionalDaNuvem(true); } catch (_) {}
+    }
+
+    if (stageLerOutboxVendas().length) {
+        stageAgendarOutbox(10000);
     }
 }
 
@@ -1341,7 +1407,7 @@ function stageMapearPendenteNuvem(p) {
         infoData: p.DataInstalacao || '',
         infoPeriodo: p.PeriodoInstalacao || '',
         dataCriacao: p.DataCriacao || '',
-        createdAt: p.CreatedAt ? parseInt(p.CreatedAt) : (p.DataCriacao ? new Date(p.DataCriacao).getTime() : Date.now()),
+        createdAt: stageNormalizarTimestamp(p.CreatedAt, p.DataVenda || p.DataCriacao || '') || Date.now(),
         newBadge: original ? (original.newBadge || false) : true,
         origemVenda: p['Origem da Venda'] || '',
         _syncPendente: false
@@ -1391,9 +1457,7 @@ function stageMapearVendaAprovadaNuvem(v) {
         dataCriacao: v.DataCriacao || '',
         observacao: v.Observacao || '',
         ativadoPor: v['ATIVADO POR'] || v['AtivadoPor'] || '',
-        createdAt: v.CreatedAt
-            ? parseInt(v.CreatedAt)
-            : (v['Data Aprovação'] ? (parseDateBR(formatarBR(v['Data Aprovação'])) || new Date(0)).getTime() : 0),
+        createdAt: stageNormalizarTimestamp(v.CreatedAt, v['Data Aprovação'] || ''),
         origemVenda: v['Origem da Venda'] || '',
         _syncPendente: false
     };
@@ -1431,7 +1495,7 @@ function stageAplicarSnapshotOperacional(resp) {
         ...pendentesNuvem,
         ...outboxLocais
     ]);
-    DB.ativacoes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    DB.ativacoes.sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
     salvarDB();
 
     if (sessao && sessao.tipo === 'admin') {
@@ -1798,6 +1862,9 @@ async function fecharModalAtivacao() {
                 stageInvalidarCacheRede();
 
                 await sincronizarOperacionalDaNuvem(true);
+                // Garante atualização visual imediata após a transação atômica.
+                if (document.getElementById('secao-ativacoes') && document.getElementById('secao-ativacoes').classList.contains('section-active')) carregarAtivacoes(1);
+                if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas(1);
 
                 alert(resp.reparadaUnificada
                     ? '✅ Venda aprovada e UNIFICADA reparada!'
@@ -1937,7 +2004,7 @@ function carregarVendasAprovadas(pagina) {
     if (!tabela) return;
     let aprovadas = DB.ativacoes
         .filter(a => a.status === 'Aprovado')
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        .sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
 
     const elFiltroData = document.getElementById('filtroDataAprovadas');
     const filtroData = elFiltroData ? elFiltroData.value : null;
@@ -2410,20 +2477,30 @@ async function enviarVenda() {
 
     // Grava ANTES na fila local. Se o navegador fechar ou a rede cair no meio,
     // a venda será reenviada automaticamente com o mesmo UUID, sem duplicar.
-    stageEnfileirarVenda(nova);
+    const filaSalva = stageEnfileirarVenda(nova);
+    if (!filaSalva) {
+        enviandoVenda = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btnOriginal || '<i class="fas fa-check"></i> Enviar Venda';
+        }
+        alert('❌ O navegador não conseguiu criar a fila de segurança local. Não feche a página e tente novamente.');
+        return;
+    }
 
     try {
         const estado = await stageEnviarPendenteRobusto(nova);
 
         if (!estado || !estado.ok || estado.estado === 'NAO_ENCONTRADA') {
-            throw new Error('O servidor não confirmou o recebimento da venda.');
+            throw new Error('O servidor ainda não confirmou o recebimento da venda.');
         }
 
         stageRemoverOutboxVenda(uuidEnvio);
         stageLimparUuidEnvio();
         stageInvalidarCacheRede();
 
-        try { await sincronizarOperacionalDaNuvem(true); } catch (_) {}
+        // Atualização operacional não precisa segurar o botão de envio.
+        sincronizarOperacionalDaNuvem(true).catch(() => {});
 
         limparFormularioVenda();
         alert(estado.estado === 'APROVADA'
@@ -2431,25 +2508,21 @@ async function enviarVenda() {
             : '✅ Venda recebida e confirmada pelo servidor com data: ' + dataVenda);
 
     } catch (err) {
-        console.error('Erro ao enviar venda:', err);
+        console.warn('Venda enviada; confirmação seguirá em segundo plano:', err);
 
-        // Última checagem: o transporte pode ter dado timeout DEPOIS de a
-        // planilha já ter gravado. Só mostramos falha real se o UUID não existir.
-        const estadoFinal = await stageEsperarVendaNoServidor(uuidEnvio, 4, 1100);
-        if (estadoFinal && estadoFinal.ok && estadoFinal.estado !== 'NAO_ENCONTRADA') {
-            stageRemoverOutboxVenda(uuidEnvio);
-            stageLimparUuidEnvio();
-            stageInvalidarCacheRede();
-            try { await sincronizarOperacionalDaNuvem(true); } catch (_) {}
-            limparFormularioVenda();
-            alert('✅ Venda confirmada no servidor após a reconexão.');
-        } else {
-            // Mantém a venda visível no próprio navegador e na fila automática.
-            const jaLocal = DB.ativacoes.some(x => String(x.id) === String(uuidEnvio));
-            if (!jaLocal) DB.ativacoes.unshift({ ...nova, id: uuidEnvio, _syncPendente: true, newBadge: false });
-            salvarDB(true);
-            alert('⚠️ A internet/servidor não confirmou agora. A venda ficou salva neste navegador e será reenviada automaticamente com o mesmo UUID. Não cadastre novamente.');
+        // Exibe imediatamente no próprio navegador como pendente de sincronização.
+        const jaLocal = DB.ativacoes.some(x => String(x.id) === String(uuidEnvio));
+        if (!jaLocal) {
+            DB.ativacoes.unshift({ ...nova, id: uuidEnvio, _syncPendente: true, newBadge: false });
         }
+        salvarDB(true);
+
+        // O formulário pode ser limpo porque a venda já está protegida pela outbox
+        // e pelo UUID idempotente. Reenvios automáticos não criam duplicata.
+        limparFormularioVenda();
+        stageAgendarOutbox(3000);
+
+        alert('⏳ Venda salva com segurança. O servidor está demorando para confirmar, então o envio continuará automaticamente em segundo plano. NÃO cadastre a venda novamente.');
     } finally {
         cooldownTimer = setTimeout(() => {
             enviandoVenda = false;
@@ -2462,7 +2535,7 @@ async function enviarVenda() {
 }
 
 function carregarControleVendas() {
-    const minhas = DB.ativacoes.filter(a => stageVendaPertenceSessao(a) && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const minhas = DB.ativacoes.filter(a => stageVendaPertenceSessao(a) && a.status === 'Aprovado').sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
     const tabela = document.getElementById('tabelaControleVendas');
     if (!tabela) return;
     tabela.innerHTML = '';
@@ -2481,7 +2554,7 @@ function carregarControleVendas() {
 }
 
 function carregarInstalacoes() {
-   const aprovadas = DB.ativacoes.filter(a => stageVendaPertenceSessao(a) && a.status === 'Aprovado').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+   const aprovadas = DB.ativacoes.filter(a => stageVendaPertenceSessao(a) && a.status === 'Aprovado').sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
     const tabela = document.getElementById('tabelaInstalacoes');
     if (!tabela) return;
     tabela.innerHTML = '';
@@ -3577,11 +3650,11 @@ document.addEventListener('keydown', function(e) {
 function preencherFormularioTeste() {
     document.getElementById('vNomeCompleto').value = 'Cliente Teste Automático';
     document.getElementById('vCpf').value = '123.456.789-00';
-    document.getElementById('vDataNasc').value = '01/01/1990';
+    document.getElementById('vDataNasc').value = '1990-01-01';
     document.getElementById('vOrgaoExpeditor').value = 'DETRAN';
     document.getElementById('vNomeMae').value = 'Maria da Silva Teste';
     document.getElementById('vRg').value = '12345678-9';
-    document.getElementById('vDataExpedicao').value = '01/01/2010';
+    document.getElementById('vDataExpedicao').value = '2010-01-01';
     document.getElementById('vEmail').value = 'teste@automacao.com.br';
     document.getElementById('vTelefone1').value = '(21) 99999-1111';
     document.getElementById('vTelefone2').value = '(21) 98888-2222';
@@ -3658,5 +3731,5 @@ document.addEventListener('DOMContentLoaded',()=>{
 
     console.log('STAGE CRM carregado:', STAGE_FRONTEND_VERSAO);
     testarConexaoStage();
-    if (sessao) stageProcessarOutboxVendas(true);
+    if (sessao) stageAgendarOutbox(1200);
 });
