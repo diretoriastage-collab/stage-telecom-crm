@@ -2,13 +2,24 @@
 // STAGE TELECOM CRM - MULTIUSUÁRIO (Google Sheets)
 // ============================================
 
+const STAGE_VIEW_CACHE_KEY = 'stage_view_cache_v6';
 let DB;
 try {
-    const dbRaw = localStorage.getItem('stage_db');
+    let dbRaw = localStorage.getItem(STAGE_VIEW_CACHE_KEY);
+    // Migração única do cache visual antigo. Depois disso stage_db deixa de ser usado.
+    if (!dbRaw) {
+        const legado = localStorage.getItem('stage_db');
+        if (legado) {
+            dbRaw = legado;
+            localStorage.setItem(STAGE_VIEW_CACHE_KEY, legado);
+            localStorage.removeItem('stage_db');
+        }
+    }
     DB = dbRaw ? JSON.parse(dbRaw) : null;
 } catch (e) {
-    console.warn('Banco de dados corrompido. Resetando...', e);
-    localStorage.removeItem('stage_db');
+    console.warn('Cache visual corrompido. Resetando...', e);
+    localStorage.removeItem(STAGE_VIEW_CACHE_KEY);
+    DB = null;
 }
 
 if (!DB) {
@@ -118,8 +129,8 @@ function dataParaBR(d) {
 }
 
 // ===== CONFIGURAÇÕES =====
-const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbxi-Bo75RQrqNueuvtuGtZ0W4xYtgZs3072trYFsDboL_oPqCC9J6hNvHPMbBOhNo-7vA/exec';
-const STAGE_FRONTEND_VERSAO = '20260923-CONNECTION-FASTLANE-5';
+const GOOGLE_SHEET_VENDAS_URL = 'https://script.google.com/macros/s/AKfycbz3wZViyORj5wzVT0rZxotjyPu3VZ04ir7wZ3qOUXNYooGHRT2loaN3kj_-hCHBFSBg2A/exec';
+const STAGE_FRONTEND_VERSAO = '20260924-STABLE-SYNC-6';
 
 let sessao = null;
 try {
@@ -196,8 +207,8 @@ function consultarSheetUsuarios(usuario, senha) {
         'autenticar',
         { usuario: String(usuario || '').trim(), senha: String(senha || '') },
         {
-            timeoutMs: 30000,
-            retries: 2,
+            timeoutMs: 15000,
+            retries: 1,
             cache: false,
             dedupe: false
         }
@@ -310,6 +321,9 @@ async function fazerLogin() {
 // ===== FUNÇÕES DE REDE =====
 const STAGE_ACOES_LEITURA = new Set([
     'statusBackend',
+    'syncState',
+    'bootstrap',
+    'snapshotConfiguracoes',
     'autenticar',
     'snapshotOperacional',
     'consultarVendaPorUuid',
@@ -540,13 +554,13 @@ function stagePersistirDBAgora() {
     }
 
     try {
-        localStorage.setItem('stage_db', JSON.stringify(DB));
+        localStorage.setItem(STAGE_VIEW_CACHE_KEY, JSON.stringify(DB));
         stageSalvarDBPendente = false;
         return true;
     } catch (e) {
         // LocalStorage é apenas cache. Não derrubamos o CRM se um navegador
         // estiver com quota cheia/bloqueada.
-        console.warn('Não foi possível atualizar o cache local stage_db:', e);
+        console.warn('Não foi possível atualizar o cache visual local:', e);
         return false;
     }
 }
@@ -694,6 +708,31 @@ async function stagePostSemResposta(acao, params = {}, timeoutMs = 30000) {
     }
 }
 
+
+// ===== GERENCIADOR CENTRAL DE CONEXÃO =====
+// Cada navegador limita sua própria concorrência para não criar rajadas no Apps Script.
+const STAGE_REDE_LIMITES = { leitura: 2, escrita: 1 };
+const STAGE_REDE_ATIVOS = { leitura: 0, escrita: 0 };
+const STAGE_REDE_FILAS = { leitura: [], escrita: [] };
+
+function stageComSlotRede(tipo, tarefa) {
+    const classe = tipo === 'escrita' ? 'escrita' : 'leitura';
+    return new Promise((resolve, reject) => {
+        const executar = async () => {
+            STAGE_REDE_ATIVOS[classe]++;
+            try { resolve(await tarefa()); }
+            catch (e) { reject(e); }
+            finally {
+                STAGE_REDE_ATIVOS[classe] = Math.max(0, STAGE_REDE_ATIVOS[classe] - 1);
+                const proxima = STAGE_REDE_FILAS[classe].shift();
+                if (proxima) proxima();
+            }
+        };
+        if (STAGE_REDE_ATIVOS[classe] < STAGE_REDE_LIMITES[classe]) executar();
+        else STAGE_REDE_FILAS[classe].push(executar);
+    });
+}
+
 function fetchFromGS(acao, params = {}, opcoes = {}) {
     const leitura = STAGE_ACOES_LEITURA.has(acao);
     const idempotente = STAGE_ACOES_ESCRITA_IDEMPOTENTE.has(acao);
@@ -703,16 +742,16 @@ function fetchFromGS(acao, params = {}, opcoes = {}) {
     const ttlPadrao = STAGE_CACHE_TTL[acao] || 0;
     const usarCache = opcoes.cache !== undefined ? !!opcoes.cache : (leitura && !autenticacao && ttlPadrao > 0);
     const dedupe = opcoes.dedupe !== undefined ? !!opcoes.dedupe : (leitura && !autenticacao);
-    const timeoutMs = Number(opcoes.timeoutMs) || (autenticacao ? 30000 : (leitura ? 28000 : 35000));
+
+    // Timeouts curtos: uma chamada lenta não pode congelar a interface por 30-90s.
+    const timeoutMs = Number(opcoes.timeoutMs) || (autenticacao ? 15000 : (leitura ? 10000 : 12000));
     const retries = opcoes.retries !== undefined
         ? Math.max(0, Number(opcoes.retries) || 0)
-        : ((leitura || idempotente) ? 2 : 0);
+        : (autenticacao ? 1 : (leitura ? 1 : (idempotente ? 1 : 0)));
 
     if (usarCache) {
         const cached = STAGE_REDE_CACHE.get(chave);
-        if (cached && cached.expira > Date.now()) {
-            return Promise.resolve(cached.valor);
-        }
+        if (cached && cached.expira > Date.now()) return Promise.resolve(cached.valor);
         if (cached) STAGE_REDE_CACHE.delete(chave);
     }
 
@@ -720,9 +759,8 @@ function fetchFromGS(acao, params = {}, opcoes = {}) {
         return STAGE_REDE_EM_ANDAMENTO.get(chave);
     }
 
-    const tarefa = (async () => {
+    const tarefaBase = async () => {
         let ultimoErro = null;
-
         for (let tentativa = 0; tentativa <= retries; tentativa++) {
             try {
                 if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -737,35 +775,30 @@ function fetchFromGS(acao, params = {}, opcoes = {}) {
 
                 if (usarCache) {
                     const ttl = Number(opcoes.cacheTtlMs) || ttlPadrao;
-                    if (ttl > 0) {
-                        STAGE_REDE_CACHE.set(chave, { valor: resp, expira: Date.now() + ttl });
-                    }
+                    if (ttl > 0) STAGE_REDE_CACHE.set(chave, { valor: resp, expira: Date.now() + ttl });
                 }
 
                 if (!leitura) stageInvalidarCacheRede();
                 return resp;
-
             } catch (erro) {
                 ultimoErro = erro;
                 stageRegistrarFalhaRede(erro);
                 if (tentativa >= retries) break;
-                await stageDormir(650 * Math.pow(2, tentativa));
+                // Backoff curto e com jitter para PCs diferentes não repetirem no mesmo instante.
+                await stageDormir(350 + Math.floor(Math.random() * 350) + (tentativa * 450));
             }
         }
-
         if (ultimoErro) {
             ultimoErro.tentativas = retries + 1;
             ultimoErro.acao = acao;
         }
         throw ultimoErro || new Error('Falha desconhecida de comunicação.');
-    })();
+    };
 
+    const tarefa = stageComSlotRede(leitura ? 'leitura' : 'escrita', tarefaBase);
     if (dedupe) STAGE_REDE_EM_ANDAMENTO.set(chave, tarefa);
-
     return tarefa.finally(() => {
-        if (dedupe && STAGE_REDE_EM_ANDAMENTO.get(chave) === tarefa) {
-            STAGE_REDE_EM_ANDAMENTO.delete(chave);
-        }
+        if (dedupe && STAGE_REDE_EM_ANDAMENTO.get(chave) === tarefa) STAGE_REDE_EM_ANDAMENTO.delete(chave);
     });
 }
 
@@ -776,7 +809,7 @@ async function postParaGoogleSheets(acao, dados = {}) {
         cache: false,
         dedupe: false,
         retries: STAGE_ACOES_ESCRITA_IDEMPOTENTE.has(acao) ? 1 : 0,
-        timeoutMs: 25000
+        timeoutMs: 12000
     });
 }
 
@@ -797,119 +830,201 @@ async function testarConexaoStage() {
 }
 
 
-const STAGE_OUTBOX_VENDAS_KEY = 'stage_outbox_vendas_v2';
-const STAGE_OUTBOX_EXCLUSOES_KEY = 'stage_outbox_exclusoes_v1';
+// ===== FILA PERSISTENTE DE RECUPERAÇÃO (IndexedDB) =====
+// O banco oficial continua sendo o Google Sheets. IndexedDB guarda SOMENTE
+// operações ainda não confirmadas pelo servidor, para sobreviver a refresh/queda de rede.
+const STAGE_OUTBOX_VENDAS_KEY = 'stage_outbox_vendas_v2'; // somente migração da versão anterior
+const STAGE_OUTBOX_EXCLUSOES_KEY = 'stage_outbox_exclusoes_v1'; // somente migração
+const STAGE_IDB_NAME = 'stage_crm_recovery_v1';
+const STAGE_IDB_STORE = 'operations';
 
 let stageProcessandoOutbox = false;
 let stageProcessandoExclusoes = false;
 let stageMutacoesAtivas = 0;
+let stageOutboxRetryTimer = null;
 let stageExclusoesRetryTimer = null;
+let stageFilaVendasMem = [];
+let stageFilaExclusoesMem = [];
+let stageFilaInicializada = null;
 
-function stageEntrarMutacao() {
-    stageMutacoesAtivas++;
-}
+function stageEntrarMutacao() { stageMutacoesAtivas++; }
+function stageSairMutacao() { stageMutacoesAtivas = Math.max(0, stageMutacoesAtivas - 1); }
 
-function stageSairMutacao() {
-    stageMutacoesAtivas = Math.max(0, stageMutacoesAtivas - 1);
-}
-
-function stageLerOutboxExclusoes() {
-    try {
-        const raw = localStorage.getItem(STAGE_OUTBOX_EXCLUSOES_KEY);
-        const lista = raw ? JSON.parse(raw) : [];
-        return Array.isArray(lista) ? lista : [];
-    } catch (_) {
-        return [];
-    }
-}
-
-function stageSalvarOutboxExclusoes(lista) {
-    try {
-        localStorage.setItem(STAGE_OUTBOX_EXCLUSOES_KEY, JSON.stringify(Array.isArray(lista) ? lista : []));
-        return true;
-    } catch (e) {
-        console.warn('Não foi possível salvar fila local de exclusões:', e);
-        return false;
-    }
-}
-
-function stageEnfileirarExclusao(uuid) {
-    const id = String(uuid || '').trim();
-    if (!id) return false;
-    const lista = stageLerOutboxExclusoes();
-    if (!lista.some(x => x && String(x.uuid) === id)) {
-        lista.push({ uuid: id, criadoEm: Date.now(), tentativas: 0 });
-    }
-    return stageSalvarOutboxExclusoes(lista);
-}
-
-function stageRemoverOutboxExclusao(uuid) {
-    const id = String(uuid || '').trim();
-    return stageSalvarOutboxExclusoes(
-        stageLerOutboxExclusoes().filter(x => x && String(x.uuid) !== id)
-    );
-}
-
-function stageUuidsExclusaoPendente() {
-    return new Set(
-        stageLerOutboxExclusoes()
-            .map(x => String(x && x.uuid || ''))
-            .filter(Boolean)
-    );
-}
-
-function stageFiltrarExclusoesPendentes(lista) {
-    const ids = stageUuidsExclusaoPendente();
-    if (!ids.size) return Array.isArray(lista) ? lista : [];
-    return (Array.isArray(lista) ? lista : []).filter(v => {
-        const id = String(v && (v.UUID || v.uuid || v.id) || '');
-        return !ids.has(id);
+function stageIdbAbrir() {
+    return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) return reject(new Error('IndexedDB indisponível'));
+        const req = indexedDB.open(STAGE_IDB_NAME, 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(STAGE_IDB_STORE)) {
+                const store = db.createObjectStore(STAGE_IDB_STORE, { keyPath: 'id' });
+                store.createIndex('tipo', 'tipo', { unique: false });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error || new Error('Falha ao abrir IndexedDB'));
     });
 }
 
-function stageAgendarExclusoes(delayMs = 2500) {
-    if (stageExclusoesRetryTimer) clearTimeout(stageExclusoesRetryTimer);
-    stageExclusoesRetryTimer = setTimeout(() => {
-        stageExclusoesRetryTimer = null;
-        stageProcessarOutboxExclusoes().catch(() => {});
-    }, Math.max(800, Number(delayMs) || 2500));
+async function stageIdbListar() {
+    const db = await stageIdbAbrir();
+    try {
+        return await new Promise((resolve, reject) => {
+            const tx = db.transaction(STAGE_IDB_STORE, 'readonly');
+            const req = tx.objectStore(STAGE_IDB_STORE).getAll();
+            req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+            req.onerror = () => reject(req.error);
+        });
+    } finally { db.close(); }
 }
 
-function stageLerOutboxVendas() {
+async function stageIdbSalvar(registro) {
+    const db = await stageIdbAbrir();
     try {
-        const raw = localStorage.getItem(STAGE_OUTBOX_VENDAS_KEY);
-        const lista = raw ? JSON.parse(raw) : [];
-        return Array.isArray(lista) ? lista : [];
-    } catch (_) {
-        return [];
-    }
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(STAGE_IDB_STORE, 'readwrite');
+            tx.objectStore(STAGE_IDB_STORE).put(registro);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error('Transação IndexedDB abortada'));
+        });
+        return true;
+    } finally { db.close(); }
 }
 
-function stageSalvarOutboxVendas(lista) {
+async function stageIdbExcluir(id) {
+    const db = await stageIdbAbrir();
     try {
-        localStorage.setItem(STAGE_OUTBOX_VENDAS_KEY, JSON.stringify(Array.isArray(lista) ? lista : []));
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(STAGE_IDB_STORE, 'readwrite');
+            tx.objectStore(STAGE_IDB_STORE).delete(id);
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    } finally { db.close(); }
+}
+
+async function stageFilaInicializar() {
+    if (stageFilaInicializada) return stageFilaInicializada;
+    stageFilaInicializada = (async () => {
+        try {
+            // Pede armazenamento persistente quando o navegador oferece suporte.
+            if (navigator.storage && navigator.storage.persist) {
+                navigator.storage.persist().catch(() => {});
+            }
+
+            // Migra filas antigas do localStorage uma única vez.
+            for (const [key, tipo] of [[STAGE_OUTBOX_VENDAS_KEY, 'venda'], [STAGE_OUTBOX_EXCLUSOES_KEY, 'exclusao']]) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    const lista = raw ? JSON.parse(raw) : [];
+                    if (Array.isArray(lista)) {
+                        for (const item of lista) {
+                            const uuid = String(item && (item.uuid || (item.venda && item.venda.uuid)) || '').trim();
+                            if (!uuid) continue;
+                            await stageIdbSalvar({
+                                id: tipo + ':' + uuid,
+                                tipo,
+                                uuid,
+                                venda: tipo === 'venda' ? item.venda : undefined,
+                                criadoEm: Number(item.criadoEm || Date.now()),
+                                tentativas: Number(item.tentativas || 0),
+                                ultimoErro: item.ultimoErro || ''
+                            });
+                        }
+                    }
+                    localStorage.removeItem(key);
+                } catch (_) {}
+            }
+
+            const registros = await stageIdbListar();
+            stageFilaVendasMem = registros.filter(x => x && x.tipo === 'venda' && x.uuid && x.venda)
+                .map(x => ({ uuid: x.uuid, venda: x.venda, criadoEm: x.criadoEm, tentativas: x.tentativas || 0, ultimoErro: x.ultimoErro || '' }));
+            stageFilaExclusoesMem = registros.filter(x => x && x.tipo === 'exclusao' && x.uuid)
+                .map(x => ({ uuid: x.uuid, criadoEm: x.criadoEm, tentativas: x.tentativas || 0, ultimoErro: x.ultimoErro || '' }));
+            return true;
+        } catch (e) {
+            console.error('Fila persistente indisponível:', e);
+            stageFilaVendasMem = [];
+            stageFilaExclusoesMem = [];
+            return false;
+        }
+    })();
+    return stageFilaInicializada;
+}
+
+function stageLerOutboxVendas() { return stageFilaVendasMem.slice(); }
+function stageLerOutboxExclusoes() { return stageFilaExclusoesMem.slice(); }
+
+async function stageEnfileirarVenda(venda) {
+    await stageFilaInicializar();
+    if (!venda || !venda.uuid) return false;
+    const uuid = String(venda.uuid);
+    const idx = stageFilaVendasMem.findIndex(x => String(x.uuid) === uuid);
+    const item = { uuid, venda, criadoEm: idx >= 0 ? stageFilaVendasMem[idx].criadoEm : Date.now(), tentativas: idx >= 0 ? Number(stageFilaVendasMem[idx].tentativas || 0) : 0 };
+    try {
+        await stageIdbSalvar({ id: 'venda:' + uuid, tipo: 'venda', ...item });
+        if (idx >= 0) stageFilaVendasMem[idx] = item; else stageFilaVendasMem.push(item);
         return true;
     } catch (e) {
-        console.warn('Não foi possível salvar fila local de vendas:', e);
+        console.error('Não foi possível proteger a venda em IndexedDB:', e);
         return false;
     }
-}
-
-function stageEnfileirarVenda(venda) {
-    if (!venda || !venda.uuid) return false;
-    const lista = stageLerOutboxVendas();
-    const uuid = String(venda.uuid);
-    const idx = lista.findIndex(x => x && String(x.uuid) === uuid);
-    const item = { uuid, venda, criadoEm: Date.now(), tentativas: idx >= 0 ? Number(lista[idx].tentativas || 0) : 0 };
-    if (idx >= 0) lista[idx] = { ...lista[idx], ...item };
-    else lista.push(item);
-    return stageSalvarOutboxVendas(lista);
 }
 
 function stageRemoverOutboxVenda(uuid) {
     const id = String(uuid || '');
     if (!id) return;
-    stageSalvarOutboxVendas(stageLerOutboxVendas().filter(x => !x || String(x.uuid) !== id));
+    stageFilaVendasMem = stageFilaVendasMem.filter(x => String(x.uuid) !== id);
+    stageIdbExcluir('venda:' + id).catch(e => console.warn('Limpeza da fila de venda:', e));
+}
+
+async function stageEnfileirarExclusao(uuid) {
+    await stageFilaInicializar();
+    const id = String(uuid || '').trim();
+    if (!id) return false;
+    const idx = stageFilaExclusoesMem.findIndex(x => String(x.uuid) === id);
+    const item = { uuid: id, criadoEm: idx >= 0 ? stageFilaExclusoesMem[idx].criadoEm : Date.now(), tentativas: idx >= 0 ? Number(stageFilaExclusoesMem[idx].tentativas || 0) : 0 };
+    try {
+        await stageIdbSalvar({ id: 'exclusao:' + id, tipo: 'exclusao', ...item });
+        if (idx >= 0) stageFilaExclusoesMem[idx] = item; else stageFilaExclusoesMem.push(item);
+        return true;
+    } catch (e) {
+        console.error('Não foi possível proteger a exclusão em IndexedDB:', e);
+        return false;
+    }
+}
+
+function stageRemoverOutboxExclusao(uuid) {
+    const id = String(uuid || '').trim();
+    stageFilaExclusoesMem = stageFilaExclusoesMem.filter(x => String(x.uuid) !== id);
+    stageIdbExcluir('exclusao:' + id).catch(e => console.warn('Limpeza da fila de exclusão:', e));
+}
+
+function stageUuidsExclusaoPendente() {
+    return new Set(stageFilaExclusoesMem.map(x => String(x.uuid || '')).filter(Boolean));
+}
+
+function stageFiltrarExclusoesPendentes(lista) {
+    const ids = stageUuidsExclusaoPendente();
+    if (!ids.size) return Array.isArray(lista) ? lista : [];
+    return (Array.isArray(lista) ? lista : []).filter(v => !ids.has(String(v && (v.UUID || v.uuid || v.id) || '')));
+}
+
+function stageAgendarOutbox(delayMs = 2500) {
+    if (stageOutboxRetryTimer) clearTimeout(stageOutboxRetryTimer);
+    stageOutboxRetryTimer = setTimeout(() => {
+        stageOutboxRetryTimer = null;
+        stageProcessarOutboxVendas(true).catch(() => {});
+    }, Math.max(1000, Number(delayMs) || 2500));
+}
+
+function stageAgendarExclusoes(delayMs = 3500) {
+    if (stageExclusoesRetryTimer) clearTimeout(stageExclusoesRetryTimer);
+    stageExclusoesRetryTimer = setTimeout(() => {
+        stageExclusoesRetryTimer = null;
+        stageProcessarOutboxExclusoes().catch(() => {});
+    }, Math.max(1000, Number(delayMs) || 3500));
 }
 
 async function stageConsultarVendaServidor(uuid, opcoes = {}) {
@@ -973,27 +1088,6 @@ async function stageEnviarPendenteRobusto(venda) {
     throw erro;
 }
 
-let stageOutboxRetryTimer = null;
-
-function stageAgendarOutbox(delayMs = 3500) {
-    if (stageOutboxRetryTimer) clearTimeout(stageOutboxRetryTimer);
-    stageOutboxRetryTimer = setTimeout(async () => {
-        stageOutboxRetryTimer = null;
-        if (!sessao || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
-        if (!stageLerOutboxVendas().length) return;
-
-        try {
-            await stageProcessarOutboxVendas(true);
-        } catch (_) {}
-
-        // Se ainda houver venda pendente de confirmação, tenta de novo sem
-        // bloquear a interface. Intervalo maior para não sobrecarregar o GAS.
-        if (stageLerOutboxVendas().length) {
-            stageAgendarOutbox(10000);
-        }
-    }, Math.max(1000, Number(delayMs) || 3500));
-}
-
 async function stageProcessarOutboxVendas(silencioso = true) {
     if (stageProcessandoOutbox || !sessao) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
@@ -1019,7 +1113,8 @@ async function stageProcessarOutboxVendas(silencioso = true) {
                     atual[i].tentativas = Number(atual[i].tentativas || 0) + 1;
                     atual[i].ultimoErro = e && e.message ? e.message : String(e);
                     atual[i].ultimaTentativa = Date.now();
-                    stageSalvarOutboxVendas(atual);
+                    stageFilaVendasMem = atual;
+                    stageIdbSalvar({ id: 'venda:' + item.uuid, tipo: 'venda', uuid: item.uuid, venda: item.venda, criadoEm: atual[i].criadoEm || Date.now(), tentativas: atual[i].tentativas, ultimoErro: atual[i].ultimoErro || '', ultimaTentativa: atual[i].ultimaTentativa }).catch(()=>{});
                 }
                 if (!silencioso) console.warn('Venda permanece na fila local:', e);
                 break;
@@ -1031,7 +1126,7 @@ async function stageProcessarOutboxVendas(silencioso = true) {
 
     if (alterou) {
         stageInvalidarCacheRede();
-        try { await sincronizarOperacionalDaNuvem(true); } catch (_) {}
+        stageMarcarSyncNecessaria('operacional');
     }
 
     if (stageLerOutboxVendas().length) {
@@ -1089,7 +1184,8 @@ async function stageProcessarOutboxExclusoes() {
                 if (pos !== -1) {
                     atual[pos].tentativas = Number(atual[pos].tentativas || 0) + 1;
                     atual[pos].ultimaTentativa = Date.now();
-                    stageSalvarOutboxExclusoes(atual);
+                    stageFilaExclusoesMem = atual;
+                    stageIdbSalvar({ id: 'exclusao:' + uuid, tipo: 'exclusao', uuid, criadoEm: atual[pos].criadoEm || Date.now(), tentativas: atual[pos].tentativas, ultimoErro: atual[pos].ultimoErro || '', ultimaTentativa: atual[pos].ultimaTentativa }).catch(()=>{});
                 }
             }
         }
@@ -1098,7 +1194,7 @@ async function stageProcessarOutboxExclusoes() {
         stageProcessandoExclusoes = false;
     }
 
-    if (alterou) stageInvalidarCacheRede();
+    if (alterou) { stageInvalidarCacheRede(); stageMarcarSyncNecessaria('operacional'); }
     if (stageLerOutboxExclusoes().length) stageAgendarExclusoes(9000);
 
     return true;
@@ -1326,6 +1422,143 @@ function obterDataVenda() {
 }
 
 // ===== SINCRONIZAÇÕES GLOBAIS =====
+// O servidor mantém duas versões leves: operacional (PENDENTES/VENDAS) e
+// configuração. Cada PC pergunta apenas a versão; dados completos só são baixados se mudou.
+const STAGE_SYNC_LOCAL = {
+    operacional: null,
+    configuracao: null,
+    ultimoSnapshotCompleto: 0,
+    ultimoConfigSnapshot: 0,
+    ultimoCheck: 0,
+    checkEmAndamento: null
+};
+
+function stageAplicarConfiguracoesSnapshot(cfg) {
+    if (!cfg || typeof cfg !== 'object') return false;
+
+    if (Array.isArray(cfg.usuarios)) {
+        DB.usuarios = cfg.usuarios.filter(u => u && String(u.usuario || '').trim()).map(u => ({
+            id: Number(u.id) || u.id,
+            nome: u.nome || u.usuario || '',
+            usuario: u.usuario || '',
+            senha: '',
+            email: u.email || '',
+            categoria: u.categoria || 'vendedor',
+            tipo: u.categoria || 'vendedor',
+            ativo: String(u.status || '').trim().toUpperCase() === 'LIBERADO',
+            deletedAt: null,
+            equipe: u.equipe || 'Geral'
+        }));
+    }
+    if (Array.isArray(cfg.statusFlags)) DB.statusFlags = cfg.statusFlags.map(f => ({ id: f.id, nome: f.nome, cor: f.cor }));
+    if (cfg.metasVendas) {
+        DB.metas.diariaVendas = Number(cfg.metasVendas.diariaVendas) || 10;
+        DB.metas.quinzenalVendas = Number(cfg.metasVendas.quinzenalVendas) || 75;
+        DB.metas.mensalVendas = Number(cfg.metasVendas.mensalVendas) || 150;
+        DB.metas.diariaEmpresa = Number(cfg.metasVendas.diariaEmpresa) || DB.metas.diariaVendas;
+        DB.metas.quinzenalEmpresa = Number(cfg.metasVendas.quinzenalEmpresa) || DB.metas.quinzenalVendas;
+        DB.metas.mensalEmpresa = Number(cfg.metasVendas.mensalEmpresa) || DB.metas.mensalVendas;
+    }
+    if (Array.isArray(cfg.produtos)) DB.produtos = cfg.produtos.map(p => ({ id: p.id, nome: p.nome }));
+    if (Array.isArray(cfg.metasProdutos)) {
+        DB.metas.produtos = cfg.metasProdutos.filter(m => m.tipo === 'vendedor').map(m => ({ id:m.id, produto:m.produto, diaria:m.diaria, quinzenal:m.quinzenal, mensal:m.mensal }));
+        DB.metas.produtosEmpresa = cfg.metasProdutos.filter(m => m.tipo === 'empresa').map(m => ({ id:m.id, produto:m.produto, diaria:m.diaria, quinzenal:m.quinzenal, mensal:m.mensal }));
+    }
+    if (cfg.opcoesVenda) {
+        DB.opcoesVenda.velocidades = Array.isArray(cfg.opcoesVenda.velocidades) ? cfg.opcoesVenda.velocidades : [];
+        DB.opcoesVenda.formasPagamento = Array.isArray(cfg.opcoesVenda.formasPagamento) ? cfg.opcoesVenda.formasPagamento : [];
+        DB.opcoesVenda.valores = Array.isArray(cfg.opcoesVenda.valores) ? cfg.opcoesVenda.valores : [];
+    }
+    if (Array.isArray(cfg.metasInstalacoes)) {
+        DB.metas.instalacoes = cfg.metasInstalacoes.filter(m => m.tipo === 'vendedor');
+        DB.metas.instalacoesEmpresa = cfg.metasInstalacoes.filter(m => m.tipo === 'empresa');
+    }
+    if (Array.isArray(cfg.promocoes)) DB.promocoes = cfg.promocoes;
+
+    salvarDB(true);
+    return true;
+}
+
+async function stageBootstrapServidor() {
+    if (!sessao) return false;
+    try {
+        const resp = await fetchFromGS('bootstrap', {}, { cache:false, dedupe:true, retries:1, timeoutMs:18000 });
+        if (!resp || resp.ok !== true) throw new Error((resp && resp.erro) || 'Bootstrap inválido');
+        stageAplicarConfiguracoesSnapshot(resp.config || {});
+        stageAplicarSnapshotOperacional({ pendentes: resp.pendentes || [], vendas: resp.vendas || [] });
+        if (resp.versoes) {
+            STAGE_SYNC_LOCAL.operacional = String(resp.versoes.operacional || '');
+            STAGE_SYNC_LOCAL.configuracao = String(resp.versoes.configuracao || '');
+        }
+        STAGE_SYNC_LOCAL.ultimoSnapshotCompleto = Date.now();
+        STAGE_SYNC_LOCAL.ultimoConfigSnapshot = Date.now();
+        return true;
+    } catch (e) {
+        console.warn('Bootstrap do servidor falhou; mantendo somente cache visual até reconectar:', e);
+        return false;
+    }
+}
+
+async function stageSincronizarConfiguracoesSnapshot(force = false) {
+    try {
+        const resp = await fetchFromGS('snapshotConfiguracoes', {}, { cache:false, dedupe:!force, retries:1, timeoutMs:12000 });
+        if (!resp || resp.ok !== true) throw new Error((resp && resp.erro) || 'Configuração inválida');
+        stageAplicarConfiguracoesSnapshot(resp.config || {});
+        if (resp.versoes) STAGE_SYNC_LOCAL.configuracao = String(resp.versoes.configuracao || '');
+        STAGE_SYNC_LOCAL.ultimoConfigSnapshot = Date.now();
+        return true;
+    } catch (e) {
+        console.warn('Sincronização de configurações:', e);
+        return false;
+    }
+}
+
+function stageMarcarSyncNecessaria(tipo) {
+    if (tipo === 'configuracao') STAGE_SYNC_LOCAL.configuracao = null;
+    else STAGE_SYNC_LOCAL.operacional = null;
+}
+
+async function stageSincronizarSeMudou(force = false) {
+    if (!sessao) return false;
+    if (!force && STAGE_SYNC_LOCAL.checkEmAndamento) return STAGE_SYNC_LOCAL.checkEmAndamento;
+
+    const tarefa = (async () => {
+        try {
+            const estado = await fetchFromGS('syncState', {}, { cache:false, dedupe:true, retries:0, timeoutMs:6500 });
+            if (!estado || estado.ok !== true) throw new Error((estado && estado.erro) || 'Estado de sincronização inválido');
+
+            const versoes = estado.versoes || {};
+            const opRemota = String(versoes.operacional || '');
+            const cfgRemota = String(versoes.configuracao || '');
+            const seguranca = (Date.now() - STAGE_SYNC_LOCAL.ultimoSnapshotCompleto) > 120000;
+            const segurancaConfig = (Date.now() - STAGE_SYNC_LOCAL.ultimoConfigSnapshot) > 300000;
+
+            const tarefas = [];
+            if (force || seguranca || !STAGE_SYNC_LOCAL.operacional || STAGE_SYNC_LOCAL.operacional !== opRemota) {
+                tarefas.push(sincronizarOperacionalDaNuvem(true));
+            }
+            if (force || segurancaConfig || !STAGE_SYNC_LOCAL.configuracao || STAGE_SYNC_LOCAL.configuracao !== cfgRemota) {
+                tarefas.push(stageSincronizarConfiguracoesSnapshot(true));
+            }
+
+            if (tarefas.length) await Promise.allSettled(tarefas);
+            if (!tarefas.length) {
+                STAGE_SYNC_LOCAL.operacional = opRemota;
+                STAGE_SYNC_LOCAL.configuracao = cfgRemota;
+            }
+            STAGE_SYNC_LOCAL.ultimoCheck = Date.now();
+            return true;
+        } catch (e) {
+            console.warn('Check leve de sincronização:', e);
+            return false;
+        }
+    })();
+
+    if (!force) STAGE_SYNC_LOCAL.checkEmAndamento = tarefa;
+    try { return await tarefa; }
+    finally { if (!force && STAGE_SYNC_LOCAL.checkEmAndamento === tarefa) STAGE_SYNC_LOCAL.checkEmAndamento = null; }
+}
+
 async function sincronizarUsuariosDaNuvem(force = false) {
     const agora = Date.now();
     if (!force && CACHE_SYNC['usuarios'] && (agora - CACHE_SYNC['usuarios']) < CACHE_DURATION) return;
@@ -1407,23 +1640,14 @@ async function sincronizarUsuariosDaNuvem(force = false) {
 async function sincronizarStatusFlagsDaNuvem() {
   try {
     const resp = await fetchFromGS('listarStatusFlags');
-    if (resp && resp.flags && Array.isArray(resp.flags)) {
+    if (resp && Array.isArray(resp.flags)) {
       DB.statusFlags = resp.flags.map(f => ({ id: f.id, nome: f.nome, cor: f.cor }));
-      
       const padroes = [
-        { nome: 'Pendente', cor: '#ffa502' },
-        { nome: 'Aprovado', cor: '#2ed573' },
-        { nome: 'Cancelado', cor: '#ff4757' }
+        { id:'local-pendente', nome:'Pendente', cor:'#ffa502' },
+        { id:'local-aprovado', nome:'Aprovado', cor:'#2ed573' },
+        { id:'local-cancelado', nome:'Cancelado', cor:'#ff4757' }
       ];
-      for (let p of padroes) {
-        if (!DB.statusFlags.find(f => f.nome === p.nome)) {
-          const respAdd = await fetchFromGS('adicionarStatusFlag', { nome: p.nome, cor: p.cor });
-          if (respAdd && respAdd.ok) {
-            DB.statusFlags.push({ id: respAdd.id, nome: p.nome, cor: p.cor });
-          }
-        }
-      }
-      
+      padroes.forEach(p=>{ if(!DB.statusFlags.find(f=>f.nome===p.nome)) DB.statusFlags.push(p); });
       salvarDB();
     }
   } catch (e) { console.warn('Erro ao sincronizar flags:', e); }
@@ -1704,7 +1928,10 @@ async function sincronizarOperacionalDaNuvem(force = false) {
                 return false;
             }
 
-            return stageAplicarSnapshotOperacional(resp);
+            const aplicado = stageAplicarSnapshotOperacional(resp);
+            if (resp.versoes) STAGE_SYNC_LOCAL.operacional = String(resp.versoes.operacional || '');
+            STAGE_SYNC_LOCAL.ultimoSnapshotCompleto = Date.now();
+            return aplicado;
         } catch (err) {
             console.warn('Erro ao sincronizar operação:', err);
             if (force) throw err;
@@ -1890,7 +2117,7 @@ function stageIniciarTratandoHeartbeat(uuid) {
         }
         try {
             const resp = await fetchFromGS('atualizarTratando', { uuid: id, tratandoPor: sessao.nome }, {
-                cache: false, dedupe: false, retries: 1, timeoutMs: 18000
+                cache: false, dedupe: false, retries: 0, timeoutMs: 7000
             });
             if (resp && resp.ocupado) {
                 stagePararTratandoHeartbeat();
@@ -1901,8 +2128,34 @@ function stageIniciarTratandoHeartbeat(uuid) {
             // no servidor e será renovada na próxima tentativa/conexão.
             console.warn('Heartbeat de tratamento:', e);
         }
-    }, 45000);
+    }, 90000);
 }
+async function stageReservarVendaSegundoPlano(a) {
+    if (!a || !sessao) return;
+    try {
+        const claim = await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome }, {
+            cache:false, dedupe:false, retries:0, timeoutMs:7000
+        });
+        if (!claim || claim.ok !== true) {
+            if (claim && claim.ocupado) {
+                alert('⚠️ Esta venda está sendo tratada por ' + (claim.tratandoPor || 'outro usuário') + '.');
+                if (String(vendaSendoVisualizada) === String(a.id)) {
+                    document.getElementById('modalAtivacao').style.display = 'none';
+                    vendaSendoVisualizada = null;
+                }
+            }
+            return;
+        }
+        a.tratandoPor = sessao.nome;
+        salvarDB();
+        stageIniciarTratandoHeartbeat(a.id);
+    } catch (e) {
+        // Falha de reserva não bloqueia abertura. A gravação final continuará
+        // protegida pelo lock do servidor e pela reconciliação oficial.
+        console.warn('Reserva em segundo plano:', e);
+    }
+}
+
 async function abrirModalAtivacao(id) {
     const a = findAtivacaoById(id);
     if (!a) { alert('Venda não encontrada'); return; }
@@ -1910,30 +2163,9 @@ async function abrirModalAtivacao(id) {
 
     vendaSendoVisualizada = a.id;
 
-    // Reserva a venda NO SERVIDOR antes de abrir a edição. Assim dois admins
-    // não conseguem tratar a mesma venda ao mesmo tempo por causa de cache atrasado.
-    try {
-        const claim = await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: sessao.nome }, {
-            cache: false, dedupe: false, retries: 2, timeoutMs: 22000
-        });
-        if (!claim || claim.ok !== true) {
-            if (claim && claim.ocupado) {
-                alert('⚠️ Esta venda está sendo tratada por ' + (claim.tratandoPor || 'outro usuário') + '. Aguarde.');
-            } else {
-                alert('⚠️ Não foi possível reservar esta venda no servidor. Tente novamente.');
-            }
-            vendaSendoVisualizada = null;
-            return;
-        }
-        a.tratandoPor = sessao.nome;
-        salvarDB();
-        stageIniciarTratandoHeartbeat(a.id);
-    } catch (erroClaim) {
-        console.error('Falha ao reservar venda:', erroClaim);
-        vendaSendoVisualizada = null;
-        alert('❌ Não foi possível confirmar a conexão com o servidor para abrir esta venda. Tente novamente.');
-        return;
-    }
+    // O modal abre imediatamente. A reserva multi-admin acontece em segundo plano.
+    a.tratandoPor = sessao.nome;
+    salvarDB();
 
     const statusOptions = DB.statusFlags.map(f =>
         '<option value="' + f.nome + '" ' + (a.status === f.nome ? 'selected' : '') + '>' + f.nome + '</option>'
@@ -1988,12 +2220,13 @@ async function abrirModalAtivacao(id) {
     document.getElementById('infoData').value = a.infoData || '';
     document.getElementById('infoPeriodo').value = a.infoPeriodo || '';
     document.getElementById('modalAtivacao').style.display = 'flex';
+    stageReservarVendaSegundoPlano(a);
 }
 
-async function cancelarEdicaoAtivacao() {
+function cancelarEdicaoAtivacao() {
     const a = findAtivacaoById(vendaSendoVisualizada);
     if (a) {
-        try { await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' }, {cache:false,dedupe:false,retries:2,timeoutMs:18000}); } catch (e) { console.warn('Liberação de venda:', e); }
+        fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' }, {cache:false,dedupe:false,retries:0,timeoutMs:7000}).catch(()=>{});
         a.tratandoPor = null;
         salvarDB();
     }
@@ -2004,6 +2237,9 @@ async function cancelarEdicaoAtivacao() {
 }
 
 async function fecharModalAtivacao() {
+    const modalImediato = document.getElementById('modalAtivacao');
+    if (modalImediato) modalImediato.style.display = 'none';
+    stagePararTratandoHeartbeat();
     const a = findAtivacaoById(vendaSendoVisualizada);
     if (a) {
         const snapshot = { ...a };
@@ -2072,7 +2308,7 @@ async function fecharModalAtivacao() {
                     ativadoPor: a.ativadoPor,
                     observacao: a.observacao,
                     origemVenda: a.origemVenda
-                }, { cache: false, dedupe: false, retries: 2, timeoutMs: 35000 });
+                }, { cache: false, dedupe: false, retries: 0, timeoutMs: 12000 });
 
                 if (!resp || !resp.ok) {
                     throw new Error((resp && resp.erro) || 'O servidor não confirmou a aprovação.');
@@ -2091,9 +2327,9 @@ async function fecharModalAtivacao() {
                     stageMesclarVendaAprovadaResposta(resp.venda);
                 }
 
-                // Sincronizações posteriores são reconciliação, não bloqueiam a aprovação.
-                sincronizarVendasRecentesDaNuvem(true).catch(() => {});
-                sincronizarOperacionalDaNuvem(true).catch(() => {});
+                // Uma única reconciliação orientada por versão, em segundo plano.
+                stageMarcarSyncNecessaria('operacional');
+                stageSincronizarSeMudou(false).catch(() => {});
 
                 if (document.getElementById('secao-ativacoes') && document.getElementById('secao-ativacoes').classList.contains('section-active')) carregarAtivacoes(1);
                 if (document.getElementById('secao-vendasAprovadas') && document.getElementById('secao-vendasAprovadas').classList.contains('section-active')) carregarVendasAprovadas(1);
@@ -2107,7 +2343,7 @@ async function fecharModalAtivacao() {
 
                 // Timeout não significa que a gravação falhou. Confirma o UUID
                 // diretamente no servidor ANTES de desfazer o estado local.
-                const estadoServidor = await stageEsperarVendaNoServidor(a.id, 5, 900);
+                const estadoServidor = await stageEsperarVendaNoServidor(a.id, 2, 700, 4500);
                 if (estadoServidor && estadoServidor.ok && estadoServidor.estado === 'APROVADA') {
                     a.status = 'Aprovado';
                     a.finalizada = true;
@@ -2115,8 +2351,8 @@ async function fecharModalAtivacao() {
                     a.tratandoPor = null;
                     salvarDB();
                     stageInvalidarCacheRede();
-                    try { await sincronizarVendasRecentesDaNuvem(true); } catch (_) {}
-                    sincronizarOperacionalDaNuvem(true).catch(() => {});
+                    stageMarcarSyncNecessaria('operacional');
+                    stageSincronizarSeMudou(false).catch(() => {});
                     alert('✅ A venda foi aprovada no servidor. A confirmação demorou, mas nenhum dado foi perdido.');
                 } else {
                     Object.assign(a, snapshot);
@@ -2149,7 +2385,7 @@ async function fecharModalAtivacao() {
                     infoPeriodo: a.infoPeriodo,
                     ativadoPor: a.ativadoPor,
                     origemVenda: a.origemVenda
-                }, { cache: false, dedupe: false, retries: 1, timeoutMs: 22000 });
+                }, { cache: false, dedupe: false, retries: 0, timeoutMs: 10000 });
 
                 if (resp && resp.ok === false) {
                     throw new Error(resp.erro || 'Falha ao atualizar venda pendente.');
@@ -2165,7 +2401,7 @@ async function fecharModalAtivacao() {
         a.tratandoPor = null;
         salvarDB();
         try {
-            await fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' }, { cache: false, dedupe: false, retries: 1, timeoutMs: 15000 });
+            fetchFromGS('atualizarTratando', { uuid: a.id, tratandoPor: '' }, { cache: false, dedupe: false, retries: 0, timeoutMs: 7000 }).catch(()=>{});
         } catch (e) {
             console.warn('Não foi possível liberar TratandoPor:', e);
         }
@@ -2212,7 +2448,7 @@ async function salvarInfoAdicional() {
         const resp = await fetchFromGS('atualizarInfoAdicional', {
             uuid: a.id,
             ...novosDados
-        }, { cache: false, dedupe: false, retries: 2, timeoutMs: 25000 });
+        }, { cache: false, dedupe: false, retries: 0, timeoutMs: 10000 });
 
         if (!resp || resp.ok !== true) {
             throw new Error((resp && resp.erro) || 'O servidor não confirmou a gravação.');
@@ -2498,8 +2734,8 @@ async function salvarEdicaoVenda() {
         const resp = await fetchFromGS('editarVenda', dadosEdicao, {
             cache: false,
             dedupe: false,
-            retries: 1,
-            timeoutMs: 25000
+            retries: 0,
+            timeoutMs: 12000
         });
 
         if (!resp || !resp.ok) {
@@ -2515,7 +2751,8 @@ async function salvarEdicaoVenda() {
 
         salvarDB();
         stageInvalidarCacheRede();
-        await sincronizarOperacionalDaNuvem(true);
+        stageMarcarSyncNecessaria('operacional');
+        stageSincronizarSeMudou(false).catch(()=>{});
 
         alert(alterouVendedor
             ? '✅ Venda atualizada e vendedor sincronizado em VENDAS + UNIFICADA!'
@@ -2558,7 +2795,7 @@ async function removerVenda(id) {
 
     if (!confirm('Remover permanentemente a venda de "' + (venda.nomeCompleto || '') + '"?')) return;
 
-    if (!stageEnfileirarExclusao(idStr)) {
+    if (!await stageEnfileirarExclusao(idStr)) {
         alert('❌ Não foi possível criar a fila segura de exclusão neste navegador. Tente novamente.');
         return;
     }
@@ -2749,7 +2986,7 @@ async function enviarVenda() {
 
     // Grava ANTES na fila local. Se o navegador fechar ou a rede cair no meio,
     // a venda será reenviada automaticamente com o mesmo UUID, sem duplicar.
-    const filaSalva = stageEnfileirarVenda(nova);
+    const filaSalva = await stageEnfileirarVenda(nova);
     if (!filaSalva) {
         enviandoVenda = false;
         if (btn) {
@@ -2760,51 +2997,40 @@ async function enviarVenda() {
         return;
     }
 
-    try {
-        const estado = await stageEnviarPendenteRobusto(nova);
-
-        if (!estado || !estado.ok || estado.estado === 'NAO_ENCONTRADA') {
-            throw new Error('O servidor ainda não confirmou o recebimento da venda.');
-        }
-
-        stageRemoverOutboxVenda(uuidEnvio);
-        stageLimparUuidEnvio();
-        stageInvalidarCacheRede();
-
-        // Atualização operacional não precisa segurar o botão de envio.
-        sincronizarOperacionalDaNuvem(true).catch(() => {});
-
-        limparFormularioVenda();
-        alert(estado.estado === 'APROVADA'
-            ? '✅ Venda já estava registrada/aprovada no servidor. Nenhuma duplicação foi criada.'
-            : '✅ Venda recebida e confirmada pelo servidor com data: ' + dataVenda);
-
-    } catch (err) {
-        console.warn('Venda enviada; confirmação seguirá em segundo plano:', err);
-
-        // Exibe imediatamente no próprio navegador como pendente de sincronização.
-        const jaLocal = DB.ativacoes.some(x => String(x.id) === String(uuidEnvio));
-        if (!jaLocal) {
-            DB.ativacoes.unshift({ ...nova, id: uuidEnvio, _syncPendente: true, newBadge: false });
-        }
-        salvarDB(true);
-
-        // O formulário pode ser limpo porque a venda já está protegida pela outbox
-        // e pelo UUID idempotente. Reenvios automáticos não criam duplicata.
-        limparFormularioVenda();
-        stageAgendarOutbox(3000);
-
-        alert('⏳ Venda salva com segurança. O servidor está demorando para confirmar, então o envio continuará automaticamente em segundo plano. NÃO cadastre a venda novamente.');
-    } finally {
-        cooldownTimer = setTimeout(() => {
-            enviandoVenda = false;
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = btnOriginal || '<i class="fas fa-check"></i> Enviar Venda';
-            }
-        }, 700);
+    // A partir daqui a venda já está protegida em IndexedDB. O vendedor pode
+    // continuar usando o CRM sem esperar uma execução longa do Apps Script.
+    limparFormularioVenda();
+    enviandoVenda = false;
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = btnOriginal || '<i class="fas fa-check"></i> Enviar Venda';
     }
+
+    const jaLocal = DB.ativacoes.some(x => String(x.id) === String(uuidEnvio));
+    if (!jaLocal) DB.ativacoes.unshift({ ...nova, id: uuidEnvio, _syncPendente: true, newBadge: false });
+    salvarDB(true);
+
+    // Primeiro feedback = registrado com segurança, não fingimos confirmação do Google.
+    alert('✅ Venda registrada. A sincronização com o servidor continuará em segundo plano. Você já pode continuar usando o CRM.');
+
+    // Tenta confirmação imediatamente, sem prender formulário/botão.
+    stageEnviarPendenteRobusto(nova).then(estado => {
+        if (estado && estado.ok && estado.estado !== 'NAO_ENCONTRADA') {
+            stageRemoverOutboxVenda(uuidEnvio);
+            stageLimparUuidEnvio();
+            stageInvalidarCacheRede();
+            stageMarcarSyncNecessaria('operacional');
+            stageSincronizarSeMudou(false).catch(() => {});
+            console.log('✅ Venda confirmada no servidor:', uuidEnvio);
+            stageToast('✅ Venda confirmada no servidor.');
+        } else {
+            stageAgendarOutbox(3000);
+        }
+    }).catch(() => stageAgendarOutbox(3000));
+
+    return;
 }
+
 
 function carregarControleVendas() {
     const minhas = DB.ativacoes.filter(a => stageVendaPertenceSessao(a) && a.status === 'Aprovado').sort((a, b) => stageOrdemVenda(b) - stageOrdemVenda(a));
@@ -2859,7 +3085,7 @@ async function alterarStatusInstalacao(id, novoStatus) {
     const ant = a.instalacaoStatus; a.instalacaoStatus = novoStatus; salvarDB();
     try {
         const resp = await fetchFromGS('atualizarInstalacao', { uuid: a.id, status: novoStatus });
-        if (resp && resp.ok) { await sincronizarOperacionalDaNuvem(true); if (sessao.tipo === 'vendedor') { carregarControleVendas(); carregarInstalacoes(); } }
+        if (resp && resp.ok) { stageMarcarSyncNecessaria('operacional'); stageSincronizarSeMudou(false).catch(()=>{}); if (sessao.tipo === 'vendedor') { carregarControleVendas(); carregarInstalacoes(); } }
         else { a.instalacaoStatus = ant; salvarDB(); alert('❌ Erro.'); carregarInstalacoes(); }
     } catch (err) { a.instalacaoStatus = ant; salvarDB(); alert('❌ Erro.'); carregarInstalacoes(); }
 }
@@ -2870,16 +3096,18 @@ function mostrarSecaoVendedor(e, secao) {
     document.querySelectorAll('#vendedorScreen .nav-item').forEach(a => a.classList.remove('active'));
     if (e && e.currentTarget) e.currentTarget.classList.add('active');
     document.getElementById('tituloSecaoVendedor').innerHTML = { inicio: '🏠 Início', enviarVenda: '📨 Enviar Venda', controleVendas: '📋 Controle de Vendas', instalacoes: '🔧 Instalações' }[secao] || secao;
-    if (secao === 'inicio') { sincronizarMetasVendas().then(() => carregarInicioVendedor()); }
-    if (secao === 'enviarVenda') { sincronizarOpcoesVenda().then(() => { carregarOpcoesVenda(); carregarSelectProdutos(); }); }
-    if (secao === 'controleVendas') {
-        sincronizarVendasRecentesDaNuvem(true).then(() => carregarControleVendas()).catch(() => carregarControleVendas());
-        sincronizarOperacionalDaNuvem(false).catch(()=>{});
-    }
-    if (secao === 'instalacoes') {
-        sincronizarVendasRecentesDaNuvem(true).then(() => carregarInstalacoes()).catch(() => carregarInstalacoes());
-        sincronizarOperacionalDaNuvem(false).catch(()=>{});
-    }
+
+    if (secao === 'inicio') carregarInicioVendedor();
+    if (secao === 'enviarVenda') { carregarOpcoesVenda(); carregarSelectProdutos(); }
+    if (secao === 'controleVendas') carregarControleVendas();
+    if (secao === 'instalacoes') carregarInstalacoes();
+
+    stageSincronizarSeMudou(false).then(()=>{
+        if (secao === 'inicio') carregarInicioVendedor();
+        if (secao === 'enviarVenda') { carregarOpcoesVenda(); carregarSelectProdutos(); }
+        if (secao === 'controleVendas') carregarControleVendas();
+        if (secao === 'instalacoes') carregarInstalacoes();
+    }).catch(()=>{});
 }
 
 function carregarInicioVendedor() {
@@ -3140,19 +3368,27 @@ function mostrarSecao(secao) {
     document.querySelectorAll('.nav-item').forEach(a=>a.classList.remove('active'));
     const nav=document.querySelector('[data-section="'+secao+'"]'); if(nav)nav.classList.add('active');
     document.getElementById('tituloSecao').innerHTML = {dashboard:'📊 Dashboard',cadastro:'👥 Cadastro',ativacoes:'⚡ Ativações',vendasAprovadas:'✅ Vendas Aprovadas',relatorios:'📈 Relatórios',metas:'🎯 Metas',promocoes:'🏆 Promoções'}[secao]||secao;
-    if(secao==='cadastro'){sincronizarUsuariosDaNuvem().then(()=>carregarUsuarios());}
-    if(secao==='ativacoes'){paginaAtualAtivacoes=1;buscarPendentesDaNuvem().then(()=>carregarAtivacoes());}
-    if(secao==='vendasAprovadas'){
-        paginaAtualVendasAprovadas=1;
-        sincronizarVendasRecentesDaNuvem(true)
-            .then(()=>carregarVendasAprovadas(1))
-            .catch(()=>carregarVendasAprovadas(1));
-        sincronizarOperacionalDaNuvem(false).catch(()=>{});
-    }
-    if(secao==='relatorios')carregarRelatorios();
-    if(secao==='metas'){Promise.all([sincronizarMetasVendas(),sincronizarProdutos(),sincronizarMetasProdutos(),sincronizarMetasInstalacoes()]).then(()=>carregarMetas());}
-    if(secao==='promocoes'){sincronizarPromocoes().then(()=>carregarPromocoes());}
+
+    // Renderiza imediatamente com o último snapshot confirmado; rede atualiza depois.
+    if(secao==='dashboard') renderizarDashboardLocal();
+    if(secao==='cadastro') carregarUsuarios();
+    if(secao==='ativacoes'){paginaAtualAtivacoes=1;carregarAtivacoes(1);}
+    if(secao==='vendasAprovadas'){paginaAtualVendasAprovadas=1;carregarVendasAprovadas(1);}
+    if(secao==='relatorios') carregarRelatoriosLocal();
+    if(secao==='metas') carregarMetas();
+    if(secao==='promocoes') carregarPromocoes();
+
+    stageSincronizarSeMudou(false).then(()=>{
+        if(secao==='dashboard') renderizarDashboardLocal();
+        if(secao==='cadastro') carregarUsuarios();
+        if(secao==='ativacoes') carregarAtivacoes(paginaAtualAtivacoes);
+        if(secao==='vendasAprovadas') carregarVendasAprovadas(paginaAtualVendasAprovadas);
+        if(secao==='relatorios') carregarRelatoriosLocal();
+        if(secao==='metas') carregarMetas();
+        if(secao==='promocoes') carregarPromocoes();
+    }).catch(()=>{});
 }
+
 
 // ===== CADASTRO DE USUÁRIOS =====
 function carregarUsuarios() {
@@ -3182,13 +3418,11 @@ function mostrarFormCadastro(){document.getElementById('formCadastro').style.dis
 async function cadastrarUsuario(){
     const n=document.getElementById('nomeUsuario').value.trim();
     const u=document.getElementById('usuarioUsuario').value.trim();
-    const s=document.getElementById('senhaUsuario').value.trim();
+    const senha=document.getElementById('senhaUsuario').value.trim();
     const e=document.getElementById('emailUsuario').value.trim();
     const cat=document.getElementById('categoriaUsuario').value;
     const eq=document.getElementById('equipeUsuario').value.trim();
-    if(!n||!u||!s||!e)return alert('Preencha todos os campos!');
-
-    await sincronizarUsuariosDaNuvem(true).catch(()=>{});
+    if(!n||!u||!senha||!e)return alert('Preencha todos os campos!');
     if(DB.usuarios.find(x=>stageNormalizarTexto(x.usuario)===stageNormalizarTexto(u)&&!x.deletedAt))return alert('Usuário já existe!');
 
     const btn = document.querySelector('#formCadastro .btn-glass-primary');
@@ -3197,78 +3431,67 @@ async function cadastrarUsuario(){
 
     try {
         const resp = await fetchFromGS('adicionarUsuario', {
-            nome:n, usuario:u, senha:s, email:e, categoria:cat,
+            nome:n, usuario:u, senha, email:e, categoria:cat,
             equipe:cat==='admin'?'Gestão':(eq||'Geral'), status:'LIBERADO'
-        }, {cache:false,dedupe:false,retries:2,timeoutMs:30000});
+        }, {cache:false,dedupe:false,retries:0,timeoutMs:12000});
 
         if(!resp || !resp.ok) throw new Error((resp&&resp.erro)||'Servidor não confirmou o cadastro.');
 
-        stageInvalidarCacheRede();
-        delete CACHE_SYNC['usuarios'];
-        delete CACHE_SYNC['usuariosErro'];
-        await sincronizarUsuariosDaNuvem(true);
+        const existente = DB.usuarios.find(x=>stageNormalizarTexto(x.usuario)===stageNormalizarTexto(u));
+        if (!existente) DB.usuarios.push({
+            id:Number(resp.id)||Date.now(), nome:n, usuario:u, senha:'', email:e,
+            categoria:cat, tipo:cat, ativo:true, deletedAt:null,
+            equipe:cat==='admin'?'Gestão':(eq||'Geral')
+        });
+        salvarDB(true);
+        stageMarcarSyncNecessaria('configuracao');
+        stageSincronizarSeMudou(false).catch(()=>{});
 
         document.getElementById('formCadastro').style.display='none';
         ['nomeUsuario','usuarioUsuario','senhaUsuario','emailUsuario','equipeUsuario'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
         carregarUsuarios();
-        alert(resp.jaExistia ? '✅ Usuário já estava cadastrado no servidor e foi sincronizado.' : '✅ Usuário cadastrado e confirmado no servidor!');
+        alert(resp.jaExistia ? '✅ Usuário já estava cadastrado no servidor.' : '✅ Usuário cadastrado!');
     } catch(err) {
         console.error('Cadastro de usuário:', err);
-        alert('❌ Não foi possível confirmar o cadastro. Nenhum usuário local falso foi criado.\n' + (err&&err.message?err.message:String(err)));
+        alert('❌ Não foi possível confirmar o cadastro no servidor.\n' + (err&&err.message?err.message:String(err)));
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = original || '<i class="fas fa-save"></i> Salvar'; }
     }
 }
 
 async function toggleUsuario(id) {
-    let u = DB.usuarios.find(u => Number(u.id) === Number(id));
+    const u = DB.usuarios.find(u => Number(u.id) === Number(id));
     if (!u) return;
     const novoStatus = u.ativo ? 'BLOQUEADO' : 'LIBERADO';
-
     try {
         const resp = await fetchFromGS('editarUsuario', {
-            usuarioAntigo: u.usuario,
-            nome: u.nome,
-            usuario: u.usuario,
-            email: u.email,
-            categoria: u.categoria || 'vendedor',
-            equipe: u.equipe || 'Geral',
-            status: novoStatus,
-            senha: ''
-        }, {cache:false,dedupe:false,retries:2,timeoutMs:30000});
-
+            usuarioAntigo:u.usuario, nome:u.nome, usuario:u.usuario, email:u.email,
+            categoria:u.categoria||'vendedor', equipe:u.equipe||'Geral', status:novoStatus, senha:''
+        }, {cache:false,dedupe:false,retries:0,timeoutMs:12000});
         if (!resp || !resp.ok) throw new Error((resp&&resp.erro)||'Falha ao atualizar status.');
-        stageInvalidarCacheRede();
-        delete CACHE_SYNC['usuarios'];
-        await sincronizarUsuariosDaNuvem(true);
-        carregarUsuarios();
-    } catch(err) {
-        console.error(err);
-        alert('❌ Não foi possível atualizar o status no servidor.');
-    }
+        u.ativo = novoStatus === 'LIBERADO';
+        salvarDB(true); carregarUsuarios();
+        stageMarcarSyncNecessaria('configuracao'); stageSincronizarSeMudou(false).catch(()=>{});
+    } catch(err) { console.error(err); alert('❌ Não foi possível atualizar o status no servidor.'); }
 }
 
 async function excluirUsuario(id){
     const u=DB.usuarios.find(u=>Number(u.id)===Number(id)); if(!u)return;
     if(!confirm('⚠️ Excluir "'+u.nome+'"?'))return;
     try{
-        const resp=await fetchFromGS('removerUsuario',{usuario:u.usuario},{cache:false,dedupe:false,retries:2,timeoutMs:30000});
+        const resp=await fetchFromGS('removerUsuario',{usuario:u.usuario},{cache:false,dedupe:false,retries:0,timeoutMs:12000});
         if(!resp||!resp.ok) throw new Error((resp&&resp.erro)||'Falha ao excluir.');
-        stageInvalidarCacheRede();
-        delete CACHE_SYNC['usuarios'];
-        await sincronizarUsuariosDaNuvem(true);
-        carregarUsuarios();
+        DB.usuarios=DB.usuarios.filter(x=>Number(x.id)!==Number(id));
+        salvarDB(true); carregarUsuarios();
+        stageMarcarSyncNecessaria('configuracao'); stageSincronizarSeMudou(false).catch(()=>{});
         alert('✅ Excluído e confirmado no servidor!');
-    }catch(err){
-        console.error(err);
-        alert('❌ Erro de comunicação. O usuário não foi removido apenas localmente.');
-    }
+    }catch(err){ console.error(err); alert('❌ Erro de comunicação. O usuário não foi removido localmente.'); }
 }
 
 function abrirModalEditarPorUsuario(usuario){const u=DB.usuarios.find(u=>stageNormalizarTexto(u.usuario)===stageNormalizarTexto(usuario)&&!u.deletedAt);if(!u){alert('Não encontrado.');return;}abrirModalEditar(u.id);}
 
-async function abrirModalEditar(id){
-    await sincronizarUsuariosDaNuvem(true).catch(()=>{});
+function abrirModalEditar(id){
+    stageSincronizarSeMudou(false).catch(()=>{});
     const u=DB.usuarios.find(u=>Number(u.id)===Number(id)&&!u.deletedAt);
     if(!u){alert('Não encontrado.');carregarUsuarios();return;}
     document.getElementById('editUsuarioId').value=u.id;
@@ -3296,33 +3519,25 @@ async function salvarEdicaoUsuario(){
     const equipe=document.getElementById('editEquipeUsuario').value.trim();
     if(!nome||!usuario||!email)return alert('Preencha nome, usuário e email.');
 
-    await sincronizarUsuariosDaNuvem(true).catch(()=>{});
     const u=DB.usuarios.find(x=>Number(x.id)===Number(id)&&!x.deletedAt)
         || DB.usuarios.find(x=>stageNormalizarTexto(x.usuario)===stageNormalizarTexto(loginOriginal)&&!x.deletedAt);
-    if(!u){alert('Usuário original não encontrado no servidor.');return;}
-
+    if(!u){alert('Usuário não encontrado.');return;}
     const duplicado=DB.usuarios.find(x=>!x.deletedAt && Number(x.id)!==Number(u.id) && stageNormalizarTexto(x.usuario)===stageNormalizarTexto(usuario));
     if(duplicado)return alert('Login já existe.');
 
     try{
         const resp=await fetchFromGS('editarUsuario',{
-            usuarioAntigo:loginOriginal||u.usuario,
-            nome,usuario,senha:novaSenha,email,categoria,
-            equipe:categoria==='admin'?'Gestão':(equipe||'Geral'),
-            status:u.ativo?'LIBERADO':'BLOQUEADO'
-        },{cache:false,dedupe:false,retries:2,timeoutMs:30000});
-
+            usuarioAntigo:loginOriginal||u.usuario, nome,usuario,senha:novaSenha,email,categoria,
+            equipe:categoria==='admin'?'Gestão':(equipe||'Geral'), status:u.ativo?'LIBERADO':'BLOQUEADO'
+        },{cache:false,dedupe:false,retries:0,timeoutMs:12000});
         if(!resp||!resp.ok)throw new Error((resp&&resp.erro)||'Servidor não confirmou a edição.');
-        stageInvalidarCacheRede();
-        delete CACHE_SYNC['usuarios'];
-        await sincronizarUsuariosDaNuvem(true);
-        carregarUsuarios();
-        fecharModalEditar();
-        alert('✅ Usuário atualizado e confirmado no servidor!');
-    }catch(err){
-        console.error(err);
-        alert('❌ Não foi possível salvar a alteração. Os dados locais não foram usados como confirmação.\n'+(err&&err.message?err.message:String(err)));
-    }
+
+        u.nome=nome; u.usuario=usuario; u.email=email; u.categoria=categoria; u.tipo=categoria;
+        u.equipe=categoria==='admin'?'Gestão':(equipe||'Geral');
+        salvarDB(true); carregarUsuarios(); fecharModalEditar();
+        stageMarcarSyncNecessaria('configuracao'); stageSincronizarSeMudou(false).catch(()=>{});
+        alert('✅ Usuário atualizado!');
+    }catch(err){ console.error(err); alert('❌ Não foi possível salvar a alteração.\n'+(err&&err.message?err.message:String(err))); }
 }
 
 function toggleLixeira(){const l=document.getElementById('lixeiraUsuarios');if(l.style.display==='none'||l.style.display===''){carregarLixeira();l.style.display='block';}else l.style.display='none';}
@@ -3339,8 +3554,7 @@ function recuperarUsuario(id){const u=DB.usuarios.find(u=>u.id===id);if(u){u.del
 function excluirPermanentemente(id){const u=DB.usuarios.find(u=>u.id===id);if(u&&confirm('Excluir "'+u.nome+'"?')){DB.usuarios=DB.usuarios.filter(u=>u.id!==id);salvarDB();carregarUsuarios();carregarLixeira();}}
 
 // ===== RELATÓRIOS =====
-async function carregarRelatorios(){
-    await sincronizarOperacionalDaNuvem(true);
+function carregarRelatoriosLocal(){
     const periodo=document.getElementById('filtroPeriodo').value; let dA,dAnt;
     if(periodo==='diario'){dA=gerarDadosVendas();dAnt=gerarVendasDiaPassado();}
     else if(periodo==='quinzena'){dA=gerarVendasQuinzenaAtual();dAnt=gerarVendasQuinzenaAnterior();}
@@ -3350,6 +3564,7 @@ async function carregarRelatorios(){
     carregarVendasPorEquipeRelatorio(dA,dAnt);
     carregarRankingRelatorio(dA);
 }
+async function carregarRelatorios(){ carregarRelatoriosLocal(); stageSincronizarSeMudou(false).then(carregarRelatoriosLocal).catch(()=>{}); }
 function gerarVendasQuinzenaAtual(){const h=new Date();const todas=gerarVendasMesAtual();if(h.getDate()<=15)return todas.filter(v=>{const p=v.data.split('/');return p.length===3&&parseInt(p[0])>=1&&parseInt(p[0])<=15;});else return todas.filter(v=>{const p=v.data.split('/');return p.length===3&&parseInt(p[0])>=16;});}
 function gerarVendasQuinzenaAnterior(){return[];}
 
@@ -3539,7 +3754,7 @@ async function salvarMetas(){
     const quinzenalEmp=elq?(parseInt(elq.value)||quinzenal):quinzenal;
     const mensalEmp=elm?(parseInt(elm.value)||mensal):mensal;
     try {
-        const resp=await fetchFromGS('salvarMetasVendas',{diaria,quinzenal,mensal,diariaEmp,quinzenalEmp,mensalEmp},{cache:false,dedupe:false,retries:1,timeoutMs:25000});
+        const resp=await fetchFromGS('salvarMetasVendas',{diaria,quinzenal,mensal,diariaEmp,quinzenalEmp,mensalEmp},{cache:false,dedupe:false,retries:0,timeoutMs:12000});
         if(!resp||resp.ok!==true) throw new Error((resp&&resp.erro)||'Servidor não confirmou.');
         DB.metas.diariaVendas=diaria; DB.metas.quinzenalVendas=quinzenal; DB.metas.mensalVendas=mensal;
         DB.metas.diariaEmpresa=diariaEmp; DB.metas.quinzenalEmpresa=quinzenalEmp; DB.metas.mensalEmpresa=mensalEmp;
@@ -3614,7 +3829,7 @@ async function salvarOpcoesVenda(){
         valores:valRaw.split(',').map(v=>v.trim().replace(/R\$/gi,'').trim()).filter(v=>v!==''&&!isNaN(parseFloat(v.replace(',','.'))))
     };
     try{
-        const resp=await fetchFromGS('salvarOpcoesVenda',{velocidades:novas.velocidades.join(','),formasPagamento:novas.formasPagamento.join(','),valores:novas.valores.join(',')},{cache:false,dedupe:false,retries:1,timeoutMs:25000});
+        const resp=await fetchFromGS('salvarOpcoesVenda',{velocidades:novas.velocidades.join(','),formasPagamento:novas.formasPagamento.join(','),valores:novas.valores.join(',')},{cache:false,dedupe:false,retries:0,timeoutMs:12000});
         if(!resp||resp.ok!==true) throw new Error((resp&&resp.erro)||'Servidor não confirmou.');
         DB.opcoesVenda=novas;
         salvarDB();
@@ -3698,7 +3913,7 @@ async function verificarVencedoresPromocao(promocao) {
 
         const resp = await fetchFromGS('atualizarPromocao', {
             id: promocao.id, ativa: false, concluida: true, vencedores: JSON.stringify(vencedores)
-        }, {cache:false,dedupe:false,retries:1,timeoutMs:25000});
+        }, {cache:false,dedupe:false,retries:0,timeoutMs:12000});
         if (!resp || resp.ok !== true) throw new Error((resp && resp.erro) || 'Servidor não confirmou.');
 
         promocao.vencedores = vencedores;
@@ -3728,6 +3943,15 @@ function verificarNotificacoesVendedor(){if(!sessao||sessao.tipo!=='vendedor')re
 setInterval(()=>{if(sessao&&sessao.tipo==='admin')verificarPromocoesAdmin();if(sessao&&sessao.tipo==='vendedor')renderBonusAtivoWidget();},30000);
 
 // ===== NOTIFICAÇÕES =====
+function stageToast(mensagem, duracao = 5000) {
+    const t = document.getElementById('toastNotificacao');
+    const m = document.getElementById('toastMensagem');
+    if (!t || !m) return;
+    m.textContent = mensagem;
+    t.style.display = 'flex';
+    clearTimeout(stageToast._timer);
+    stageToast._timer = setTimeout(() => { if (t) t.style.display = 'none'; }, duracao);
+}
 function fecharToast(){
     const t=document.getElementById('toastNotificacao');
     if(t)t.style.display='none';
@@ -3742,7 +3966,7 @@ function fecharModalNovaVenda(){const m=document.getElementById('modalNovaVenda'
 function verificarNotificacaoPendente(){if(!sessao||sessao.tipo!=='vendedor')return;const np=DB.notificacoes.filter(n=>n.userId===sessao.id&&!n.lida);if(np.length>0)verificarNotificacoesVendedor();}
 
 // ===== GERENCIAR STATUS =====
-async function abrirGerenciadorStatus(){await sincronizarStatusFlagsDaNuvem();carregarListaStatusFlags();document.getElementById('modalStatus').style.display='flex';}
+function abrirGerenciadorStatus(){carregarListaStatusFlags();document.getElementById('modalStatus').style.display='flex';stageSincronizarSeMudou(false).then(()=>carregarListaStatusFlags()).catch(()=>{});}
 function fecharModalStatus(){document.getElementById('modalStatus').style.display='none';}
 function carregarListaStatusFlags(){const c=document.getElementById('listaStatusFlags');if(!c)return;c.innerHTML=DB.statusFlags.map(f=>'<div class="flag-item"><span class="flag-color" style="background:'+f.cor+';"></span><span>'+f.nome+'</span><button onclick="removerStatusFlag('+f.id+')"><i class="fas fa-trash"></i></button></div>').join('');}
 async function adicionarStatusFlag(){const n=document.getElementById('novoStatusNome').value.trim(),c=document.getElementById('novoStatusCor').value;if(!n)return alert('Digite um nome!');try{const resp=await fetchFromGS('adicionarStatusFlag',{nome:n,cor:c});if(resp&&resp.ok){DB.statusFlags.push({id:resp.id,nome:n,cor:c});salvarDB();carregarListaStatusFlags();document.getElementById('novoStatusNome').value='';}else alert('Erro');}catch(err){alert('Erro de comunicação.');}}
@@ -3777,69 +4001,50 @@ function gerarExcel(dados, nomeArquivo) {
     XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
 }
 
-// ===== POLLING ESTABILIZADO =====
-let isPolling = false;
-let stageUltimoPolling = 0;
-const STAGE_POLL_MS = 45000;
-const STAGE_USUARIOS_POLL_MS = 60000;
+// ===== SINCRONIZAÇÃO MULTI-PC LEVE =====
+// Em vez de baixar PENDENTES+VENDAS em todos os PCs a cada intervalo, cada PC
+// consulta somente duas versões. Snapshot completo só acontece quando algo mudou.
+let stageSyncTimer = null;
 
-async function stageExecutarPolling(force = false) {
-    if (!sessao || isPolling) return;
-    if (!force && document.visibilityState !== 'visible') return;
-    if (!force && stageMutacoesAtivas > 0) return;
-
-    const agora = Date.now();
-    if (!force && (agora - stageUltimoPolling) < 15000) return;
-
-    isPolling = true;
-    stageUltimoPolling = agora;
-    try {
-        await stageProcessarOutboxVendas(true);
-        await stageProcessarOutboxExclusoes();
-        await sincronizarOperacionalDaNuvem(force);
-
-        if (sessao && sessao.tipo === 'admin') {
-            renderizarDashboardLocal();
+function stageAgendarSyncLeve(delayMs) {
+    if (stageSyncTimer) clearTimeout(stageSyncTimer);
+    const atraso = Number(delayMs) || (11000 + Math.floor(Math.random() * 7000));
+    stageSyncTimer = setTimeout(async () => {
+        stageSyncTimer = null;
+        if (sessao && document.visibilityState === 'visible' && stageMutacoesAtivas === 0) {
+            await stageProcessarOutboxVendas(true).catch(()=>{});
+            await stageProcessarOutboxExclusoes().catch(()=>{});
+            await stageSincronizarSeMudou(false).catch(()=>{});
+            if (sessao && sessao.tipo === 'admin') renderizarDashboardLocal();
         }
-    } catch (e) {
-        console.warn('Polling Stage:', e);
-    } finally {
-        isPolling = false;
-    }
+        stageAgendarSyncLeve();
+    }, atraso);
 }
 
-setInterval(() => {
-    stageExecutarPolling(false);
-}, STAGE_POLL_MS);
-
-setInterval(() => {
-    if (document.visibilityState === 'visible' && sessao && sessao.tipo === 'admin') {
-        sincronizarUsuariosDaNuvem(false);
-    }
-}, STAGE_USUARIOS_POLL_MS);
+function stageExecutarPolling(force = false) {
+    return stageSincronizarSeMudou(!!force);
+}
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && sessao) {
-        stageExecutarPolling(true);
+        stageSincronizarSeMudou(false).catch(()=>{});
     }
 });
 
 window.addEventListener('online', () => {
-    console.log('✅ Conexão restabelecida. Atualizando CRM...');
+    console.log('✅ Conexão restabelecida. Sincronizando filas e servidor...');
     stageSetConnectionState('reconnecting', 'Conexão voltou. Sincronizando...');
     if (sessao) {
         Promise.allSettled([
             stageProcessarOutboxVendas(true),
             stageProcessarOutboxExclusoes()
-        ]).finally(() => stageExecutarPolling(true));
-    } else {
-        testarConexaoStage();
-    }
+        ]).finally(() => stageSincronizarSeMudou(true));
+    } else testarConexaoStage();
 });
 
 window.addEventListener('offline', () => {
     stageSetConnectionState('offline');
-    console.warn('⚠️ Navegador está offline. O CRM manterá apenas o cache local até a conexão voltar.');
+    console.warn('⚠️ Navegador offline. Operações críticas permanecem na fila persistente até a conexão voltar.');
 });
 
 async function stageExecutarTarefasComLimite(tarefas, limite = 2) {
@@ -3876,15 +4081,16 @@ function mostrarAdmin() {
     document.getElementById('vendedorScreen').style.display = 'none';
     document.getElementById('userInfoAdmin').innerHTML = '<div style="font-weight:700;">' + sessao.nome + '</div><div style="font-size:11px;color:var(--primary-light);">👑 Administrador</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + sessao.email + '</div>';
 
+    // Mostra o último snapshot imediatamente; uma única chamada bootstrap reconcilia tudo.
+    renderizarDashboardLocal();
     verificarPromocoesAdmin();
-
     (async () => {
-        // Primeiro carrega a operação em UMA chamada; depois configurações em
-        // no máximo duas chamadas simultâneas para não sobrecarregar Apps Script.
-        await stageProcessarOutboxVendas(true);
-        await carregarDashboard();
-        await stageSincronizarConfiguracoes(true);
+        await stageFilaInicializar();
+        stageProcessarOutboxVendas(true).catch(()=>{});
+        stageProcessarOutboxExclusoes().catch(()=>{});
+        await stageBootstrapServidor();
         renderizarDashboardLocal();
+        stageAgendarSyncLeve(5000 + Math.floor(Math.random()*3000));
     })().catch(e => console.warn('Inicialização Admin:', e));
 }
 
@@ -3896,15 +4102,14 @@ function mostrarVendedor() {
 
     mostrarSecaoVendedor(null, 'inicio');
     verificarNotificacoesVendedor();
-
     (async () => {
-        await stageProcessarOutboxVendas(true);
-        await sincronizarOperacionalDaNuvem(true);
-        await stageSincronizarConfiguracoes(false);
-        if (document.getElementById('secao-inicio') && document.getElementById('secao-inicio').classList.contains('section-active')) {
-            carregarInicioVendedor();
-        }
+        await stageFilaInicializar();
+        stageProcessarOutboxVendas(true).catch(()=>{});
+        stageProcessarOutboxExclusoes().catch(()=>{});
+        await stageBootstrapServidor();
+        carregarInicioVendedor();
         renderBonusAtivoWidget();
+        stageAgendarSyncLeve(5000 + Math.floor(Math.random()*3000));
     })().catch(e => console.warn('Inicialização Vendedor:', e));
 }
 
@@ -4018,6 +4223,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (busca) busca.addEventListener('input', filtrarAtivacoes);
 
     console.log('STAGE CRM carregado:', STAGE_FRONTEND_VERSAO);
-    testarConexaoStage();
-    if (sessao) stageAgendarOutbox(1200);
+    stageFilaInicializar().then(()=>{
+        if (sessao) { stageAgendarOutbox(1200); stageAgendarExclusoes(1800); }
+    });
+    if (!sessao) testarConexaoStage();
 });
